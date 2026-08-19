@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Conditions\ConditionExpression;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -51,12 +52,12 @@ class MonitorFactory extends Factory
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {
-            $monitor->conditions()->create([
-                'expression' => $monitor->type === MonitorType::Ping
-                    ? '[CONNECTED] == true'
-                    : '[STATUS] == 200',
-                'sort' => 0,
-            ]);
+            foreach (ConditionExpression::defaultExpressions($monitor->type) as $sort => $expression) {
+                $monitor->conditions()->create([
+                    'expression' => $expression,
+                    'sort' => $sort,
+                ]);
+            }
         });
     }
 

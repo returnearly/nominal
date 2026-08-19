@@ -64,7 +64,7 @@ it('fails HTTP checks when a condition fails', function () {
 
     expect($result->success)->toBeFalse()
         ->and($result->httpStatus)->toBe(500)
-        ->and($result->message)->toContain('[STATUS] == 200');
+        ->and($result->message)->toContain('[STATUS] <= 299');
 });
 
 it('sends a custom method and treats connection errors as failed conditions', function () {

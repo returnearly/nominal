@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Actions\DispatchMonitorCheck;
+use App\Conditions\ConditionExpression;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
@@ -32,10 +33,12 @@ class DemoMonitorSeeder extends Seeder
             );
 
             if ($monitor->conditions()->doesntExist()) {
-                $monitor->conditions()->create([
-                    'expression' => $demo['condition'],
-                    'sort' => 0,
-                ]);
+                foreach ($demo['conditions'] as $sort => $expression) {
+                    $monitor->conditions()->create([
+                        'expression' => $expression,
+                        'sort' => $sort,
+                    ]);
+                }
             }
 
             $monitor->probes()->syncWithoutDetaching([$probe->id]);
@@ -47,14 +50,14 @@ class DemoMonitorSeeder extends Seeder
     }
 
     /**
-     * @return list<array{name: string, condition: string, attributes: array<string, mixed>}>
+     * @return list<array{name: string, conditions: list<string>, attributes: array<string, mixed>}>
      */
     private function monitors(): array
     {
         return [
             [
                 'name' => 'Example HTTP',
-                'condition' => '[STATUS] == 200',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Http),
                 'attributes' => $this->attributes(
                     type: MonitorType::Http,
                     target: 'https://example.com',
@@ -63,7 +66,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example Ping',
-                'condition' => '[CONNECTED] == true',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Ping),
                 'attributes' => $this->attributes(
                     type: MonitorType::Ping,
                     target: '1.1.1.1',
@@ -71,7 +74,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Failing HTTP status',
-                'condition' => '[STATUS] == 500',
+                'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
                     type: MonitorType::Http,
                     target: 'https://example.com',
@@ -81,7 +84,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Failing HTTP unreachable',
-                'condition' => '[CONNECTED] == true',
+                'conditions' => ['[CONNECTED] == true'],
                 'attributes' => $this->attributes(
                     type: MonitorType::Http,
                     target: 'https://down.invalid',
@@ -92,7 +95,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Failing Ping',
-                'condition' => '[CONNECTED] == true',
+                'conditions' => ['[CONNECTED] == true'],
                 'attributes' => $this->attributes(
                     type: MonitorType::Ping,
                     target: '192.0.2.1',

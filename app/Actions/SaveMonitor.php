@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Conditions\ConditionExpression;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -64,7 +65,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
      */
     private function syncConditions(Monitor $monitor, ?array $expressions): void
     {
-        $expressions ??= [$monitor->type === MonitorType::Ping ? '[CONNECTED] == true' : '[STATUS] == 200'];
+        $expressions ??= ConditionExpression::defaultExpressions($monitor->type);
 
         $monitor->conditions()->delete();
 
