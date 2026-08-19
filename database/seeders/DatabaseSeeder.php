@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
 
         $channel->monitors()->syncWithoutDetaching(
             Monitor::query()
-                ->whereIn('name', ['Example HTTP', 'Example Ping'])
+                ->whereIn('group', ['demo', 'failing'])
                 ->pluck('id'),
         );
     }

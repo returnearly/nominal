@@ -25,9 +25,7 @@ class DemoMonitorSeeder extends Seeder
             ],
         );
 
-        foreach (MonitorType::cases() as $type) {
-            $demo = $this->monitor($type);
-
+        foreach ($this->monitors() as $demo) {
             $monitor = Monitor::query()->firstOrCreate(
                 ['name' => $demo['name']],
                 $demo['attributes'],
@@ -49,41 +47,84 @@ class DemoMonitorSeeder extends Seeder
     }
 
     /**
-     * @return array{name: string, condition: string, attributes: array<string, mixed>}
+     * @return list<array{name: string, condition: string, attributes: array<string, mixed>}>
      */
-    private function monitor(MonitorType $type): array
+    private function monitors(): array
     {
-        $specific = match ($type) {
-            MonitorType::Http => [
+        return [
+            [
                 'name' => 'Example HTTP',
                 'condition' => '[STATUS] == 200',
-                'target' => 'https://example.com',
-                'method' => HttpMethod::Get,
+                'attributes' => $this->attributes(
+                    type: MonitorType::Http,
+                    target: 'https://example.com',
+                    method: HttpMethod::Get,
+                ),
             ],
-            MonitorType::Ping => [
+            [
                 'name' => 'Example Ping',
                 'condition' => '[CONNECTED] == true',
-                'target' => '1.1.1.1',
-                'method' => null,
+                'attributes' => $this->attributes(
+                    type: MonitorType::Ping,
+                    target: '1.1.1.1',
+                ),
             ],
-        };
+            [
+                'name' => 'Failing HTTP status',
+                'condition' => '[STATUS] == 500',
+                'attributes' => $this->attributes(
+                    type: MonitorType::Http,
+                    target: 'https://example.com',
+                    method: HttpMethod::Get,
+                    group: 'failing',
+                ),
+            ],
+            [
+                'name' => 'Failing HTTP unreachable',
+                'condition' => '[CONNECTED] == true',
+                'attributes' => $this->attributes(
+                    type: MonitorType::Http,
+                    target: 'https://down.invalid',
+                    method: HttpMethod::Get,
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing Ping',
+                'condition' => '[CONNECTED] == true',
+                'attributes' => $this->attributes(
+                    type: MonitorType::Ping,
+                    target: '192.0.2.1',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+        ];
+    }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributes(
+        MonitorType $type,
+        string $target,
+        ?HttpMethod $method = null,
+        string $group = 'demo',
+        int $timeoutSeconds = 10,
+    ): array {
         return [
-            'name' => $specific['name'],
-            'condition' => $specific['condition'],
-            'attributes' => [
-                'group' => 'demo',
-                'type' => $type,
-                'target' => $specific['target'],
-                'method' => $specific['method'],
-                'enabled' => true,
-                'interval_seconds' => 60,
-                'timeout_seconds' => 10,
-                'ip_family' => IpFamily::Any,
-                'follow_redirects' => true,
-                'verify_tls' => true,
-                'retention_days' => 30,
-            ],
+            'group' => $group,
+            'type' => $type,
+            'target' => $target,
+            'method' => $method,
+            'enabled' => true,
+            'interval_seconds' => 60,
+            'timeout_seconds' => $timeoutSeconds,
+            'ip_family' => IpFamily::Any,
+            'follow_redirects' => true,
+            'verify_tls' => true,
+            'retention_days' => 30,
         ];
     }
 }
