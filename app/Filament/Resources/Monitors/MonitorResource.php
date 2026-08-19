@@ -13,6 +13,7 @@ use App\Filament\Resources\Monitors\Pages\EditMonitor;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
+use App\Filament\Tables\Columns\HeartbeatColumn;
 use App\Models\Monitor;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
@@ -135,14 +136,8 @@ final class MonitorResource extends Resource
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('group')->toggleable()->sortable(),
                 TextColumn::make('type')->badge(),
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (MonitorStatus $state): string => match ($state) {
-                        MonitorStatus::Up => 'success',
-                        MonitorStatus::Down => 'danger',
-                        MonitorStatus::Paused => 'warning',
-                        MonitorStatus::Pending => 'gray',
-                    }),
+                TextColumn::make('status')->badge(),
+                HeartbeatColumn::make('heartbeat'),
                 TextColumn::make('target')->limit(40)->toggleable(),
                 IconColumn::make('enabled')->boolean(),
                 TextColumn::make('last_checked_at')->since()->sortable(),
@@ -154,20 +149,14 @@ final class MonitorResource extends Resource
                 Group::make('group')
                     ->titlePrefixedWithLabel(false)
                     ->collapsible()
-                    ->getTitleFromRecordUsing(fn (Monitor $record): string => filled($record->group) ? $record->group : 'Ungrouped'),
+                    ->getTitleFromRecordUsing(self::groupTitle(...)),
             ])
             ->paginated([50, 100, 250])
             ->defaultPaginationPageOption(50)
             ->filters([
                 SelectFilter::make('status')->options(MonitorStatus::class),
                 SelectFilter::make('type')->options(MonitorType::class),
-                SelectFilter::make('group')->options(
-                    fn (): array => Monitor::query()
-                        ->whereNotNull('group')
-                        ->distinct()
-                        ->pluck('group', 'group')
-                        ->all(),
-                ),
+                SelectFilter::make('group')->options(self::groupOptions(...)),
             ])
             ->recordActions([
                 ViewAction::make(),
@@ -211,5 +200,22 @@ final class MonitorResource extends Resource
         $type = $get('type');
 
         return $type === MonitorType::Http || $type === MonitorType::Http->value;
+    }
+
+    private static function groupTitle(Monitor $record): string
+    {
+        return blank($record->group) ? 'Ungrouped' : $record->group;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function groupOptions(): array
+    {
+        return Monitor::query()
+            ->whereNotNull('group')
+            ->distinct()
+            ->pluck('group', 'group')
+            ->all();
     }
 }

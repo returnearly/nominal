@@ -16,6 +16,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -38,7 +39,12 @@ class AdminPanelProvider extends PanelProvider
             ->maxContentWidth(Width::Full)
             ->colors([
                 'primary' => Color::Emerald,
+                'purple' => Color::Purple,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('components.monitor.stats-styles')->render(),
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->homeUrl(fn (): string => MonitorResource::getUrl())

@@ -4,13 +4,22 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors\Pages;
 
+use App\Actions\LoadRecentCheckResults;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorStatsWidget;
+use App\Models\Monitor;
 use Filament\Actions\CreateAction;
+use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\On;
 
 final class ListMonitors extends ListRecords
 {
+    use ExposesTableToWidgets;
+
     protected static string $resource = MonitorResource::class;
 
     protected function getHeaderActions(): array
@@ -33,5 +42,34 @@ final class ListMonitors extends ListRecords
     public function getHeaderWidgetsColumns(): int|array
     {
         return 1;
+    }
+
+    #[On('filter-monitors-by-status')]
+    public function filterByStatus(string $status): void
+    {
+        $filters = $this->tableFilters ?? [];
+        $current = $filters['status']['value'] ?? null;
+
+        $this->tableFilters = [
+            ...$filters,
+            'status' => [
+                'value' => $current === $status ? null : $status,
+            ],
+        ];
+
+        $this->updatedTableFilters();
+    }
+
+    protected function paginateTableQuery(Builder $query): Paginator|CursorPaginator
+    {
+        $records = parent::paginateTableQuery($query);
+        $monitors = $records->getCollection();
+        $heartbeats = LoadRecentCheckResults::make()->handle($monitors->modelKeys());
+
+        $monitors->each(function (Monitor $monitor) use ($heartbeats): void {
+            $monitor->setRelation('recentChecks', $heartbeats->get($monitor->id, collect()));
+        });
+
+        return $records;
     }
 }

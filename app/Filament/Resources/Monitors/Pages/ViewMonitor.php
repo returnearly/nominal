@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\DispatchMonitorCheck;
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Filament\Widgets\MonitorHistoryWidget;
 use App\Models\Monitor;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -23,26 +24,54 @@ final class ViewMonitor extends ViewRecord
             Action::make('checkNow')
                 ->label('Check now')
                 ->icon(Heroicon::OutlinedPlay)
-                ->action(function (): void {
-                    /** @var Monitor $monitor */
-                    $monitor = $this->getRecord();
-                    $count = DispatchMonitorCheck::make()->handle($monitor);
-
-                    if ($count === 0) {
-                        Notification::make()
-                            ->warning()
-                            ->title('No enabled probes assigned')
-                            ->send();
-
-                        return;
-                    }
-
-                    Notification::make()
-                        ->success()
-                        ->title($count === 1 ? 'Check queued' : "{$count} checks queued")
-                        ->send();
-                }),
+                ->action($this->queueCheck(...)),
             EditAction::make(),
         ];
+    }
+
+    /**
+     * @return array<class-string<MonitorHistoryWidget>>
+     */
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            MonitorHistoryWidget::class,
+        ];
+    }
+
+    public function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getWidgetData(): array
+    {
+        return [
+            'record' => $this->getRecord(),
+        ];
+    }
+
+    private function queueCheck(): void
+    {
+        /** @var Monitor $monitor */
+        $monitor = $this->getRecord();
+        $queued = DispatchMonitorCheck::make()->handle($monitor);
+
+        if ($queued === 0) {
+            Notification::make()
+                ->warning()
+                ->title('No enabled probes assigned')
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->success()
+            ->title($queued === 1 ? 'Check queued' : "{$queued} checks queued")
+            ->send();
     }
 }
