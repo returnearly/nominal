@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Filament\Widgets\MonitorStatsWidget;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -17,5 +18,20 @@ final class ListMonitors extends ListRecords
         return [
             CreateAction::make(),
         ];
+    }
+
+    /**
+     * @return array<class-string<MonitorStatsWidget>>
+     */
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            MonitorStatsWidget::class,
+        ];
+    }
+
+    public function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
     }
 }

@@ -8,13 +8,19 @@ use App\Enums\MonitorStatus;
 use App\Models\Monitor;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Collection;
 
 final class MonitorStatsWidget extends StatsOverviewWidget
 {
-    protected static ?int $sort = 1;
+    protected static bool $isDiscovered = false;
+
+    protected int|array|null $columns = 4;
 
     protected ?string $pollingInterval = '10s';
 
+    /**
+     * @return array<Stat>
+     */
     protected function getStats(): array
     {
         $counts = Monitor::query()
@@ -23,14 +29,22 @@ final class MonitorStatsWidget extends StatsOverviewWidget
             ->pluck('aggregate', 'status');
 
         return [
-            Stat::make('Up', (int) ($counts[MonitorStatus::Up->value] ?? $counts[MonitorStatus::Up->name] ?? 0))
+            Stat::make('Up', $this->count($counts, MonitorStatus::Up))
                 ->color('success'),
-            Stat::make('Down', (int) ($counts[MonitorStatus::Down->value] ?? 0))
+            Stat::make('Down', $this->count($counts, MonitorStatus::Down))
                 ->color('danger'),
-            Stat::make('Pending', (int) ($counts[MonitorStatus::Pending->value] ?? 0))
+            Stat::make('Pending', $this->count($counts, MonitorStatus::Pending))
                 ->color('gray'),
-            Stat::make('Paused', (int) ($counts[MonitorStatus::Paused->value] ?? 0))
+            Stat::make('Paused', $this->count($counts, MonitorStatus::Paused))
                 ->color('warning'),
         ];
+    }
+
+    /**
+     * @param  Collection<array-key, mixed>  $counts
+     */
+    private function count(Collection $counts, MonitorStatus $status): int
+    {
+        return (int) $counts->get($status->value, 0);
     }
 }

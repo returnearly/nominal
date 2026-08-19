@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\CheckResultFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -23,7 +25,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class CheckResult extends Model
 {
-    use HasUuids;
+    /** @use HasFactory<CheckResultFactory> */
+    use HasFactory, HasUuids;
 
     public $timestamps = false;
 
@@ -51,6 +54,6 @@ class CheckResult extends Model
 
     public function graphqlConditionResults(): string
     {
-        return (string) json_encode($this->condition_results ?? []);
+        return json_encode($this->condition_results ?? []) ?: '[]';
     }
 }

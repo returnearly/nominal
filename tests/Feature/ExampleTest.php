@@ -17,5 +17,5 @@ it('requires authentication for the admin panel', function () {
 
     $this->actingAs(User::factory()->create())
         ->get('/admin')
-        ->assertOk();
+        ->assertRedirect('/admin/monitors');
 });

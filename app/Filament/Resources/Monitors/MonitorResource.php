@@ -34,6 +34,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -50,6 +51,8 @@ final class MonitorResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $isHttp = self::isHttp(...);
+
         return $schema->components([
             Section::make('Monitor')
                 ->columns(2)
@@ -68,7 +71,7 @@ final class MonitorResource extends Resource
                     Select::make('method')
                         ->options(HttpMethod::class)
                         ->default(HttpMethod::Get)
-                        ->visible(fn (Get $get): bool => self::isHttp($get('type'))),
+                        ->visible($isHttp),
                     Select::make('ip_family')
                         ->options(IpFamily::class)
                         ->default(IpFamily::Any)
@@ -79,13 +82,13 @@ final class MonitorResource extends Resource
                     Toggle::make('enabled')->default(true),
                     Toggle::make('follow_redirects')
                         ->default(true)
-                        ->visible(fn (Get $get): bool => self::isHttp($get('type'))),
+                        ->visible($isHttp),
                     Toggle::make('verify_tls')
                         ->default(true)
-                        ->visible(fn (Get $get): bool => self::isHttp($get('type'))),
+                        ->visible($isHttp),
                 ]),
             Section::make('HTTP request')
-                ->visible(fn (Get $get): bool => self::isHttp($get('type')))
+                ->visible($isHttp)
                 ->components([
                     KeyValue::make('request_headers')
                         ->keyLabel('Header')
@@ -146,6 +149,15 @@ final class MonitorResource extends Resource
                 TextColumn::make('next_check_at')->since()->sortable(),
             ])
             ->defaultSort('name')
+            ->defaultGroup('group')
+            ->groups([
+                Group::make('group')
+                    ->titlePrefixedWithLabel(false)
+                    ->collapsible()
+                    ->getTitleFromRecordUsing(fn (Monitor $record): string => filled($record->group) ? $record->group : 'Ungrouped'),
+            ])
+            ->paginated([50, 100, 250])
+            ->defaultPaginationPageOption(50)
             ->filters([
                 SelectFilter::make('status')->options(MonitorStatus::class),
                 SelectFilter::make('type')->options(MonitorType::class),
@@ -194,8 +206,10 @@ final class MonitorResource extends Resource
             ]);
     }
 
-    private static function isHttp(mixed $type): bool
+    private static function isHttp(Get $get): bool
     {
+        $type = $get('type');
+
         return $type === MonitorType::Http || $type === MonitorType::Http->value;
     }
 }

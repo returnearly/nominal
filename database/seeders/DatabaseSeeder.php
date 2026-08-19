@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
-use App\Enums\MonitorType;
 use App\Enums\NotificationChannelType;
 use App\Models\Monitor;
 use App\Models\NotificationChannel;
@@ -23,7 +24,7 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        $probe = Probe::query()->firstOrCreate(
+        Probe::query()->firstOrCreate(
             ['slug' => 'local'],
             [
                 'name' => 'Local',
@@ -40,15 +41,12 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        if (Monitor::query()->doesntExist()) {
-            $monitor = Monitor::factory()->withDefaultConditions()->create([
-                'name' => 'Example HTTP',
-                'group' => 'core',
-                'type' => MonitorType::Http,
-                'target' => 'https://example.com',
-            ]);
-            $monitor->probes()->sync([$probe->id]);
-            $monitor->notificationChannels()->sync([$channel->id]);
-        }
+        $this->call(DemoMonitorSeeder::class);
+
+        $channel->monitors()->syncWithoutDetaching(
+            Monitor::query()
+                ->whereIn('name', ['Example HTTP', 'Example Ping'])
+                ->pluck('id'),
+        );
     }
 }
