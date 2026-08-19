@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Auth\CloudflareUserResolver;
 use App\Models\User;
 
 return [
@@ -41,6 +44,12 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+        ],
+
+        'cloudflare' => [
+            'driver' => 'cloudflare',
+            'application' => 'admin',
+            'resolver' => CloudflareUserResolver::class,
         ],
     ],
 

@@ -1,9 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers\Filament;
 
+use App\Enums\InterfaceAuth;
 use App\Filament\Widgets\DownMonitorsWidget;
 use App\Filament\Widgets\MonitorStatsWidget;
+use App\Http\Middleware\AuthenticateAnonymousOperator;
+use App\Http\Middleware\LoginCloudflareInterfaceUser;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -12,6 +17,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -19,17 +25,20 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use ReturnEarly\CloudflareZeroTrust\Http\Middleware\AuthenticateCloudflareAccess;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $auth = InterfaceAuth::current();
+
+        $panel = $panel
             ->default()
             ->id('admin')
             ->path('admin')
             ->brandName('Nominal')
-            ->login()
+            ->maxContentWidth(Width::Full)
             ->colors([
                 'primary' => Color::Emerald,
             ])
@@ -44,19 +53,41 @@ class AdminPanelProvider extends PanelProvider
                 DownMonitorsWidget::class,
                 AccountWidget::class,
             ])
-            ->middleware([
-                EncryptCookies::class,
-                AddQueuedCookiesToResponse::class,
-                StartSession::class,
-                AuthenticateSession::class,
-                ShareErrorsFromSession::class,
-                PreventRequestForgery::class,
-                SubstituteBindings::class,
-                DisableBladeIconComponents::class,
-                DispatchServingFilamentEvent::class,
-            ])
+            ->middleware($this->panelMiddleware($auth))
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        if ($auth === InterfaceAuth::Login) {
+            $panel->login();
+        }
+
+        return $panel;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function panelMiddleware(InterfaceAuth $auth): array
+    {
+        return [
+            EncryptCookies::class,
+            AddQueuedCookiesToResponse::class,
+            StartSession::class,
+            ...($auth === InterfaceAuth::Login ? [AuthenticateSession::class] : []),
+            ...match ($auth) {
+                InterfaceAuth::None => [AuthenticateAnonymousOperator::class],
+                InterfaceAuth::Login => [],
+                InterfaceAuth::Cloudflare => [
+                    AuthenticateCloudflareAccess::class.':admin',
+                    LoginCloudflareInterfaceUser::class,
+                ],
+            },
+            ShareErrorsFromSession::class,
+            PreventRequestForgery::class,
+            SubstituteBindings::class,
+            DisableBladeIconComponents::class,
+            DispatchServingFilamentEvent::class,
+        ];
     }
 }

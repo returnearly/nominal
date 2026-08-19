@@ -6,7 +6,8 @@ Aviation sense of the word: all systems nominal.
 
 ## Stack
 
-- Laravel 13, Filament 5, Lighthouse GraphQL, Sanctum, Reverb
+- PHP 8.5, Laravel 13, Filament 5, Lighthouse GraphQL, Sanctum, Reverb
+- Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
 - Monitors: HTTP/HTTPS (custom method, headers, body) and ICMP ping (TCP fallback)
 - Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
@@ -22,8 +23,7 @@ php artisan migrate --seed
 php artisan serve
 ```
 
-Admin: [http://localhost:8000/admin](http://localhost:8000/admin)  
-Seeded login: `admin@nominal.test` / `password`
+Admin: [http://localhost:8000/admin](http://localhost:8000/admin)
 
 Create a GraphQL/Terraform token:
 
@@ -37,6 +37,27 @@ Run checks locally:
 php artisan nominal:dispatch-due-checks
 php artisan queue:work --queue=checks.local,default
 ```
+
+## Interface auth
+
+`INTERFACE_AUTH` controls the Filament admin only. GraphQL always uses Sanctum tokens.
+
+| Value | Behavior |
+| --- | --- |
+| `login` | Email and password (default). Seeded: `admin@nominal.test` / `password` |
+| `none` | No login page. Visitors are signed in as `operator@nominal.local` (created on first visit). |
+| `cloudflare` | [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) via [`returnearly/laravel-cloudflare-zero-trust`](https://github.com/returnearly/laravel-cloudflare-zero-trust). SSO users are created on first request. |
+
+Cloudflare Access:
+
+```env
+INTERFACE_AUTH=cloudflare
+CLOUDFLARE_ZERO_TRUST_ENABLED=true
+CLOUDFLARE_TEAM_DOMAIN=https://returnearly.cloudflareaccess.com
+CLOUDFLARE_ADMIN_AUD=your-application-aud-tag
+```
+
+The origin must sit behind Cloudflare Tunnel (or equivalent). A valid Access JWT is a bearer credential.
 
 ## GraphQL
 
@@ -78,11 +99,14 @@ ICMP inside Docker needs `cap_add: [NET_RAW]`. Ping falls back to TCP 443/80 whe
 
 ## Docker
 
+App container is `serversideup/php:8.5-frankenphp` running Laravel Octane (`octane:start --server=frankenphp`) with OPcache on. Compose (development) adds `--watch` plus `opcache.validate_timestamps` so PHP/config changes reload without rebuilding. Production image leaves timestamps off and omits `--watch`.
+
 ```bash
 cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
+composer install
 docker compose up --build
 ```
 
-`CONTAINER_ROLE` is `app`, `worker`, `scheduler`, or `reverb`. Extra regional workers are copies of `worker` with a different `PROBE_REGION`.
+App is on [http://localhost:8000](http://localhost:8000) (container port 8080). Queue, scheduler, and Reverb are the same image with `command:` overrides. Extra regional workers copy `worker` and change `PROBE_REGION` / `--queue`.
