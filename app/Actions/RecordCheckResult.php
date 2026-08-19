@@ -57,6 +57,7 @@ final readonly class RecordCheckResult implements ActionsPatternInterface
         $statusChanged = $previousStatus !== $monitor->status;
 
         $monitor->last_checked_at = $now;
+        $monitor->scheduleNextCheck($now);
 
         if ($statusChanged) {
             $monitor->last_status_changed_at = $now;

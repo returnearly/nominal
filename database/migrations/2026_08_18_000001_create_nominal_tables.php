@@ -36,6 +36,7 @@ return new class extends Migration
             $table->boolean('verify_tls')->default(true);
             $table->string('status')->default('pending');
             $table->timestamp('last_checked_at')->nullable();
+            $table->timestamp('next_check_at')->nullable()->index();
             $table->timestamp('last_status_changed_at')->nullable();
             $table->unsignedInteger('consecutive_successes')->default(0);
             $table->unsignedInteger('consecutive_failures')->default(0);
@@ -62,7 +63,7 @@ return new class extends Migration
         });
 
         Schema::create('check_results', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->uuid('monitor_id')->index();
             $table->uuid('probe_id')->index();
             $table->timestamp('checked_at')->index();
@@ -79,7 +80,7 @@ return new class extends Migration
         });
 
         Schema::create('check_aggregates', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->uuid('monitor_id');
             $table->uuid('probe_id')->nullable();
             $table->timestamp('period_start');

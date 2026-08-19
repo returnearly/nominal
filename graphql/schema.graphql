@@ -117,6 +117,7 @@ type Monitor {
     verify_tls: Boolean!
     status: MonitorStatus!
     last_checked_at: DateTime
+    next_check_at: DateTime
     last_status_changed_at: DateTime
     consecutive_successes: Int!
     consecutive_failures: Int!

@@ -9,6 +9,7 @@ use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
 use Database\Factories\MonitorFactory;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'name',
@@ -34,6 +36,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'verify_tls',
     'status',
     'last_checked_at',
+    'next_check_at',
     'last_status_changed_at',
     'consecutive_successes',
     'consecutive_failures',
@@ -56,6 +59,7 @@ class Monitor extends Model
             'verify_tls' => 'boolean',
             'request_headers' => AsEncryptedArrayObject::class,
             'last_checked_at' => 'datetime',
+            'next_check_at' => 'datetime',
             'last_status_changed_at' => 'datetime',
             'interval_seconds' => 'integer',
             'timeout_seconds' => 'integer',
@@ -132,14 +136,26 @@ class Monitor extends Model
 
     public function isDue(): bool
     {
-        if (! $this->enabled || $this->status === MonitorStatus::Paused) {
+        if (! $this->enabled || $this->status === MonitorStatus::Paused || $this->next_check_at === null) {
             return false;
         }
 
-        if ($this->last_checked_at === null) {
-            return true;
-        }
+        return $this->next_check_at->lessThanOrEqualTo(now());
+    }
 
-        return $this->last_checked_at->addSeconds($this->interval_seconds)->isPast();
+    public function scheduleNextCheck(?DateTimeInterface $from = null): static
+    {
+        $this->next_check_at = Carbon::parse($from ?? now())
+            ->copy()
+            ->addSeconds($this->interval_seconds);
+
+        return $this;
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Monitor $monitor): void {
+            $monitor->next_check_at ??= now();
+        });
     }
 }

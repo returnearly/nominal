@@ -143,6 +143,7 @@ final class MonitorResource extends Resource
                 TextColumn::make('target')->limit(40)->toggleable(),
                 IconColumn::make('enabled')->boolean(),
                 TextColumn::make('last_checked_at')->since()->sortable(),
+                TextColumn::make('next_check_at')->since()->sortable(),
             ])
             ->defaultSort('name')
             ->filters([
