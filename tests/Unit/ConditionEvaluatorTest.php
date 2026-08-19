@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Conditions\CheckContext;
+use App\Conditions\ConditionEvaluator;
+use App\Conditions\InvalidConditionException;
+
+function evaluate(string $expression, CheckContext $context): bool
+{
+    return (new ConditionEvaluator)->evaluate($expression, $context)->passed;
+}
+
+function httpContext(array $overrides = []): CheckContext
+{
+    $body = $overrides['body'] ?? ['status' => 'UP'];
+
+    return new CheckContext(
+        status: $overrides['status'] ?? 200,
+        responseTimeMs: $overrides['responseTimeMs'] ?? 120,
+        ip: $overrides['ip'] ?? '93.184.216.34',
+        connected: $overrides['connected'] ?? true,
+        certificateExpirationSeconds: $overrides['certificateExpirationSeconds'] ?? 86400 * 60,
+        body: $body,
+        rawBody: is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR),
+    );
+}
+
+it('evaluates Gatus-style status conditions', function () {
+    expect(evaluate('[STATUS] == 200', httpContext()))->toBeTrue()
+        ->and(evaluate('[STATUS] < 300', httpContext(['status' => 201])))->toBeTrue()
+        ->and(evaluate('[STATUS] <= 299', httpContext(['status' => 299])))->toBeTrue()
+        ->and(evaluate('[STATUS] > 400', httpContext(['status' => 403])))->toBeTrue()
+        ->and(evaluate('[STATUS] == any(200, 429)', httpContext(['status' => 429])))->toBeTrue()
+        ->and(evaluate('[STATUS] == 200', httpContext(['status' => 500])))->toBeFalse();
+});
+
+it('evaluates connected, response time, and IP', function () {
+    expect(evaluate('[CONNECTED] == true', httpContext()))->toBeTrue()
+        ->and(evaluate('[RESPONSE_TIME] < 500', httpContext()))->toBeTrue()
+        ->and(evaluate('[RESPONSE_TIME] < 500', httpContext(['responseTimeMs' => 501])))->toBeFalse()
+        ->and(evaluate('[IP] == 93.184.216.34', httpContext()))->toBeTrue()
+        ->and(evaluate('[IP] == pat(93.184.*)', httpContext()))->toBeTrue();
+});
+
+it('evaluates JSON body paths, len, has, and pat', function () {
+    $context = httpContext([
+        'body' => [
+            'user' => ['name' => 'john.doe'],
+            'data' => [['id' => 1]],
+            'age' => 1,
+            'id' => 1,
+        ],
+    ]);
+
+    expect(evaluate('[BODY].user.name == john.doe', $context))->toBeTrue()
+        ->and(evaluate('[BODY].data[0].id == 1', $context))->toBeTrue()
+        ->and(evaluate('[BODY].age == [BODY].id', $context))->toBeTrue()
+        ->and(evaluate('len([BODY].data) < 5', $context))->toBeTrue()
+        ->and(evaluate('len([BODY].user.name) == 8', $context))->toBeTrue()
+        ->and(evaluate('has([BODY].errors) == false', $context))->toBeTrue()
+        ->and(evaluate('has([BODY].user) == true', $context))->toBeTrue()
+        ->and(evaluate('[BODY].user.name == pat(john*)', $context))->toBeTrue()
+        ->and(evaluate('[BODY].data[0].id == any(1, 2)', $context))->toBeTrue();
+});
+
+it('evaluates certificate expiration durations', function () {
+    expect(evaluate('[CERTIFICATE_EXPIRATION] > 48h', httpContext([
+        'certificateExpirationSeconds' => 49 * 3600,
+    ])))->toBeTrue()
+        ->and(evaluate('[CERTIFICATE_EXPIRATION] > 48h', httpContext([
+            'certificateExpirationSeconds' => 3600,
+        ])))->toBeFalse();
+});
+
+it('treats inverted HTTP success as a normal condition', function () {
+    expect(evaluate('[STATUS] == 403', httpContext(['status' => 403])))->toBeTrue()
+        ->and(evaluate('[STATUS] == 403', httpContext(['status' => 200])))->toBeFalse();
+});
+
+it('fails missing JSON paths instead of throwing', function () {
+    expect(evaluate('[BODY].missing == yes', httpContext()))->toBeFalse();
+});
+
+it('requires a comparator', function () {
+    (new ConditionEvaluator)->evaluate('[STATUS]', httpContext());
+})->throws(InvalidConditionException::class);
+
+it('requires at least one condition to pass allPassed', function () {
+    $evaluator = new ConditionEvaluator;
+
+    expect($evaluator->allPassed([]))->toBeFalse()
+        ->and($evaluator->allPassed($evaluator->evaluateAll(['[STATUS] == 200'], httpContext())))->toBeTrue();
+});

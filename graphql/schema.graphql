@@ -1,0 +1,199 @@
+"A datetime string with format `Y-m-d H:i:s`."
+scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTime")
+
+enum MonitorType {
+    Http
+    Ping
+}
+
+enum MonitorStatus {
+    Pending
+    Up
+    Down
+    Paused
+}
+
+enum IpFamily {
+    Ipv4
+    Ipv6
+    Any
+}
+
+enum HttpMethod {
+    GET
+    POST
+    PUT
+    PATCH
+    DELETE
+    HEAD
+}
+
+enum NotificationChannelType {
+    Mail
+    Slack
+    MicrosoftTeams
+    Discord
+    Webhook
+    Pagerduty
+}
+
+enum AggregateGranularity {
+    Hour
+    Day
+}
+
+type KeyValue {
+    key: String!
+    value: String!
+}
+
+input KeyValueInput {
+    key: String!
+    value: String!
+}
+
+type Probe {
+    id: ID!
+    slug: String!
+    name: String!
+    queue: String!
+    enabled: Boolean!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type MonitorCondition {
+    id: ID!
+    expression: String!
+    sort: Int!
+}
+
+type CheckResult {
+    id: ID!
+    success: Boolean!
+    latency_ms: Int
+    http_status: Int
+    resolved_ip: String
+    certificate_expires_at: DateTime
+    message: String
+    condition_results: String @method(name: "graphqlConditionResults")
+    checked_at: DateTime
+    probe: Probe @belongsTo
+}
+
+type CheckAggregate {
+    id: ID!
+    probe_id: ID
+    period_start: DateTime!
+    granularity: AggregateGranularity!
+    up_count: Int!
+    down_count: Int!
+    avg_latency_ms: Int
+}
+
+type NotificationChannel {
+    id: ID!
+    name: String!
+    type: NotificationChannelType!
+    config: [KeyValue!]! @method(name: "graphqlConfig")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type Monitor {
+    id: ID!
+    name: String!
+    group: String
+    type: MonitorType!
+    enabled: Boolean!
+    interval_seconds: Int!
+    timeout_seconds: Int!
+    ip_family: IpFamily!
+    target: String!
+    method: HttpMethod
+    requestHeaders: [KeyValue!]! @method(name: "graphqlRequestHeaders")
+    request_body: String
+    follow_redirects: Boolean!
+    verify_tls: Boolean!
+    status: MonitorStatus!
+    last_checked_at: DateTime
+    last_status_changed_at: DateTime
+    consecutive_successes: Int!
+    consecutive_failures: Int!
+    retention_days: Int!
+    created_at: DateTime
+    updated_at: DateTime
+    conditions: [MonitorCondition!]! @hasMany
+    probes: [Probe!]! @belongsToMany
+    notificationChannels: [NotificationChannel!]! @belongsToMany
+    checks: [CheckResult!]! @hasMany(relation: "checkResults")
+    aggregates: [CheckAggregate!]! @hasMany(relation: "checkAggregates")
+}
+
+input CreateMonitorInput {
+    name: String!
+    group: String
+    type: MonitorType!
+    enabled: Boolean = true
+    intervalSeconds: Int
+    timeoutSeconds: Int
+    ipFamily: IpFamily
+    target: String!
+    method: HttpMethod
+    requestHeaders: [KeyValueInput!]
+    requestBody: String
+    followRedirects: Boolean
+    verifyTls: Boolean
+    retentionDays: Int
+    conditions: [String!]
+    probeIds: [ID!]
+}
+
+input UpdateMonitorInput {
+    name: String
+    group: String
+    type: MonitorType
+    enabled: Boolean
+    intervalSeconds: Int
+    timeoutSeconds: Int
+    ipFamily: IpFamily
+    target: String
+    method: HttpMethod
+    requestHeaders: [KeyValueInput!]
+    requestBody: String
+    followRedirects: Boolean
+    verifyTls: Boolean
+    retentionDays: Int
+    conditions: [String!]
+    probeIds: [ID!]
+}
+
+input CreateNotificationChannelInput {
+    name: String!
+    type: NotificationChannelType!
+    config: [KeyValueInput!]
+}
+
+input UpdateNotificationChannelInput {
+    name: String
+    type: NotificationChannelType
+    config: [KeyValueInput!]
+}
+
+type Query @guard(with: ["sanctum"]) {
+    monitor(id: ID! @eq): Monitor @find
+    monitors: [Monitor!]! @all
+    notificationChannel(id: ID! @eq): NotificationChannel @find
+    notificationChannels: [NotificationChannel!]! @all
+    probes: [Probe!]! @all
+}
+
+type Mutation @guard(with: ["sanctum"]) {
+    createMonitor(input: CreateMonitorInput!): Monitor!
+    updateMonitor(id: ID!, input: UpdateMonitorInput!): Monitor!
+    deleteMonitor(id: ID!): Boolean!
+    createNotificationChannel(input: CreateNotificationChannelInput!): NotificationChannel!
+    updateNotificationChannel(id: ID!, input: UpdateNotificationChannelInput!): NotificationChannel!
+    deleteNotificationChannel(id: ID!): Boolean!
+    syncMonitorChannels(monitorId: ID!, channelIds: [ID!]!): Monitor!
+}

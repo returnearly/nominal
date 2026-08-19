@@ -1,0 +1,113 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions;
+
+use App\Enums\HttpMethod;
+use App\Enums\IpFamily;
+use App\Enums\MonitorStatus;
+use App\Enums\MonitorType;
+use App\Models\Monitor;
+use App\Models\Probe;
+use App\Support\EnumValue;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
+
+final readonly class SaveMonitor implements ActionsPatternInterface
+{
+    use ActionsPattern;
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function handle(array $input, ?Monitor $monitor = null): Monitor
+    {
+        $monitor ??= new Monitor;
+        $type = $this->type($input['type'] ?? $monitor->type);
+
+        $monitor->fill([
+            'name' => $input['name'] ?? $monitor->name,
+            'group' => $input['group'] ?? $monitor->group,
+            'type' => $type,
+            'enabled' => $input['enabled'] ?? $monitor->enabled ?? true,
+            'interval_seconds' => $input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60,
+            'timeout_seconds' => $input['timeoutSeconds'] ?? $input['timeout_seconds'] ?? $monitor->timeout_seconds ?? 10,
+            'ip_family' => $this->ipFamily($input['ipFamily'] ?? $input['ip_family'] ?? $monitor->ip_family ?? IpFamily::Any),
+            'target' => $input['target'] ?? $monitor->target,
+            'method' => $type === MonitorType::Http
+                ? $this->method($input['method'] ?? $monitor->method ?? HttpMethod::Get)
+                : null,
+            'request_headers' => $input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [],
+            'request_body' => $input['requestBody'] ?? $input['request_body'] ?? $monitor->request_body,
+            'follow_redirects' => $input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true,
+            'verify_tls' => $input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true,
+            'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,
+            'status' => $monitor->status ?? MonitorStatus::Pending,
+        ]);
+
+        $monitor->save();
+
+        if (array_key_exists('conditions', $input) || $monitor->conditions()->doesntExist()) {
+            $this->syncConditions($monitor, $input['conditions'] ?? null);
+        }
+
+        if (array_key_exists('probeIds', $input) || array_key_exists('probe_ids', $input) || $monitor->probes()->doesntExist()) {
+            $this->syncProbes($monitor, $input['probeIds'] ?? $input['probe_ids'] ?? null);
+        }
+
+        return $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
+    }
+
+    /**
+     * @param  list<string>|null  $expressions
+     */
+    private function syncConditions(Monitor $monitor, ?array $expressions): void
+    {
+        $expressions ??= [$monitor->type === MonitorType::Ping ? '[CONNECTED] == true' : '[STATUS] == 200'];
+
+        $monitor->conditions()->delete();
+
+        foreach (array_values($expressions) as $sort => $expression) {
+            if (! is_string($expression) || trim($expression) === '') {
+                continue;
+            }
+
+            $monitor->conditions()->create([
+                'expression' => trim($expression),
+                'sort' => $sort,
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<string>|null  $probeIds
+     */
+    private function syncProbes(Monitor $monitor, ?array $probeIds): void
+    {
+        if ($probeIds === null) {
+            $probeIds = Probe::query()->where('enabled', true)->pluck('id')->all();
+        }
+
+        $monitor->probes()->sync($probeIds);
+    }
+
+    private function type(mixed $type): MonitorType
+    {
+        if ($type instanceof MonitorType) {
+            return $type;
+        }
+
+        return EnumValue::parse(MonitorType::class, $type);
+    }
+
+    private function ipFamily(mixed $family): IpFamily
+    {
+        return $family instanceof IpFamily ? $family : EnumValue::parse(IpFamily::class, $family);
+    }
+
+    private function method(mixed $method): HttpMethod
+    {
+        return $method instanceof HttpMethod ? $method : EnumValue::parse(HttpMethod::class, $method);
+    }
+}

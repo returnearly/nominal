@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Checking;
+
+use App\Enums\MonitorType;
+use App\Models\Monitor;
+
+final class Checker
+{
+    public function __construct(
+        private readonly HttpChecker $http,
+        private readonly PingChecker $ping,
+    ) {}
+
+    public function check(Monitor $monitor): ProbeResult
+    {
+        $monitor->loadMissing('conditions');
+
+        return match ($monitor->type) {
+            MonitorType::Http => $this->http->check($monitor),
+            MonitorType::Ping => $this->ping->check($monitor),
+        };
+    }
+}
