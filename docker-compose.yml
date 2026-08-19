@@ -27,6 +27,7 @@ x-nominal-environment: &nominal-environment
 x-code-volumes: &code-volumes
   - .:/var/www/html
   - composer-vendor:/var/www/html/vendor
+  - bootstrap-cache:/var/www/html/bootstrap/cache
 
 services:
   app:
@@ -119,3 +120,4 @@ services:
 
 volumes:
   composer-vendor:
+  bootstrap-cache:
