@@ -1,103 +1,106 @@
+x-nominal-environment: &nominal-environment
+  APP_NAME: Nominal
+  APP_ENV: local
+  APP_DEBUG: "true"
+  APP_URL: http://localhost:8000
+  APP_KEY: ${APP_KEY}
+  PROBE_REGION: local
+  DB_CONNECTION: sqlite
+  DB_DATABASE: /var/www/html/database/database.sqlite
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: database
+  BROADCAST_CONNECTION: reverb
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REVERB_APP_ID: nominal
+  REVERB_APP_KEY: ${REVERB_APP_KEY:-nominal-key}
+  REVERB_APP_SECRET: ${REVERB_APP_SECRET:-nominal-secret}
+  OCTANE_SERVER: frankenphp
+  INTERFACE_AUTH: none
+  PHP_OPCACHE_ENABLE: "1"
+  PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+  PHP_OPCACHE_REVALIDATE_FREQ: "0"
+  PHP_SESSION_COOKIE_SECURE: "0"
+
 services:
   app:
     build:
       context: .
       dockerfile: docker/Dockerfile
     image: returnearly/nominal:local
+    ports:
+      - "8000:8080"
     environment:
-      APP_NAME: Nominal
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
-      APP_KEY: ${APP_KEY}
-      CONTAINER_ROLE: app
-      PROBE_REGION: local
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /app/database/database.sqlite
-      CACHE_STORE: redis
-      QUEUE_CONNECTION: redis
-      BROADCAST_CONNECTION: reverb
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REVERB_APP_ID: nominal
-      REVERB_APP_KEY: ${REVERB_APP_KEY:-nominal-key}
-      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-nominal-secret}
+      <<: *nominal-environment
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_OPTIMIZE: "false"
+      AUTORUN_LARAVEL_CONFIG_CACHE: "false"
+      AUTORUN_LARAVEL_ROUTE_CACHE: "false"
+      AUTORUN_LARAVEL_VIEW_CACHE: "false"
+      AUTORUN_LARAVEL_EVENT_CACHE: "false"
+      SSL_MODE: "off"
       REVERB_HOST: localhost
       REVERB_PORT: 8080
       REVERB_SCHEME: http
+    command: ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8080", "--admin-port=2019", "--watch"]
+    healthcheck:
+      test: ["CMD", "healthcheck-octane"]
+      start_period: 10s
     volumes:
-      - ./database/database.sqlite:/app/database/database.sqlite
-    ports:
-      - "8000:8000"
+      - .:/var/www/html
     depends_on:
       - redis
 
   worker:
     image: returnearly/nominal:local
+    deploy:
+      replicas: 2
     cap_add:
       - NET_RAW
+    command: ["sh", "-c", "php artisan queue:work --queue=checks.$${PROBE_REGION:-local},default --sleep=1 --tries=1"]
+    healthcheck:
+      disable: true
     environment:
-      APP_NAME: Nominal
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
-      APP_KEY: ${APP_KEY}
-      CONTAINER_ROLE: worker
-      PROBE_REGION: local
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /app/database/database.sqlite
-      CACHE_STORE: redis
-      QUEUE_CONNECTION: redis
-      BROADCAST_CONNECTION: reverb
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REVERB_APP_ID: nominal
-      REVERB_APP_KEY: ${REVERB_APP_KEY:-nominal-key}
-      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-nominal-secret}
+      <<: *nominal-environment
+      AUTORUN_ENABLED: "false"
       REVERB_HOST: reverb
       REVERB_PORT: 8080
       REVERB_SCHEME: http
     volumes:
-      - ./database/database.sqlite:/app/database/database.sqlite
+      - .:/var/www/html
     depends_on:
       - redis
       - app
 
   scheduler:
     image: returnearly/nominal:local
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      disable: true
     environment:
-      APP_NAME: Nominal
-      APP_ENV: local
-      APP_KEY: ${APP_KEY}
-      CONTAINER_ROLE: scheduler
-      PROBE_REGION: local
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /app/database/database.sqlite
-      CACHE_STORE: redis
-      QUEUE_CONNECTION: redis
-      REDIS_HOST: redis
+      <<: *nominal-environment
+      AUTORUN_ENABLED: "false"
     volumes:
-      - ./database/database.sqlite:/app/database/database.sqlite
+      - .:/var/www/html
     depends_on:
       - redis
       - app
 
   reverb:
     image: returnearly/nominal:local
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    healthcheck:
+      disable: true
     environment:
-      APP_NAME: Nominal
-      APP_ENV: local
-      APP_KEY: ${APP_KEY}
-      CONTAINER_ROLE: reverb
-      REDIS_HOST: redis
-      REVERB_APP_ID: nominal
-      REVERB_APP_KEY: ${REVERB_APP_KEY:-nominal-key}
-      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-nominal-secret}
+      <<: *nominal-environment
+      AUTORUN_ENABLED: "false"
       REVERB_HOST: localhost
       REVERB_PORT: 8080
       REVERB_SCHEME: http
       REVERB_SERVER_HOST: 0.0.0.0
       REVERB_SERVER_PORT: 8080
+    volumes:
+      - .:/var/www/html
     ports:
       - "8080:8080"
     depends_on:

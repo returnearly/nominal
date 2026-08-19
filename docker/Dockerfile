@@ -1,26 +1,26 @@
-FROM php:8.4-cli-bookworm
+FROM serversideup/php:8.5-frankenphp
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip libzip-dev libicu-dev libsqlite3-dev iputils-ping \
-    && docker-php-ext-install pcntl pdo_mysql pdo_sqlite zip intl \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
+USER root
+RUN install-php-extensions intl \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends iputils-ping \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+USER www-data
 
-WORKDIR /app
+COPY --chown=www-data:www-data . /var/www/html
 
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
-COPY . .
-RUN composer dump-autoload --optimize \
-    && php artisan package:discover --ansi || true
+ENV PHP_OPCACHE_ENABLE=1 \
+    PHP_OPCACHE_VALIDATE_TIMESTAMPS=0 \
+    PHP_OPCACHE_REVALIDATE_FREQ=0 \
+    OCTANE_SERVER=frankenphp \
+    HEALTHCHECK_PATH=/up
 
-RUN chmod +x docker/entrypoint.sh
+CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8080", "--admin-port=2019"]
 
-ENV CONTAINER_ROLE=app
-EXPOSE 8000 8080
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD ["healthcheck-octane"]
 
-ENTRYPOINT ["docker/entrypoint.sh"]
+EXPOSE 8080 8443

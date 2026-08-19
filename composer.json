@@ -6,14 +6,16 @@
     "keywords": ["monitoring", "uptime", "health", "graphql"],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.5",
         "filament/filament": "^5.0",
         "laravel/framework": "^13.17",
+        "laravel/octane": "^2.19",
         "laravel/reverb": "^1.11",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "nuwave/lighthouse": "^6.69",
-        "returnearly/actions-pattern": "^2.0"
+        "returnearly/actions-pattern": "^2.0",
+        "returnearly/laravel-cloudflare-zero-trust": "^1.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
