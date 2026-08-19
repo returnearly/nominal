@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\ConditionComparator;
+use App\Enums\ConditionPlaceholder;
 use App\Enums\MonitorStatus;
+use App\Enums\MonitorType;
+use App\Filament\Resources\Monitors\Pages\CreateMonitor;
+use App\Filament\Resources\Monitors\Pages\EditMonitor;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Widgets\MonitorHistoryWidget;
@@ -184,4 +189,103 @@ it('queues a check immediately from the monitor view page', function () {
     Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
         return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
     });
+});
+
+it('saves monitor conditions from the placeholder picker', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Health API')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com/health')
+        ->set('data.probes', [$probe->id])
+        ->set('data.conditions', [
+            'status' => [
+                'placeholder' => ConditionPlaceholder::Status->value,
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => '200',
+            ],
+            'body' => [
+                'placeholder' => ConditionPlaceholder::Body->value,
+                'path' => '.status',
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => 'UP',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Health API')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->conditions()->orderBy('sort')->pluck('expression')->all())->toBe([
+            '[STATUS] == 200',
+            '[BODY].status == UP',
+        ]);
+});
+
+it('hydrates the condition picker from stored expressions', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['name' => 'Checkout']);
+    $monitor->conditions()->create([
+        'expression' => '[BODY].user.name == john.doe',
+        'sort' => 0,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertFormSet(function (array $state): array {
+            $item = array_values($state['conditions'] ?? [])[0] ?? [];
+
+            expect($item)
+                ->toHaveKey('placeholder', ConditionPlaceholder::Body->value)
+                ->toHaveKey('path', '.user.name')
+                ->toHaveKey('comparator', ConditionComparator::Equal->value)
+                ->toHaveKey('value', 'john.doe');
+
+            return [];
+        });
+});
+
+it('defaults new http monitors to a 200-299 status range', function () {
+    $user = User::factory()->create();
+
+    $conditions = array_values(Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->get('data.conditions'));
+
+    expect($conditions)->toHaveCount(2)
+        ->and($conditions[0])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::GreaterThanOrEqual->value,
+            'value' => '200',
+        ])
+        ->and($conditions[1])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::LessThanOrEqual->value,
+            'value' => '299',
+        ]);
+});
+
+it('defaults ping monitors to connected and under 50ms', function () {
+    $user = User::factory()->create();
+
+    $conditions = array_values(Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.type', MonitorType::Ping->value)
+        ->get('data.conditions'));
+
+    expect($conditions)->toHaveCount(2)
+        ->and($conditions[0])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Connected->value,
+            'comparator' => ConditionComparator::Equal->value,
+            'value' => 'true',
+        ])
+        ->and($conditions[1])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::ResponseTime->value,
+            'comparator' => ConditionComparator::LessThan->value,
+            'value' => '50',
+        ]);
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Actions\DispatchMonitorCheck;
+use App\Conditions\ConditionExpression;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
@@ -34,10 +35,12 @@ class DemoMonitorSeeder extends Seeder
             );
 
             if ($monitor->conditions()->doesntExist()) {
-                $monitor->conditions()->create([
-                    'expression' => $demo['condition'],
-                    'sort' => 0,
-                ]);
+                foreach ($demo['conditions'] as $sort => $expression) {
+                    $monitor->conditions()->create([
+                        'expression' => $expression,
+                        'sort' => $sort,
+                    ]);
+                }
             }
 
             $monitor->probes()->syncWithoutDetaching([$probe->id]);
@@ -49,20 +52,18 @@ class DemoMonitorSeeder extends Seeder
     }
 
     /**
-     * @return array{name: string, condition: string, attributes: array<string, mixed>}
+     * @return array{name: string, conditions: list<string>, attributes: array<string, mixed>}
      */
     private function monitor(MonitorType $type): array
     {
         $specific = match ($type) {
             MonitorType::Http => [
                 'name' => 'Example HTTP',
-                'condition' => '[STATUS] == 200',
                 'target' => 'https://example.com',
                 'method' => HttpMethod::Get,
             ],
             MonitorType::Ping => [
                 'name' => 'Example Ping',
-                'condition' => '[CONNECTED] == true',
                 'target' => '1.1.1.1',
                 'method' => null,
             ],
@@ -70,7 +71,7 @@ class DemoMonitorSeeder extends Seeder
 
         return [
             'name' => $specific['name'],
-            'condition' => $specific['condition'],
+            'conditions' => ConditionExpression::defaultExpressions($type),
             'attributes' => [
                 'group' => 'demo',
                 'type' => $type,
