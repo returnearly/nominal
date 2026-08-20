@@ -28,6 +28,7 @@ it('passes WebSocket checks when the upgrade succeeds', function () {
             bool $verifyTls,
             array $headers,
             ?string $body = null,
+            ?string $proxyUrl = null,
         ): SocketOutcome {
             $this->captured->path = $path;
             $this->captured->secure = $secure;
@@ -63,6 +64,7 @@ it('fails WebSocket checks when the upgrade is refused', function () {
             bool $verifyTls,
             array $headers,
             ?string $body = null,
+            ?string $proxyUrl = null,
         ): SocketOutcome {
             return SocketOutcome::failed(9, 'WebSocket upgrade failed.');
         }
@@ -73,4 +75,39 @@ it('fails WebSocket checks when the upgrade is refused', function () {
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()
         ->and($result->message)->toBe('WebSocket upgrade failed.');
+});
+
+it('passes the monitor proxy to the WebSocket transport', function () {
+    $monitor = Monitor::factory()->websocket()->withDefaultConditions()->create([
+        'proxy_url' => 'socks5h://proxy.internal:1080',
+    ]);
+    $monitor->load('conditions');
+
+    $captured = (object) ['proxy' => 'unset'];
+
+    app()->instance(WebSocketTransport::class, new class($captured) implements WebSocketTransport
+    {
+        public function __construct(private readonly object $captured) {}
+
+        public function connect(
+            string $host,
+            int $port,
+            string $path,
+            bool $secure,
+            int $timeoutSeconds,
+            IpFamily $family,
+            bool $verifyTls,
+            array $headers,
+            ?string $body = null,
+            ?string $proxyUrl = null,
+        ): SocketOutcome {
+            $this->captured->proxy = $proxyUrl;
+
+            return SocketOutcome::ok(5, '127.0.0.1');
+        }
+    });
+
+    CheckWebSocket::make()->handle($monitor);
+
+    expect($captured->proxy)->toBe('socks5h://proxy.internal:1080');
 });

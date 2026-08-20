@@ -21,5 +21,6 @@ interface WebSocketTransport
         bool $verifyTls,
         array $headers,
         ?string $body = null,
+        ?string $proxyUrl = null,
     ): SocketOutcome;
 }

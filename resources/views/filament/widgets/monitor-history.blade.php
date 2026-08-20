@@ -73,6 +73,11 @@
 
     <section class="nm-panel">
         <h3 class="nm-section-title">Response time</h3>
-        <x-monitor.trend :checks="$checks" />
+        <x-monitor.trend :checks="$latencyChecks" />
+    </section>
+
+    <section class="nm-panel">
+        <h3 class="nm-section-title">Uptime</h3>
+        <x-monitor.uptime class="nm-uptime-detail" :uptime="$uptime" />
     </section>
 </div>

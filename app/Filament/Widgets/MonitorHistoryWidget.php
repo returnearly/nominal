@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
+use App\Actions\LoadLatencyTrend;
 use App\Actions\LoadRecentCheckResults;
 use App\Models\CheckResult;
 use App\Models\Monitor;
@@ -30,12 +31,15 @@ final class MonitorHistoryWidget extends Widget
     protected function getViewData(): array
     {
         $checks = $this->recentChecks();
-        $averageLatency = $checks->avg('latency_ms');
-        $minLatency = $checks->min('latency_ms');
-        $maxLatency = $checks->max('latency_ms');
+        $latencyChecks = $this->latencyChecks($checks);
+        $averageLatency = $latencyChecks->avg('latency_ms');
+        $minLatency = $latencyChecks->min('latency_ms');
+        $maxLatency = $latencyChecks->max('latency_ms');
 
         return [
             'checks' => $checks,
+            'latencyChecks' => $latencyChecks,
+            'uptime' => $this->record->uptime(),
             'statusLabel' => $this->record->enabled
                 ? $this->record->status->badgeLabel()
                 : 'Disabled',
@@ -55,5 +59,16 @@ final class MonitorHistoryWidget extends Widget
         return LoadRecentCheckResults::make()
             ->handle([$monitorId])
             ->get($monitorId, collect());
+    }
+
+    /**
+     * @param  Collection<int, CheckResult>  $checks
+     * @return Collection<int, mixed>
+     */
+    private function latencyChecks(Collection $checks): Collection
+    {
+        $hourly = LoadLatencyTrend::make()->handle($this->record);
+
+        return $hourly->isNotEmpty() ? $hourly : $checks;
     }
 }

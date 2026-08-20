@@ -14,5 +14,6 @@ interface TcpTransport
         int $timeoutSeconds,
         IpFamily $family,
         ?string $body = null,
+        ?string $proxyUrl = null,
     ): SocketOutcome;
 }

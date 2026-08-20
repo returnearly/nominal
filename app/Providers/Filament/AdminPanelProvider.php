@@ -65,6 +65,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->homeUrl(fn (): string => MonitorResource::getUrl())
             ->topNavigation()
+            ->spa()
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->middleware($this->panelMiddleware($auth))
             ->authMiddleware([

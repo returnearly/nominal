@@ -4,35 +4,24 @@ declare(strict_types=1);
 
 namespace App\Checking;
 
+use App\Enums\IpFamily;
 use DateTimeImmutable;
 use Throwable;
 
 final class OpensslCertificateReader implements TlsCertificateReader
 {
-    public function expiresAt(string $host, int $port, int $timeoutSeconds): ?DateTimeImmutable
+    public function __construct(private StreamDialer $dialer) {}
+
+    public function expiresAt(string $host, int $port, int $timeoutSeconds, ?string $proxyUrl = null): ?DateTimeImmutable
     {
-        $context = stream_context_create([
-            'ssl' => [
+        try {
+            $client = $this->dialer->connect($host, $port, $timeoutSeconds, IpFamily::Any, $proxyUrl, [
                 'capture_peer_cert' => true,
                 'verify_peer' => false,
                 'verify_peer_name' => false,
-            ],
-        ]);
-
-        try {
-            $client = @stream_socket_client(
-                "ssl://{$host}:{$port}",
-                $errorCode,
-                $errorMessage,
-                $timeoutSeconds,
-                STREAM_CLIENT_CONNECT,
-                $context,
-            );
+                'peer_name' => $host,
+            ]);
         } catch (Throwable) {
-            return null;
-        }
-
-        if ($client === false) {
             return null;
         }
 

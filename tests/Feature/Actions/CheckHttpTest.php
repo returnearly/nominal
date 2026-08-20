@@ -12,6 +12,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\RequestOptions;
 
 function fakeCertificates(?DateTimeImmutable $expiresAt = null): TlsCertificateReader
 {
@@ -19,7 +20,7 @@ function fakeCertificates(?DateTimeImmutable $expiresAt = null): TlsCertificateR
     {
         public function __construct(private ?DateTimeImmutable $expiresAt) {}
 
-        public function expiresAt(string $host, int $port, int $timeoutSeconds): ?DateTimeImmutable
+        public function expiresAt(string $host, int $port, int $timeoutSeconds, ?string $proxyUrl = null): ?DateTimeImmutable
         {
             return $this->expiresAt;
         }
@@ -121,4 +122,51 @@ it('does not override an existing GraphQL Content-Type header', function () {
     ], null, $history)->handle($monitor);
 
     expect($history[0]['request']->getHeaderLine('Content-Type'))->toBe('application/graphql');
+});
+
+it('sends HTTP checks through the monitor proxy', function () {
+    $container = [];
+    $history = Middleware::history($container);
+    $stack = HandlerStack::create(new MockHandler([
+        new Response(200, [], '{"ok":true}'),
+    ]));
+    $stack->push($history);
+
+    app()->instance(TlsCertificateReader::class, fakeCertificates());
+    app()->instance(Client::class, new Client(['handler' => $stack]));
+
+    $monitor = Monitor::factory()->withDefaultConditions()->create([
+        'proxy_url' => 'socks5h://127.0.0.1:1080',
+    ]);
+    $monitor->load('conditions');
+
+    CheckHttp::make()->handle($monitor);
+
+    expect($container)->toHaveCount(1)
+        ->and($container[0]['options'][RequestOptions::PROXY])->toBe('socks5h://127.0.0.1:1080');
+});
+
+it('falls back to HTTP_PROXY when the monitor has no proxy', function () {
+    config()->set('nominal.proxy.http', 'http://env-proxy:8080');
+    config()->set('nominal.proxy.https', 'http://env-proxy:8080');
+
+    $container = [];
+    $history = Middleware::history($container);
+    $stack = HandlerStack::create(new MockHandler([
+        new Response(200, [], '{"ok":true}'),
+    ]));
+    $stack->push($history);
+
+    app()->instance(TlsCertificateReader::class, fakeCertificates());
+    app()->instance(Client::class, new Client(['handler' => $stack]));
+
+    $monitor = Monitor::factory()->withDefaultConditions()->create();
+    $monitor->load('conditions');
+
+    CheckHttp::make()->handle($monitor);
+
+    expect($container[0]['options'][RequestOptions::PROXY])->toBe([
+        'http' => 'http://env-proxy:8080',
+        'https' => 'http://env-proxy:8080',
+    ]);
 });

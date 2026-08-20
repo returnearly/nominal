@@ -11,6 +11,8 @@ final class PhpStreamWebSocketTransport implements WebSocketTransport
 {
     private const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
+    public function __construct(private StreamDialer $dialer) {}
+
     /**
      * @param  array<string, string>  $headers
      */
@@ -24,36 +26,27 @@ final class PhpStreamWebSocketTransport implements WebSocketTransport
         bool $verifyTls,
         array $headers,
         ?string $body = null,
+        ?string $proxyUrl = null,
     ): SocketOutcome {
-        $address = new SocketAddress($host, $port);
         $started = hrtime(true);
 
         try {
-            $client = @stream_socket_client(
-                $address->remote($secure ? 'ssl' : 'tcp'),
-                $errorCode,
-                $errorMessage,
+            $client = $this->dialer->connect(
+                $host,
+                $port,
                 $timeoutSeconds,
-                STREAM_CLIENT_CONNECT,
-                StreamSocket::context($family, $secure ? [
-                    'ssl' => [
-                        'verify_peer' => $verifyTls,
-                        'verify_peer_name' => $verifyTls,
-                        'peer_name' => $host,
-                    ],
-                ] : []),
+                $family,
+                $proxyUrl,
+                $secure ? [
+                    'verify_peer' => $verifyTls,
+                    'verify_peer_name' => $verifyTls,
+                    'peer_name' => $host,
+                ] : [],
             );
         } catch (Throwable $exception) {
             return SocketOutcome::failed(
                 (int) ((hrtime(true) - $started) / 1_000_000),
                 $exception->getMessage(),
-            );
-        }
-
-        if ($client === false) {
-            return SocketOutcome::failed(
-                (int) ((hrtime(true) - $started) / 1_000_000),
-                $errorMessage !== '' ? $errorMessage : 'WebSocket connection failed',
             );
         }
 

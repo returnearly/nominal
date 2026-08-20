@@ -62,6 +62,14 @@ enum MonitorType: string implements HasLabel
         };
     }
 
+    public function usesProxy(): bool
+    {
+        return match ($this) {
+            self::Http, self::GraphQL, self::Tcp, self::Tls, self::WebSocket => true,
+            default => false,
+        };
+    }
+
     public function usesRequestHeaders(): bool
     {
         return match ($this) {

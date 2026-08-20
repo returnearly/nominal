@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Local',
                 'queue' => 'checks.local',
                 'enabled' => true,
+                'is_default' => true,
             ],
         );
 
