@@ -1,8 +1,10 @@
+![Nominal](public/images/logo.png)
+
 # Nominal
 
 Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, GraphQL mutations, Prometheus metrics, Reverb live events.
 
-Aviation sense of the word: all systems nominal.
+![Nominal — Modern self-hosted monitoring](public/images/og.jpg)
 
 ## Stack
 

@@ -29,7 +29,11 @@ it('redirects guests to the admin login page', function () {
 });
 
 it('shows the filament login page', function () {
-    $this->get('/admin/login')->assertOk()->assertSee('Sign in');
+    $this->get('/admin/login')
+        ->assertOk()
+        ->assertSee('Sign in')
+        ->assertSee('Nominal')
+        ->assertSee('og.jpg', false);
 });
 
 it('does not require a named login route when a session is invalidated', function () {
