@@ -12,6 +12,7 @@ final class Checker
     public function __construct(
         private readonly HttpChecker $http,
         private readonly PingChecker $ping,
+        private readonly TcpChecker $tcp,
     ) {}
 
     public function check(Monitor $monitor): ProbeResult
@@ -21,6 +22,7 @@ final class Checker
         return match ($monitor->type) {
             MonitorType::Http => $this->http->check($monitor),
             MonitorType::Ping => $this->ping->check($monitor),
+            MonitorType::Tcp => $this->tcp->check($monitor),
         };
     }
 }

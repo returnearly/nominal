@@ -88,6 +88,10 @@ it('returns type-specific default conditions', function () {
         ->and(ConditionExpression::defaultExpressions(MonitorType::Ping))->toBe([
             '[CONNECTED] == true',
             '[RESPONSE_TIME] < 50',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Tcp))->toBe([
+            '[CONNECTED] == true',
+            '[RESPONSE_TIME] < 50',
         ]);
 });
 

@@ -49,6 +49,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function tcp(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Tcp,
+            'target' => 'example.com:443',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

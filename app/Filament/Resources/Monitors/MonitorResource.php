@@ -51,7 +51,8 @@ final class MonitorResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        $isHttp = self::isHttp(...);
+        $usesHttp = self::usesHttpRequest(...);
+        $usesRequestBody = self::usesRequestBody(...);
 
         return $schema->components([
             Section::make('Monitor')
@@ -70,11 +71,15 @@ final class MonitorResource extends Resource
                     TextInput::make('target')
                         ->required()
                         ->maxLength(2048)
-                        ->placeholder('https://example.com/health'),
+                        ->placeholder(fn (Get $get): string => match (self::type($get)) {
+                            MonitorType::Tcp => 'tcp://db.example.com:5432',
+                            MonitorType::Ping => 'example.com',
+                            default => 'https://example.com/health',
+                        }),
                     Select::make('method')
                         ->options(HttpMethod::class)
                         ->default(HttpMethod::Get)
-                        ->visible($isHttp),
+                        ->visible($usesHttp),
                     Select::make('ip_family')
                         ->options(IpFamily::class)
                         ->default(IpFamily::Any)
@@ -85,20 +90,24 @@ final class MonitorResource extends Resource
                     Toggle::make('enabled')->default(true),
                     Toggle::make('follow_redirects')
                         ->default(true)
-                        ->visible($isHttp),
+                        ->visible($usesHttp),
                     Toggle::make('verify_tls')
                         ->default(true)
-                        ->visible($isHttp),
+                        ->visible($usesHttp),
                 ]),
-            Section::make('HTTP request')
-                ->visible($isHttp)
+            Section::make('Request')
+                ->visible($usesRequestBody)
                 ->components([
                     KeyValue::make('request_headers')
                         ->keyLabel('Header')
-                        ->valueLabel('Value'),
+                        ->valueLabel('Value')
+                        ->visible($usesHttp),
                     Textarea::make('request_body')
                         ->rows(6)
-                        ->columnSpanFull(),
+                        ->columnSpanFull()
+                        ->helperText(fn (Get $get): ?string => self::usesHttpRequest($get)
+                            ? null
+                            : 'Optional payload written after the connection is established.'),
                 ]),
             Section::make('Conditions')
                 ->description('These are what determine whether an endpoint is healthy or not.')
@@ -219,11 +228,25 @@ final class MonitorResource extends Resource
             ]);
     }
 
-    private static function isHttp(Get $get): bool
+    private static function usesHttpRequest(Get $get): bool
+    {
+        return self::type($get)?->usesHttpRequest() ?? false;
+    }
+
+    private static function usesRequestBody(Get $get): bool
+    {
+        return self::type($get)?->usesRequestBody() ?? false;
+    }
+
+    private static function type(Get $get): ?MonitorType
     {
         $type = self::monitorType($get);
 
-        return $type === MonitorType::Http || $type === MonitorType::Http->value;
+        if ($type instanceof MonitorType) {
+            return $type;
+        }
+
+        return MonitorType::tryFrom((string) $type);
     }
 
     private static function isBody(Get $get): bool

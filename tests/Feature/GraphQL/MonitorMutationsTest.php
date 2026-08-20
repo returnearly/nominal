@@ -75,6 +75,32 @@ it('creates, updates, and deletes a monitor', function () {
     expect($deleted)->toBeTrue();
 });
 
+it('creates a TCP monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                name
+                type
+                target
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Postgres',
+            'type' => 'Tcp',
+            'target' => 'tcp://db.example.com:5432',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('Tcp')
+        ->and($created['target'])->toBe('tcp://db.example.com:5432')
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
