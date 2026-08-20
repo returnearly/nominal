@@ -139,6 +139,7 @@ type Monitor {
     heartbeatErrorUrl: String @method(name: "heartbeatErrorUrl")
     follow_redirects: Boolean!
     verify_tls: Boolean!
+    proxy_url: String
     status: MonitorStatus!
     last_checked_at: DateTime
     next_check_at: DateTime
@@ -171,6 +172,7 @@ input CreateMonitorInput {
     dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
+    proxyUrl: String
     retentionDays: Int
     conditions: [String!]
     probeIds: [ID!]
@@ -192,6 +194,7 @@ input UpdateMonitorInput {
     dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
+    proxyUrl: String
     retentionDays: Int
     conditions: [String!]
     probeIds: [ID!]

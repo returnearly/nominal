@@ -6,8 +6,8 @@ namespace App\Notifications\Channels;
 
 use App\Models\NotificationChannel;
 use App\Notifications\MonitorAlert;
+use App\Support\OutboundHttp;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Http;
 
 final class MicrosoftTeamsChannel
 {
@@ -23,7 +23,7 @@ final class MicrosoftTeamsChannel
             return;
         }
 
-        Http::acceptJson()->asJson()->post($url, [
+        OutboundHttp::json()->post($url, [
             'text' => $notification->text(),
         ])->throw();
     }

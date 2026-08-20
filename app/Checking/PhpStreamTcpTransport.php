@@ -9,25 +9,20 @@ use Throwable;
 
 final class PhpStreamTcpTransport implements TcpTransport
 {
+    public function __construct(private StreamDialer $dialer) {}
+
     public function connect(
         string $host,
         int $port,
         int $timeoutSeconds,
         IpFamily $family,
         ?string $body = null,
+        ?string $proxyUrl = null,
     ): SocketOutcome {
-        $address = new SocketAddress($host, $port);
         $started = hrtime(true);
 
         try {
-            $client = @stream_socket_client(
-                $address->remote('tcp'),
-                $errorCode,
-                $errorMessage,
-                $timeoutSeconds,
-                STREAM_CLIENT_CONNECT,
-                StreamSocket::context($family),
-            );
+            $client = $this->dialer->connect($host, $port, $timeoutSeconds, $family, $proxyUrl);
         } catch (Throwable $exception) {
             return SocketOutcome::failed(
                 (int) ((hrtime(true) - $started) / 1_000_000),
@@ -36,11 +31,6 @@ final class PhpStreamTcpTransport implements TcpTransport
         }
 
         $latencyMs = (int) ((hrtime(true) - $started) / 1_000_000);
-
-        if ($client === false) {
-            return SocketOutcome::failed($latencyMs, $errorMessage !== '' ? $errorMessage : 'TCP connection failed');
-        }
-
         $ip = StreamSocket::peerIp($client);
         $response = null;
 

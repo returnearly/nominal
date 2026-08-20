@@ -465,5 +465,18 @@ it('hides probe timeout on heartbeat monitors', function () {
         ->set('data.type', MonitorType::Heartbeat->value)
         ->assertFormFieldIsHidden('timeout_seconds')
         ->assertFormFieldIsHidden('ip_family')
-        ->assertFormFieldIsHidden('probes');
+        ->assertFormFieldIsHidden('probes')
+        ->assertFormFieldIsHidden('proxy_url');
+});
+
+it('shows a proxy url field for HTTP, TCP, TLS, and WebSocket monitors', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Tcp->value)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Ping->value)
+        ->assertFormFieldIsHidden('proxy_url');
 });

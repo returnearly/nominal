@@ -40,6 +40,7 @@ use Illuminate\Support\Str;
     'heartbeat_token',
     'follow_redirects',
     'verify_tls',
+    'proxy_url',
     'status',
     'last_checked_at',
     'next_check_at',
@@ -64,6 +65,7 @@ class Monitor extends Model
             'enabled' => 'boolean',
             'follow_redirects' => 'boolean',
             'verify_tls' => 'boolean',
+            'proxy_url' => 'encrypted',
             'request_headers' => AsEncryptedArrayObject::class,
             'last_checked_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
@@ -127,6 +129,17 @@ class Monitor extends Model
         }
 
         return $headers;
+    }
+
+    public function outboundProxyUrl(): ?string
+    {
+        if (! $this->type->usesProxy()) {
+            return null;
+        }
+
+        $url = $this->proxy_url;
+
+        return is_string($url) && $url !== '' ? $url : null;
     }
 
     /**
