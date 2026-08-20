@@ -143,7 +143,8 @@ it('shows status totals at the top of the monitors list', function () {
         ->toContain('data-status="up"')
         ->toContain('data-status="down"')
         ->toContain('data-status="pending"')
-        ->toContain('data-status="paused"');
+        ->toContain('data-status="paused"')
+        ->toContain('data-status="maintenance"');
 
     Livewire::actingAs($user)
         ->test(MonitorStatsWidget::class)

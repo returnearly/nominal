@@ -44,7 +44,7 @@ final readonly class BuildMonitorBadge implements ActionsPatternInterface
             ]);
         }
 
-        return match ($monitor->status) {
+        return match ($monitor->effectiveStatus()) {
             MonitorStatus::Up => new MonitorBadge('status', 'healthy', '#40cc11', 'brightgreen', [
                 'status' => 'up',
             ]),
@@ -56,6 +56,9 @@ final readonly class BuildMonitorBadge implements ActionsPatternInterface
             ]),
             MonitorStatus::Paused => new MonitorBadge('status', 'paused', '#9f9f9f', 'lightgrey', [
                 'status' => 'paused',
+            ]),
+            MonitorStatus::Maintenance => new MonitorBadge('status', 'maintenance', '#7c83db', 'blueviolet', [
+                'status' => 'maintenance',
             ]),
         };
     }

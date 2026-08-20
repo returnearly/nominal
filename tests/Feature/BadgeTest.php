@@ -6,6 +6,7 @@ use App\Enums\AggregateGranularity;
 use App\Enums\MonitorStatus;
 use App\Models\CheckAggregate;
 use App\Models\CheckResult;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
 use App\Support\BadgePeriod;
 use Illuminate\Support\Str;
@@ -35,7 +36,7 @@ it('serves a status svg and shields json badge', function () {
         ]);
 });
 
-it('renders disabled and unhealthy status badges', function () {
+it('renders disabled, unhealthy, and maintenance status badges', function () {
     $disabled = Monitor::factory()->create([
         'status' => MonitorStatus::Up,
         'enabled' => false,
@@ -44,6 +45,11 @@ it('renders disabled and unhealthy status badges', function () {
         'status' => MonitorStatus::Down,
         'enabled' => true,
     ]);
+    $maintained = Monitor::factory()->create([
+        'status' => MonitorStatus::Down,
+        'enabled' => true,
+    ]);
+    MaintenanceWindow::factory()->withMonitors([$maintained])->create();
 
     $this->getJson('/embed/badges/'.$disabled->id.'/status.json')
         ->assertOk()
@@ -58,6 +64,14 @@ it('renders disabled and unhealthy status badges', function () {
             'message' => 'unhealthy',
             'status' => 'down',
             'color' => 'red',
+        ]);
+
+    $this->getJson('/embed/badges/'.$maintained->id.'/status.json')
+        ->assertOk()
+        ->assertJson([
+            'message' => 'maintenance',
+            'status' => 'maintenance',
+            'color' => 'blueviolet',
         ]);
 });
 

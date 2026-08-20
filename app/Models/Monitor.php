@@ -156,6 +156,11 @@ class Monitor extends Model
             ]);
     }
 
+    public function maintenanceWindows(): BelongsToMany
+    {
+        return $this->belongsToMany(MaintenanceWindow::class);
+    }
+
     public function statusPages(): BelongsToMany
     {
         return $this->belongsToMany(StatusPage::class, 'status_page_monitor')
@@ -165,6 +170,74 @@ class Monitor extends Model
     public function incidents(): BelongsToMany
     {
         return $this->belongsToMany(Incident::class, 'incident_monitor');
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeUnderMaintenance(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->whereHas('maintenanceWindows', fn (Builder $windows) => $windows->active())
+                ->orWhereExists(function ($sub): void {
+                    $sub->from('maintenance_windows')
+                        ->where('applies_to_all', true)
+                        ->whereNull('cancelled_at')
+                        ->where('starts_at', '<=', now())
+                        ->where(function ($inner): void {
+                            $inner->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                        });
+                });
+        });
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeNotUnderMaintenance(Builder $query): Builder
+    {
+        return $query->whereNot(fn (Builder $query) => $query->underMaintenance());
+    }
+
+    public function activeMaintenanceWindow(): ?MaintenanceWindow
+    {
+        if ($this->relationLoaded('activeMaintenanceWindow')) {
+            return $this->getRelation('activeMaintenanceWindow');
+        }
+
+        if (! $this->exists) {
+            return null;
+        }
+
+        $window = MaintenanceWindow::query()->covering($this)->first();
+        $this->setRelation('activeMaintenanceWindow', $window);
+
+        return $window;
+    }
+
+    public function isUnderMaintenance(): bool
+    {
+        return $this->activeMaintenanceWindow() !== null;
+    }
+
+    public function hasDirectMaintenance(): bool
+    {
+        return MaintenanceWindow::query()
+            ->active()
+            ->where('applies_to_all', false)
+            ->whereHas('monitors', fn (Builder $query) => $query->whereKey($this->id))
+            ->exists();
+    }
+
+    public function effectiveStatus(): MonitorStatus
+    {
+        if ($this->isUnderMaintenance()) {
+            return MonitorStatus::Maintenance;
+        }
+
+        return $this->status;
     }
 
     /**

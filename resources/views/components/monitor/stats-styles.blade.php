@@ -16,6 +16,10 @@
             --nm-stat: var(--purple-500);
         }
 
+        .fi-wi-stats-overview-stat.nm-stat[data-status="maintenance"] {
+            --nm-stat: var(--warning-500);
+        }
+
         .fi-wi-stats-overview-stat.nm-stat {
             padding: 0.7rem 0.9rem;
             background-color: color-mix(in oklab, var(--nm-stat) 16%, #fdfff8);

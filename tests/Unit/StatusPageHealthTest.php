@@ -7,6 +7,7 @@ use App\Enums\IncidentStatus;
 use App\Enums\MonitorStatus;
 use App\Enums\StatusPageHealth;
 use App\Models\Incident;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
 
 it('is operational when every monitor is up', function () {
@@ -63,4 +64,24 @@ it('is maintenance for upcoming scheduled work', function () {
 
     expect(StatusPageHealth::fromMonitorsAndIncidents(collect(), collect([$incident])))
         ->toBe(StatusPageHealth::Maintenance);
+});
+
+it('is maintenance when listed monitors are under a window', function () {
+    $monitor = new Monitor(['enabled' => true, 'status' => MonitorStatus::Down]);
+    $monitor->setRelation('activeMaintenanceWindow', new MaintenanceWindow(['title' => 'Upgrade']));
+
+    expect(StatusPageHealth::fromMonitorsAndIncidents(collect([$monitor]), collect()))
+        ->toBe(StatusPageHealth::Maintenance);
+});
+
+it('keeps a real outage ahead of maintenance', function () {
+    $down = new Monitor(['enabled' => true, 'status' => MonitorStatus::Down]);
+    $down->setRelation('activeMaintenanceWindow', null);
+    $maintained = new Monitor(['enabled' => true, 'status' => MonitorStatus::Up]);
+    $maintained->setRelation('activeMaintenanceWindow', new MaintenanceWindow(['title' => 'Upgrade']));
+    $up = new Monitor(['enabled' => true, 'status' => MonitorStatus::Up]);
+    $up->setRelation('activeMaintenanceWindow', null);
+
+    expect(StatusPageHealth::fromMonitorsAndIncidents(collect([$down, $maintained, $up]), collect()))
+        ->toBe(StatusPageHealth::PartialOutage);
 });

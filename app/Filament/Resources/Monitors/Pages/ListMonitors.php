@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Monitors\Pages;
 use App\Actions\LoadRecentCheckResults;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorStatsWidget;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
 use Filament\Actions\CreateAction;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
@@ -65,6 +66,7 @@ final class ListMonitors extends ListRecords
         $records = parent::paginateTableQuery($query);
         $monitors = $records->getCollection();
         $heartbeats = LoadRecentCheckResults::make()->handle($monitors->modelKeys());
+        MaintenanceWindow::primeMonitors($monitors);
 
         $monitors->each(function (Monitor $monitor) use ($heartbeats): void {
             $monitor->setRelation('recentChecks', $heartbeats->get($monitor->id, collect()));

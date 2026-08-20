@@ -7,6 +7,7 @@ use App\Enums\IncidentStatus;
 use App\Enums\MonitorStatus;
 use App\Models\Incident;
 use App\Models\IncidentUpdate;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
 use App\Models\StatusPage;
 
@@ -152,4 +153,73 @@ it('does not serve unpublished custom domains', function () {
     StatusPage::factory()->unpublished()->onDomain('status.acme.test')->create();
 
     $this->get('http://status.acme.test/')->assertNotFound();
+});
+
+it('shows monitors under an active maintenance window', function () {
+    $page = StatusPage::factory()->create(['slug' => 'acme']);
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'status' => MonitorStatus::Down,
+        'tags' => ['core'],
+    ]);
+    $page->listings()->create([
+        'monitor_id' => $monitor->id,
+        'public_name' => 'API',
+        'sort' => 0,
+    ]);
+    MaintenanceWindow::factory()->withMonitors([$monitor])->create([
+        'title' => 'Database upgrade',
+        'message' => 'Upgrading Postgres.',
+    ]);
+
+    $this->get('/status/acme')
+        ->assertOk()
+        ->assertSee('Under maintenance')
+        ->assertSee('Maintenance')
+        ->assertSee('Database upgrade')
+        ->assertSee('Upgrading Postgres.')
+        ->assertSee('API')
+        ->assertDontSee('Major outage')
+        ->assertDontSee('Partial outage');
+});
+
+it('does not treat a down monitor as an outage while it is under maintenance', function () {
+    $page = StatusPage::factory()->create(['slug' => 'acme']);
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Down]);
+    $page->listings()->create([
+        'monitor_id' => $monitor->id,
+        'sort' => 0,
+    ]);
+    MaintenanceWindow::factory()->forAll()->create([
+        'title' => 'Site-wide maintenance',
+        'message' => 'All checks paused.',
+    ]);
+
+    $this->get('/status/acme')
+        ->assertOk()
+        ->assertSee('Under maintenance')
+        ->assertSee('Site-wide maintenance')
+        ->assertSee('All checks paused.')
+        ->assertDontSee('Major outage');
+});
+
+it('lists upcoming maintenance windows separately from active ones', function () {
+    $page = StatusPage::factory()->create(['slug' => 'acme']);
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
+    $page->listings()->create([
+        'monitor_id' => $monitor->id,
+        'sort' => 0,
+    ]);
+    MaintenanceWindow::factory()->scheduled()->withMonitors([$monitor])->create([
+        'title' => 'Cluster upgrade',
+        'message' => 'Brief failover window.',
+    ]);
+
+    $this->get('/status/acme')
+        ->assertOk()
+        ->assertSee('Scheduled maintenance')
+        ->assertSee('Cluster upgrade')
+        ->assertSee('Brief failover window.')
+        ->assertSee('All systems operational')
+        ->assertDontSee('>Maintenance</h2>', escape: false);
 });

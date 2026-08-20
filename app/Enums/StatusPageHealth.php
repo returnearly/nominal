@@ -47,7 +47,8 @@ enum StatusPageHealth: string implements HasColor, HasLabel
     public static function fromMonitorsAndIncidents(Collection $monitors, Collection $incidents): self
     {
         $enabled = $monitors->filter(fn ($monitor): bool => (bool) $monitor->enabled);
-        $down = $enabled->filter(fn ($monitor): bool => $monitor->status === MonitorStatus::Down);
+        $down = $enabled->filter(fn ($monitor): bool => $monitor->effectiveStatus() === MonitorStatus::Down);
+        $windows = $enabled->filter(fn ($monitor): bool => $monitor->effectiveStatus() === MonitorStatus::Maintenance);
         $active = $incidents->filter(fn ($incident): bool => $incident->isActive());
         $maintenance = $incidents->filter(fn ($incident): bool => $incident->isMaintenance());
 
@@ -79,7 +80,7 @@ enum StatusPageHealth: string implements HasColor, HasLabel
             return self::Degraded;
         }
 
-        if ($maintenance->isNotEmpty()) {
+        if ($windows->isNotEmpty() || $maintenance->isNotEmpty()) {
             return self::Maintenance;
         }
 

@@ -29,6 +29,7 @@ enum MonitorStatus {
     Up
     Down
     Paused
+    Maintenance
 }
 
 enum IpFamily {
@@ -157,7 +158,7 @@ type Monitor {
     follow_redirects: Boolean!
     verify_tls: Boolean!
     proxy_url: String
-    status: MonitorStatus!
+    status: MonitorStatus! @method(name: "effectiveStatus")
     last_checked_at: DateTime
     next_check_at: DateTime
     last_status_changed_at: DateTime
@@ -172,6 +173,7 @@ type Monitor {
     notificationChannels: [NotificationChannel!]! @belongsToMany
     checks: [CheckResult!]! @hasMany(relation: "checkResults")
     aggregates: [CheckAggregate!]! @hasMany(relation: "checkAggregates")
+    activeMaintenanceWindow: MaintenanceWindow @method(name: "activeMaintenanceWindow")
 }
 
 input CreateMonitorInput {
@@ -232,12 +234,46 @@ input UpdateNotificationChannelInput {
     config: [KeyValueInput!]
 }
 
+type MaintenanceWindow {
+    id: ID!
+    title: String!
+    message: String
+    starts_at: DateTime!
+    ends_at: DateTime
+    applies_to_all: Boolean!
+    cancelled_at: DateTime
+    phase: String! @method(name: "phase")
+    created_at: DateTime
+    updated_at: DateTime
+    monitors: [Monitor!]! @belongsToMany
+}
+
+input CreateMaintenanceWindowInput {
+    title: String!
+    message: String
+    startsAt: DateTime
+    endsAt: DateTime
+    appliesToAll: Boolean
+    monitorIds: [ID!]
+}
+
+input UpdateMaintenanceWindowInput {
+    title: String
+    message: String
+    startsAt: DateTime
+    endsAt: DateTime
+    appliesToAll: Boolean
+    monitorIds: [ID!]
+}
+
 type Query @guard(with: ["sanctum"]) {
     monitor(id: ID! @eq): Monitor @find
     monitors(tag: String @whereJsonContains(key: "tags")): [Monitor!]! @all
     notificationChannel(id: ID! @eq): NotificationChannel @find
     notificationChannels: [NotificationChannel!]! @all
     probes: [Probe!]! @all
+    maintenanceWindow(id: ID! @eq): MaintenanceWindow @find
+    maintenanceWindows: [MaintenanceWindow!]! @all
     statusPage(id: ID! @eq): StatusPage @find
     statusPages: [StatusPage!]! @all
     incident(id: ID! @eq): Incident @find
@@ -402,6 +438,12 @@ type Mutation @guard(with: ["sanctum"]) {
     updateNotificationChannel(id: ID!, input: UpdateNotificationChannelInput!): NotificationChannel!
     deleteNotificationChannel(id: ID!): Boolean!
     syncMonitorChannels(monitorId: ID!, channelIds: [ID!]!): Monitor!
+    createMaintenanceWindow(input: CreateMaintenanceWindowInput!): MaintenanceWindow!
+    updateMaintenanceWindow(id: ID!, input: UpdateMaintenanceWindowInput!): MaintenanceWindow!
+    endMaintenanceWindow(id: ID!): MaintenanceWindow!
+    deleteMaintenanceWindow(id: ID!): Boolean!
+    startMonitorMaintenance(monitorId: ID!, title: String, message: String, endsAt: DateTime): MaintenanceWindow!
+    endMonitorMaintenance(monitorId: ID!): Monitor!
     createStatusPage(input: CreateStatusPageInput!): StatusPage!
     updateStatusPage(id: ID!, input: UpdateStatusPageInput!): StatusPage!
     deleteStatusPage(id: ID!): Boolean!

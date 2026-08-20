@@ -158,6 +158,17 @@
             white-space: nowrap;
         }
 
+        .nm-card-maintenance {
+            margin: 0.35rem 0 0;
+            font-size: 0.75rem;
+            line-height: 1.35;
+            color: #a16207;
+        }
+
+        .dark .nm-card-maintenance {
+            color: #dfc331;
+        }
+
         .nm-card-meta {
             margin: 0.2rem 0 0;
             font-size: 0.75rem;
@@ -317,7 +328,8 @@
         }
 
         .nm-status-badge[data-status="up"] .nm-status-dot,
-        .nm-status-badge[data-status="paused"] .nm-status-dot {
+        .nm-status-badge[data-status="paused"] .nm-status-dot,
+        .nm-status-badge[data-status="maintenance"] .nm-status-dot {
             background: #151414;
         }
 
@@ -347,6 +359,11 @@
             background: #b5c4f5;
         }
 
+        .nm-status-badge[data-status="maintenance"] {
+            color: #151414;
+            background: #dfc331;
+        }
+
         .dark .nm-status-badge[data-status="up"] {
             color: #151414;
             background: #5adeb7;
@@ -366,6 +383,11 @@
         .dark .nm-status-badge[data-status="paused"] {
             color: #151414;
             background: #98a5ef;
+        }
+
+        .dark .nm-status-badge[data-status="maintenance"] {
+            color: #151414;
+            background: #dfc331;
         }
 
         .nm-history,

@@ -390,7 +390,21 @@ final class MonitorResource extends Resource
             ->paginated([50, 100, 250])
             ->defaultPaginationPageOption(50)
             ->filters([
-                SelectFilter::make('status')->options(MonitorStatus::class),
+                SelectFilter::make('status')
+                    ->options(MonitorStatus::class)
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (! filled($value)) {
+                            return $query;
+                        }
+
+                        if ($value === MonitorStatus::Maintenance->value) {
+                            return $query->underMaintenance();
+                        }
+
+                        return $query->notUnderMaintenance()->where('status', $value);
+                    }),
                 SelectFilter::make('type')->options(MonitorType::class),
                 SelectFilter::make('tag')
                     ->label('Tag')

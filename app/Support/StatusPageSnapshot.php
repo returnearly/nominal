@@ -8,6 +8,7 @@ use App\Actions\LoadRecentCheckResults;
 use App\Enums\StatusPageHealth;
 use App\Models\CheckResult;
 use App\Models\Incident;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
 use App\Models\StatusPage;
 use Illuminate\Support\Collection;
@@ -21,6 +22,8 @@ final readonly class StatusPageSnapshot
      * @param  Collection<int, Incident>  $activeIncidents
      * @param  Collection<int, Incident>  $scheduledIncidents
      * @param  Collection<int, Incident>  $pastIncidents
+     * @param  Collection<int, MaintenanceWindow>  $activeWindows
+     * @param  Collection<int, MaintenanceWindow>  $scheduledWindows
      */
     public function __construct(
         public StatusPage $page,
@@ -31,6 +34,8 @@ final readonly class StatusPageSnapshot
         public Collection $activeIncidents,
         public Collection $scheduledIncidents,
         public Collection $pastIncidents,
+        public Collection $activeWindows,
+        public Collection $scheduledWindows,
         public bool $onCustomDomain,
     ) {}
 
@@ -65,6 +70,14 @@ final readonly class StatusPageSnapshot
 
         $recentChecks = LoadRecentCheckResults::make()->handle($monitors->pluck('id'));
 
+        $windows = MaintenanceWindow::coveringAny($monitors);
+        foreach ($monitors as $monitor) {
+            $monitor->setRelation(
+                'activeMaintenanceWindow',
+                $windows->first(fn (MaintenanceWindow $window): bool => $window->isActive() && $window->covers($monitor)),
+            );
+        }
+
         $incidents = $page->incidents;
         $active = $incidents->filter(fn (Incident $incident): bool => $incident->isActive())->values();
         $scheduled = $incidents->filter(fn (Incident $incident): bool => $incident->isMaintenance() && ! $incident->isActive())->values();
@@ -79,6 +92,8 @@ final readonly class StatusPageSnapshot
             activeIncidents: $active,
             scheduledIncidents: $scheduled,
             pastIncidents: $past,
+            activeWindows: $windows->filter(fn (MaintenanceWindow $window): bool => $window->isActive())->values(),
+            scheduledWindows: $windows->filter(fn (MaintenanceWindow $window): bool => $window->isScheduled())->values(),
             onCustomDomain: $onCustomDomain,
         );
     }

@@ -5,16 +5,24 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Actions\DispatchMonitorCheck;
+use App\Actions\SaveStatusPage;
 use App\Conditions\ConditionExpression;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
+use App\Enums\StatusPageTheme;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
 use App\Models\Probe;
+use App\Models\StatusPage;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class DemoMonitorSeeder extends Seeder
 {
+    private const WindowShare = 0.3;
+
     public function run(): void
     {
         $probe = Probe::query()->firstOrCreate(
@@ -50,6 +58,86 @@ class DemoMonitorSeeder extends Seeder
                 DispatchMonitorCheck::make()->handle($monitor);
             }
         }
+
+        $this->seedMaintenanceWindows();
+        $this->seedStatusPage();
+    }
+
+    private function seedMaintenanceWindows(): void
+    {
+        $monitors = Monitor::query()->orderBy('name')->get();
+
+        if ($monitors->isEmpty()) {
+            return;
+        }
+
+        $share = max(1, (int) ceil($monitors->count() * self::WindowShare));
+        $past = $monitors->take($share);
+        $upcoming = $monitors->slice($share)->take($share);
+
+        if ($upcoming->isEmpty()) {
+            $upcoming = $past;
+        }
+
+        $this->seedWindow(
+            title: 'Completed OS patching',
+            message: 'Kernel and package updates on the example hosts. Checks ran throughout; no customer impact.',
+            startsAt: now()->subDays(3),
+            endsAt: now()->subDays(3)->addHours(2),
+            monitors: $past,
+        );
+
+        $this->seedWindow(
+            title: 'Database failover drill',
+            message: 'Planned primary/replica failover. Brief connection errors are expected.',
+            startsAt: now()->addDay(),
+            endsAt: now()->addDay()->addHours(2),
+            monitors: $upcoming,
+        );
+    }
+
+    /**
+     * @param  Collection<int, Monitor>  $monitors
+     */
+    private function seedWindow(
+        string $title,
+        string $message,
+        Carbon $startsAt,
+        Carbon $endsAt,
+        Collection $monitors,
+    ): void {
+        $window = MaintenanceWindow::query()->firstOrCreate(
+            ['title' => $title],
+            [
+                'message' => $message,
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'applies_to_all' => false,
+            ],
+        );
+
+        $window->monitors()->sync($monitors->modelKeys());
+    }
+
+    private function seedStatusPage(): void
+    {
+        $page = StatusPage::query()->firstOrCreate(
+            ['slug' => 'demo'],
+            [
+                'name' => 'Nominal Status',
+                'headline' => 'Demo services',
+                'description' => 'Public status for the monitors created by the demo seeder.',
+                'theme' => StatusPageTheme::Dark,
+                'published' => true,
+                'show_targets' => false,
+                'refresh_seconds' => 30,
+            ],
+        );
+
+        SaveStatusPage::make()->handle([
+            'published' => true,
+            'monitorIds' => Monitor::query()->orderBy('name')->pluck('id')->all(),
+        ], $page);
     }
 
     /**

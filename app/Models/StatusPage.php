@@ -87,8 +87,11 @@ class StatusPage extends Model
 
     public function health(): StatusPageHealth
     {
+        $monitors = $this->relationLoaded('monitors') ? $this->monitors : $this->monitors()->get();
+        MaintenanceWindow::primeMonitors($monitors);
+
         return StatusPageHealth::fromMonitorsAndIncidents(
-            $this->relationLoaded('monitors') ? $this->monitors : $this->monitors()->get(),
+            $monitors,
             $this->relationLoaded('incidents') ? $this->incidents : $this->incidents()->get(),
         );
     }

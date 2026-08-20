@@ -39,7 +39,31 @@
             </section>
         @endif
 
-        @if ($snapshot->scheduledIncidents->isNotEmpty())
+        @if ($snapshot->activeWindows->isNotEmpty())
+            <section class="nm-group">
+                <h2 class="nm-group-title">Maintenance</h2>
+                @foreach ($snapshot->activeWindows as $window)
+                    <div class="nm-incident">
+                        <div class="nm-incident-head">
+                            <h3 class="nm-incident-title">{{ $window->title }}</h3>
+                            <x-monitor.status-badge status="maintenance" />
+                        </div>
+                        <p class="nm-incident-meta">
+                            @if ($window->ends_at)
+                                Until {{ $window->ends_at->toDayDateTimeString() }}
+                            @else
+                                In progress
+                            @endif
+                        </p>
+                        @if (filled($window->message))
+                            <p class="nm-incident-message">{{ $window->message }}</p>
+                        @endif
+                    </div>
+                @endforeach
+            </section>
+        @endif
+
+        @if ($snapshot->scheduledIncidents->isNotEmpty() || $snapshot->scheduledWindows->isNotEmpty())
             <section class="nm-group">
                 <h2 class="nm-group-title">Scheduled maintenance</h2>
                 @foreach ($snapshot->scheduledIncidents as $incident)
@@ -50,6 +74,18 @@
                         </div>
                         <p class="nm-incident-meta">Starts {{ $incident->started_at->toDayDateTimeString() }}</p>
                     </a>
+                @endforeach
+                @foreach ($snapshot->scheduledWindows as $window)
+                    <div class="nm-incident">
+                        <div class="nm-incident-head">
+                            <h3 class="nm-incident-title">{{ $window->title }}</h3>
+                            <x-monitor.status-badge status="scheduled" />
+                        </div>
+                        <p class="nm-incident-meta">Starts {{ $window->starts_at->toDayDateTimeString() }}</p>
+                        @if (filled($window->message))
+                            <p class="nm-incident-message">{{ $window->message }}</p>
+                        @endif
+                    </div>
                 @endforeach
             </section>
         @endif

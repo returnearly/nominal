@@ -41,7 +41,7 @@ final class MonitorHistoryWidget extends Widget
             'latencyChecks' => $latencyChecks,
             'uptime' => $this->record->uptime(),
             'statusLabel' => $this->record->enabled
-                ? $this->record->status->badgeLabel()
+                ? $this->record->effectiveStatus()->badgeLabel()
                 : 'Disabled',
             'averageLatencyMs' => $averageLatency === null ? null : (int) round((float) $averageLatency),
             'minLatencyMs' => $minLatency === null ? null : (int) $minLatency,
