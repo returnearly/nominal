@@ -15,7 +15,6 @@ final class MetricsStore
     {
         $labels = [
             'monitor' => $monitor->name,
-            'group' => $monitor->group ?? '',
             'type' => $monitor->type->value,
             'success' => $result->success ? 'true' : 'false',
             'region' => $probe?->slug ?? 'web',
@@ -24,7 +23,6 @@ final class MetricsStore
         $this->increment('nominal_results_total', $labels);
         $this->gauge('nominal_monitor_up', [
             'monitor' => $monitor->name,
-            'group' => $monitor->group ?? '',
             'type' => $monitor->type->value,
             'region' => $probe?->slug ?? 'web',
         ], $result->success ? 1 : 0);
@@ -32,7 +30,6 @@ final class MetricsStore
         if ($result->latencyMs !== null) {
             $this->gauge('nominal_check_latency_ms', [
                 'monitor' => $monitor->name,
-                'group' => $monitor->group ?? '',
                 'type' => $monitor->type->value,
                 'region' => $probe?->slug ?? 'web',
             ], $result->latencyMs);

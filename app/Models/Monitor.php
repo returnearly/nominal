@@ -11,11 +11,14 @@ use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
+use App\Support\MonitorTags;
 use App\Uptime\MonitorUptime;
 use Database\Factories\MonitorFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,7 +30,8 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'name',
-    'group',
+    'description',
+    'tags',
     'type',
     'enabled',
     'interval_seconds',
@@ -82,6 +86,40 @@ class Monitor extends Model
             'consecutive_failures' => 'integer',
             'retention_days' => 'integer',
         ];
+    }
+
+    /**
+     * @return Attribute<list<string>, list<string>|string>
+     */
+    protected function tags(): Attribute
+    {
+        return Attribute::make(
+            get: function (mixed $value): array {
+                if (is_string($value) && $value !== '') {
+                    $value = json_decode($value, true);
+                }
+
+                return MonitorTags::normalize($value);
+            },
+            set: fn (mixed $value): string => json_encode(MonitorTags::normalize($value)),
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function graphqlTags(): array
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param  Builder<Monitor>  $query
+     * @return Builder<Monitor>
+     */
+    public function scopeTagged(Builder $query, string $tag): Builder
+    {
+        return $query->whereJsonContains('tags', $tag);
     }
 
     public function probes(): BelongsToMany
@@ -301,6 +339,13 @@ class Monitor extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Monitor $monitor): void {
+            $description = $monitor->description;
+            $monitor->description = is_string($description) && trim($description) !== ''
+                ? trim($description)
+                : null;
+        });
+
         static::creating(function (Monitor $monitor): void {
             if ($monitor->type === MonitorType::Heartbeat) {
                 $monitor->heartbeat_token ??= Str::random(48);
