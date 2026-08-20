@@ -593,7 +593,7 @@ it('hides probe timeout on heartbeat monitors', function () {
         ->assertFormFieldIsHidden('proxy_url');
 });
 
-it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, and WebSocket monitors', function () {
+it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis monitors', function () {
     $user = User::factory()->create();
 
     Livewire::actingAs($user)
@@ -603,6 +603,12 @@ it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, and WebSocket monitors'
         ->assertFormFieldIsVisible('proxy_url')
         ->set('data.type', MonitorType::Tcp->value)
         ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Redis->value)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Mysql->value)
+        ->assertFormFieldIsHidden('proxy_url')
+        ->set('data.type', MonitorType::Postgres->value)
+        ->assertFormFieldIsHidden('proxy_url')
         ->set('data.type', MonitorType::Ping->value)
         ->assertFormFieldIsHidden('proxy_url');
 });

@@ -17,6 +17,9 @@ enum MonitorType: string implements HasLabel
     case Heartbeat = 'heartbeat';
     case Udp = 'udp';
     case WebSocket = 'websocket';
+    case Mysql = 'mysql';
+    case Redis = 'redis';
+    case Postgres = 'postgres';
 
     public function getLabel(): string
     {
@@ -30,6 +33,9 @@ enum MonitorType: string implements HasLabel
             self::Heartbeat => 'Heartbeat',
             self::Udp => 'UDP',
             self::WebSocket => 'WebSocket',
+            self::Mysql => 'MySQL',
+            self::Redis => 'Redis',
+            self::Postgres => 'PostgreSQL',
         };
     }
 
@@ -49,7 +55,7 @@ enum MonitorType: string implements HasLabel
     public function usesRequestBody(): bool
     {
         return match ($this) {
-            self::Http, self::GraphQL, self::Tcp, self::Tls, self::Udp, self::WebSocket => true,
+            self::Http, self::GraphQL, self::Tcp, self::Tls, self::Udp, self::WebSocket, self::Mysql, self::Redis, self::Postgres => true,
             default => false,
         };
     }
@@ -57,7 +63,7 @@ enum MonitorType: string implements HasLabel
     public function usesVerifyTls(): bool
     {
         return match ($this) {
-            self::Http, self::GraphQL, self::Tls, self::WebSocket => true,
+            self::Http, self::GraphQL, self::Tls, self::WebSocket, self::Mysql, self::Redis, self::Postgres => true,
             default => false,
         };
     }
@@ -65,7 +71,15 @@ enum MonitorType: string implements HasLabel
     public function usesProxy(): bool
     {
         return match ($this) {
-            self::Http, self::GraphQL, self::Tcp, self::Tls, self::WebSocket => true,
+            self::Http, self::GraphQL, self::Tcp, self::Tls, self::WebSocket, self::Redis => true,
+            default => false,
+        };
+    }
+
+    public function usesDatabaseUrl(): bool
+    {
+        return match ($this) {
+            self::Mysql, self::Redis, self::Postgres => true,
             default => false,
         };
     }

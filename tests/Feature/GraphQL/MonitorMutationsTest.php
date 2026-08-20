@@ -320,6 +320,36 @@ it('creates a WebSocket monitor', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
+it('creates mysql, redis, and postgres monitors from connection urls', function (string $type, string $target) {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => $type.' primary',
+            'type' => $type,
+            'target' => $target,
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe($type)
+        ->and($created['target'])->toBe($target)
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true')
+        ->and($created['conditions'][1]['expression'])->toBe('[RESPONSE_TIME] < 50');
+})->with([
+    ['Mysql', 'mysql://app:secret@db.example.com:3306/app'],
+    ['Redis', 'redis://:secret@cache.example.com:6379/0'],
+    ['Postgres', 'postgres://app:secret@db.example.com:5432/app'],
+]);
+
 it('creates a GraphQL monitor and defaults to POST', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 

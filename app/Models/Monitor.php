@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\ComputeMonitorUptime;
+use App\Checking\DatabaseUrl;
 use App\Enums\DnsQueryType;
 use App\Enums\HeartbeatSignal;
 use App\Enums\HttpMethod;
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 #[Fillable([
     'name',
@@ -266,6 +268,19 @@ class Monitor extends Model
         $url = $this->proxy_url;
 
         return is_string($url) && $url !== '' ? $url : null;
+    }
+
+    public function displayTarget(): string
+    {
+        if (! $this->type->usesDatabaseUrl()) {
+            return $this->target;
+        }
+
+        try {
+            return DatabaseUrl::parse($this->target, $this->type)->redacted();
+        } catch (InvalidArgumentException) {
+            return $this->target;
+        }
     }
 
     /**

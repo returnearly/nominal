@@ -11,6 +11,9 @@ enum MonitorType {
     Heartbeat
     Udp
     WebSocket
+    Mysql
+    Redis
+    Postgres
 }
 
 enum DnsQueryType {

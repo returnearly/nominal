@@ -16,7 +16,7 @@ RUN npm run build
 FROM serversideup/php:8.5-frankenphp AS php-base
 
 USER root
-RUN install-php-extensions intl \
+RUN install-php-extensions intl pdo_mysql pdo_pgsql \
     && apt-get update \
     && apt-get install -y --no-install-recommends iputils-ping \
     && apt-get clean \
