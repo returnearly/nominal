@@ -35,27 +35,33 @@
             height: 20%;
         }
 
-        .nm-heartbeat > span:hover,
-        .nm-latency > span:hover {
+        .nm-heartbeat > span:hover:not(.nm-beat-empty),
+        .nm-latency > span:hover:not(.nm-beat-empty) {
             z-index: 20;
             filter: brightness(1.18);
             transform: scaleY(1.12);
         }
 
         .nm-beat-up {
-            background: #10b981;
+            background: #4fcba6;
         }
 
         .nm-beat-down {
-            background: #f43f5e;
+            background: #d15c5c;
         }
 
         .nm-beat-empty {
-            background: #d4d4d8;
+            background: transparent;
+            box-shadow: inset 0 0 0 1px color-mix(in oklab, #151414 22%, transparent);
         }
 
         .dark .nm-beat-empty {
-            background: #3f3f46;
+            background: transparent;
+            box-shadow: inset 0 0 0 1px color-mix(in oklab, #fdfff8 28%, transparent);
+        }
+
+        .dark .nm-beat-up {
+            background: #5adeb7;
         }
 
         .nm-beat-tip {
@@ -69,8 +75,8 @@
             padding: 0.55rem 0.7rem;
             transform: translateX(-50%);
             border-radius: 0.5rem;
-            background: #18181b;
-            color: #f4f4f5;
+            background: #151414;
+            color: #fdfff8;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             font-size: 0.68rem;
             line-height: 1.45;
@@ -223,20 +229,25 @@
             background: #fff;
         }
 
+        .nm-status-badge[data-status="up"] .nm-status-dot,
+        .nm-status-badge[data-status="paused"] .nm-status-dot {
+            background: #151414;
+        }
+
         .nm-status-badge[data-status="up"] {
-            color: #fff;
-            background: #10b981;
+            color: #151414;
+            background: #5adeb7;
         }
 
         .nm-status-badge[data-status="down"] {
             color: #fff;
-            background: #f43f5e;
+            background: #d15c5c;
         }
 
         .nm-status-badge[data-status="pending"],
         .nm-status-badge[data-status="disabled"] {
-            color: #52525b;
-            background: color-mix(in oklab, #71717a 14%, white);
+            color: #5a5a5a;
+            background: #e0eadd;
         }
 
         .nm-status-badge[data-status="pending"] .nm-status-dot,
@@ -245,29 +256,29 @@
         }
 
         .nm-status-badge[data-status="paused"] {
-            color: #fff;
-            background: #a855f7;
+            color: #151414;
+            background: #b5c4f5;
         }
 
         .dark .nm-status-badge[data-status="up"] {
-            color: #ecfdf5;
-            background: #059669;
+            color: #151414;
+            background: #5adeb7;
         }
 
         .dark .nm-status-badge[data-status="down"] {
-            color: #fff1f2;
-            background: #e11d48;
+            color: #fdfff8;
+            background: #d15c5c;
         }
 
         .dark .nm-status-badge[data-status="pending"],
         .dark .nm-status-badge[data-status="disabled"] {
-            color: #e4e4e7;
-            background: color-mix(in oklab, #71717a 28%, #18181b);
+            color: #e0eadd;
+            background: color-mix(in oklab, #d1decd 22%, #151414);
         }
 
         .dark .nm-status-badge[data-status="paused"] {
-            color: #faf5ff;
-            background: #7e22ce;
+            color: #151414;
+            background: #98a5ef;
         }
 
         .nm-history,
@@ -281,14 +292,14 @@
         .nm-panel {
             overflow: visible;
             padding: 1rem 1.1rem 1.15rem;
-            border: 1px solid color-mix(in oklab, var(--gray-950, #18181b) 10%, transparent);
+            border: 1px solid #e0eadd;
             border-radius: 0.9rem;
-            background: color-mix(in oklab, white 70%, transparent);
+            background: #fff;
         }
 
         .dark .nm-panel {
-            border-color: color-mix(in oklab, white 10%, transparent);
-            background: color-mix(in oklab, var(--gray-900, #18181b) 55%, transparent);
+            border-color: color-mix(in oklab, #5adeb7 14%, transparent);
+            background: #0c1613;
         }
 
         .nm-stat-cards {
@@ -410,7 +421,7 @@
 
         .nm-trend-line {
             fill: none;
-            stroke: #3b82f6;
+            stroke: #4fcba6;
             stroke-width: 1.75;
             stroke-linejoin: round;
             stroke-linecap: round;
@@ -418,7 +429,7 @@
         }
 
         .nm-trend-fill {
-            fill: color-mix(in oklab, #3b82f6 16%, transparent);
+            fill: color-mix(in oklab, #5adeb7 22%, transparent);
         }
 
         .nm-trend-hits {
@@ -446,14 +457,14 @@
             width: 0.5rem;
             height: 0.5rem;
             border-radius: 999px;
-            background: #3b82f6;
-            box-shadow: 0 0 0 3px color-mix(in oklab, #3b82f6 20%, transparent);
+            background: #4fcba6;
+            box-shadow: 0 0 0 3px color-mix(in oklab, #5adeb7 24%, transparent);
             transition: transform 120ms ease;
         }
 
         .nm-trend-hit-down .nm-trend-dot {
-            background: #f43f5e;
-            box-shadow: 0 0 0 3px color-mix(in oklab, #f43f5e 20%, transparent);
+            background: #d15c5c;
+            box-shadow: 0 0 0 3px color-mix(in oklab, #d15c5c 24%, transparent);
         }
 
         .nm-trend-hit:hover .nm-trend-dot {

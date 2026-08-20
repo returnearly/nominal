@@ -8,13 +8,13 @@ use App\Enums\InterfaceAuth;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Http\Middleware\AuthenticateAnonymousOperator;
 use App\Http\Middleware\LoginCloudflareInterfaceUser;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -40,13 +40,22 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('2rem')
             ->favicon(asset('favicon.svg'))
             ->maxContentWidth(Width::Full)
+            ->defaultThemeMode(ThemeMode::Light)
             ->colors([
-                'primary' => Color::Emerald,
-                'purple' => Color::Purple,
+                'primary' => '#5ADEB7',
+                'success' => '#4FCBA6',
+                'danger' => '#D15C5C',
+                'warning' => '#DFC331',
+                'info' => '#485FDE',
+                'purple' => '#98A5EF',
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): string => view('filament.meta')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.theme')->render(),
             )
             ->renderHook(
                 PanelsRenderHook::HEAD_END,

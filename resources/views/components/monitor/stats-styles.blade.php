@@ -18,7 +18,8 @@
 
         .fi-wi-stats-overview-stat.nm-stat {
             padding: 0.7rem 0.9rem;
-            background-color: color-mix(in oklab, var(--nm-stat) 16%, var(--color-white));
+            background-color: color-mix(in oklab, var(--nm-stat) 16%, #fdfff8);
+            border: 1px solid color-mix(in oklab, var(--nm-stat) 28%, #e0eadd);
         }
 
         .fi-wi-stats-overview-stat.nm-stat .fi-wi-stats-overview-stat-content {
@@ -36,7 +37,8 @@
         }
 
         .fi-wi-stats-overview-stat.nm-stat:where(.dark, .dark *) {
-            background-color: color-mix(in oklab, var(--nm-stat) 22%, var(--gray-900));
+            background-color: color-mix(in oklab, var(--nm-stat) 18%, #0c1613);
+            border-color: color-mix(in oklab, var(--nm-stat) 28%, #12201c);
         }
 
         .fi-ta-content-grid .fi-ta-record,
