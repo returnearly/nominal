@@ -9,6 +9,7 @@ enum MonitorType {
     Tls
     Heartbeat
     Udp
+    WebSocket
 }
 
 enum DnsQueryType {

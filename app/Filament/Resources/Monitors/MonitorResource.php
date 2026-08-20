@@ -54,6 +54,7 @@ final class MonitorResource extends Resource
     {
         $usesHttp = self::usesHttpRequest(...);
         $usesRequestBody = self::usesRequestBody(...);
+        $usesRequestHeaders = self::usesRequestHeaders(...);
         $usesVerifyTls = self::usesVerifyTls(...);
 
         return $schema->components([
@@ -80,6 +81,7 @@ final class MonitorResource extends Resource
                             MonitorType::Dns => '1.1.1.1',
                             MonitorType::Ping => 'example.com',
                             MonitorType::Heartbeat => 'backup-job',
+                            MonitorType::WebSocket => 'wss://example.com/socket',
                             default => 'https://example.com/health',
                         }),
                     TextInput::make('heartbeat_url')
@@ -126,12 +128,12 @@ final class MonitorResource extends Resource
                         ->visible($usesVerifyTls),
                 ]),
             Section::make('Request')
-                ->visible($usesRequestBody)
+                ->visible(fn (Get $get): bool => $usesRequestBody($get) || $usesRequestHeaders($get))
                 ->components([
                     KeyValue::make('request_headers')
                         ->keyLabel('Header')
                         ->valueLabel('Value')
-                        ->visible($usesHttp),
+                        ->visible($usesRequestHeaders),
                     Textarea::make('request_body')
                         ->rows(6)
                         ->columnSpanFull()
@@ -276,6 +278,11 @@ final class MonitorResource extends Resource
     private static function usesVerifyTls(Get $get): bool
     {
         return self::type($get)?->usesVerifyTls() ?? false;
+    }
+
+    private static function usesRequestHeaders(Get $get): bool
+    {
+        return self::type($get)?->usesRequestHeaders() ?? false;
     }
 
     private static function type(Get $get): ?MonitorType

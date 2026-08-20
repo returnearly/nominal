@@ -115,6 +115,14 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example WebSocket',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::WebSocket),
+                'attributes' => $this->attributes(
+                    type: MonitorType::WebSocket,
+                    target: 'wss://echo.websocket.events',
+                ),
+            ],
+            [
                 'name' => 'Failing HTTP status',
                 'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
@@ -183,6 +191,16 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Udp,
                     target: 'not-a-real-host.invalid:9',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing WebSocket',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::WebSocket,
+                    target: 'ws://down.invalid/socket',
                     group: 'failing',
                     timeoutSeconds: 5,
                 ),

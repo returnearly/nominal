@@ -11,11 +11,13 @@ use App\Checking\PhpDnsTransport;
 use App\Checking\PhpStreamTcpTransport;
 use App\Checking\PhpStreamTlsTransport;
 use App\Checking\PhpStreamUdpTransport;
+use App\Checking\PhpStreamWebSocketTransport;
 use App\Checking\PingTransport;
 use App\Checking\TcpTransport;
 use App\Checking\TlsCertificateReader;
 use App\Checking\TlsTransport;
 use App\Checking\UdpTransport;
+use App\Checking\WebSocketTransport;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DnsTransport::class, PhpDnsTransport::class);
         $this->app->bind(TlsTransport::class, PhpStreamTlsTransport::class);
         $this->app->bind(UdpTransport::class, PhpStreamUdpTransport::class);
+        $this->app->bind(WebSocketTransport::class, PhpStreamWebSocketTransport::class);
     }
 
     public function boot(): void

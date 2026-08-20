@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Checking\SocketOutcome;
+use App\Checking\WebSocketChecker;
+use App\Checking\WebSocketTransport;
+use App\Enums\IpFamily;
+use App\Models\Monitor;
+
+it('passes WebSocket checks when the upgrade succeeds', function () {
+    $monitor = Monitor::factory()->websocket()->withDefaultConditions()->create();
+    $monitor->load('conditions');
+
+    $captured = (object) ['path' => null, 'secure' => null, 'body' => null];
+
+    app()->instance(WebSocketTransport::class, new class($captured) implements WebSocketTransport
+    {
+        public function __construct(private readonly object $captured) {}
+
+        public function connect(
+            string $host,
+            int $port,
+            string $path,
+            bool $secure,
+            int $timeoutSeconds,
+            IpFamily $family,
+            bool $verifyTls,
+            array $headers,
+            ?string $body = null,
+        ): SocketOutcome {
+            $this->captured->path = $path;
+            $this->captured->secure = $secure;
+            $this->captured->body = $body;
+
+            return SocketOutcome::ok(22, '93.184.216.34', 'pong');
+        }
+    });
+
+    $result = app(WebSocketChecker::class)->check($monitor);
+
+    expect($result->success)->toBeTrue()
+        ->and($result->connected)->toBeTrue()
+        ->and($result->responseBody)->toBe('pong')
+        ->and($captured->path)->toBe('/socket')
+        ->and($captured->secure)->toBeTrue()
+        ->and($captured->body)->toBe('ping');
+});
+
+it('fails WebSocket checks when the upgrade is refused', function () {
+    $monitor = Monitor::factory()->websocket()->withDefaultConditions()->create();
+    $monitor->load('conditions');
+
+    app()->instance(WebSocketTransport::class, new class implements WebSocketTransport
+    {
+        public function connect(
+            string $host,
+            int $port,
+            string $path,
+            bool $secure,
+            int $timeoutSeconds,
+            IpFamily $family,
+            bool $verifyTls,
+            array $headers,
+            ?string $body = null,
+        ): SocketOutcome {
+            return SocketOutcome::failed(9, 'WebSocket upgrade failed.');
+        }
+    });
+
+    $result = app(WebSocketChecker::class)->check($monitor);
+
+    expect($result->success)->toBeFalse()
+        ->and($result->connected)->toBeFalse()
+        ->and($result->message)->toBe('WebSocket upgrade failed.');
+});

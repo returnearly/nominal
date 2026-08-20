@@ -15,6 +15,7 @@ enum MonitorType: string implements HasLabel
     case Tls = 'tls';
     case Heartbeat = 'heartbeat';
     case Udp = 'udp';
+    case WebSocket = 'websocket';
 
     public function getLabel(): string
     {
@@ -26,6 +27,7 @@ enum MonitorType: string implements HasLabel
             self::Tls => 'TLS',
             self::Heartbeat => 'Heartbeat',
             self::Udp => 'UDP',
+            self::WebSocket => 'WebSocket',
         };
     }
 
@@ -37,7 +39,7 @@ enum MonitorType: string implements HasLabel
     public function usesRequestBody(): bool
     {
         return match ($this) {
-            self::Http, self::Tcp, self::Tls, self::Udp => true,
+            self::Http, self::Tcp, self::Tls, self::Udp, self::WebSocket => true,
             default => false,
         };
     }
@@ -45,7 +47,15 @@ enum MonitorType: string implements HasLabel
     public function usesVerifyTls(): bool
     {
         return match ($this) {
-            self::Http, self::Tls => true,
+            self::Http, self::Tls, self::WebSocket => true,
+            default => false,
+        };
+    }
+
+    public function usesRequestHeaders(): bool
+    {
+        return match ($this) {
+            self::Http, self::WebSocket => true,
             default => false,
         };
     }

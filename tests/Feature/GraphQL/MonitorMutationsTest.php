@@ -210,6 +210,32 @@ it('creates a UDP monitor', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
+it('creates a WebSocket monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Live socket',
+            'type' => 'WebSocket',
+            'target' => 'wss://example.com/socket',
+            'requestBody' => 'ping',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('WebSocket')
+        ->and($created['target'])->toBe('wss://example.com/socket')
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

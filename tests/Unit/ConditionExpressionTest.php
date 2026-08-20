@@ -106,6 +106,10 @@ it('returns type-specific default conditions', function () {
         ->and(ConditionExpression::defaultExpressions(MonitorType::Udp))->toBe([
             '[CONNECTED] == true',
             '[RESPONSE_TIME] < 50',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::WebSocket))->toBe([
+            '[CONNECTED] == true',
+            '[RESPONSE_TIME] < 50',
         ]);
 });
 
