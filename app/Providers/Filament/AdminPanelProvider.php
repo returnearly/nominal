@@ -40,7 +40,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('2rem')
             ->favicon(asset('favicon.svg'))
             ->maxContentWidth(Width::Full)
-            ->defaultThemeMode(ThemeMode::Light)
+            ->defaultThemeMode(ThemeMode::Dark)
             ->colors([
                 'primary' => '#5ADEB7',
                 'success' => '#4FCBA6',
