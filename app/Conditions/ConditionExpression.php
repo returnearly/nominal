@@ -101,7 +101,7 @@ final class ConditionExpression
                     'value' => 'NOERROR',
                 ],
             ],
-            MonitorType::Push => [
+            MonitorType::Heartbeat => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
                     'path' => '',

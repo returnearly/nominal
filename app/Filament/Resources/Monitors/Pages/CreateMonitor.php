@@ -20,10 +20,10 @@ final class CreateMonitor extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $type = $data['type'] ?? null;
-        $isPush = $type === MonitorType::Push || $type === MonitorType::Push->value;
+        $isHeartbeat = $type === MonitorType::Heartbeat || $type === MonitorType::Heartbeat->value;
 
-        if ($isPush && blank($data['target'] ?? null)) {
-            $data['target'] = 'push';
+        if ($isHeartbeat && blank($data['target'] ?? null)) {
+            $data['target'] = 'heartbeat';
         }
 
         return $data;

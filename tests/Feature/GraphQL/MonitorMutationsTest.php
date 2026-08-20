@@ -157,7 +157,7 @@ it('creates a TLS monitor', function () {
         ->and($created['conditions'][1]['expression'])->toBe('[CERTIFICATE_EXPIRATION] > 48h');
 });
 
-it('creates a push monitor with a heartbeat URL', function () {
+it('creates a heartbeat monitor with a heartbeat URL', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
     $created = graphql('
@@ -165,23 +165,23 @@ it('creates a push monitor with a heartbeat URL', function () {
             createMonitor(input: $input) {
                 type
                 target
-                push_token
-                pushUrl
+                heartbeat_token
+                heartbeatUrl
                 conditions { expression }
             }
         }
     ', [
         'input' => [
             'name' => 'Nightly backup',
-            'type' => 'Push',
+            'type' => 'Heartbeat',
             'target' => 'backup-job',
         ],
     ])->assertSuccessful()
         ->json('data.createMonitor');
 
-    expect($created['type'])->toBe('Push')
-        ->and($created['push_token'])->toHaveLength(48)
-        ->and($created['pushUrl'])->toEndWith('/api/push/'.$created['push_token'])
+    expect($created['type'])->toBe('Heartbeat')
+        ->and($created['heartbeat_token'])->toHaveLength(48)
+        ->and($created['heartbeatUrl'])->toEndWith('/api/heartbeat/'.$created['heartbeat_token'])
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 

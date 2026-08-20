@@ -36,7 +36,7 @@ use Illuminate\Support\Str;
     'request_body',
     'dns_query_name',
     'dns_query_type',
-    'push_token',
+    'heartbeat_token',
     'follow_redirects',
     'verify_tls',
     'status',
@@ -159,21 +159,21 @@ class Monitor extends Model
         return $this;
     }
 
-    public function pushUrl(): ?string
+    public function heartbeatUrl(): ?string
     {
-        if ($this->type !== MonitorType::Push || blank($this->push_token)) {
+        if ($this->type !== MonitorType::Heartbeat || blank($this->heartbeat_token)) {
             return null;
         }
 
-        return url('/api/push/'.$this->push_token);
+        return url('/api/heartbeat/'.$this->heartbeat_token);
     }
 
     protected static function booted(): void
     {
         static::creating(function (Monitor $monitor): void {
-            if ($monitor->type === MonitorType::Push) {
-                $monitor->push_token ??= Str::random(48);
-                $monitor->target = filled($monitor->target) ? $monitor->target : '/api/push/'.$monitor->push_token;
+            if ($monitor->type === MonitorType::Heartbeat) {
+                $monitor->heartbeat_token ??= Str::random(48);
+                $monitor->target = filled($monitor->target) ? $monitor->target : '/api/heartbeat/'.$monitor->heartbeat_token;
                 $monitor->next_check_at ??= now()->addSeconds(max(10, (int) $monitor->interval_seconds));
 
                 return;

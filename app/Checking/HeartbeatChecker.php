@@ -7,7 +7,7 @@ namespace App\Checking;
 use App\Conditions\CheckContext;
 use App\Models\Monitor;
 
-final class PushChecker
+final class HeartbeatChecker
 {
     public function __construct(
         private readonly ConditionRunner $conditions,

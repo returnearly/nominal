@@ -84,10 +84,10 @@ class MonitorFactory extends Factory
         ]);
     }
 
-    public function push(): static
+    public function heartbeat(): static
     {
         return $this->state(fn (): array => [
-            'type' => MonitorType::Push,
+            'type' => MonitorType::Heartbeat,
             'target' => 'backup-job',
             'method' => null,
             'request_headers' => null,

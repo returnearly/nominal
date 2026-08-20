@@ -13,7 +13,7 @@ use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 use RuntimeException;
 
-final readonly class ReceivePushHeartbeat implements ActionsPatternInterface
+final readonly class ReceiveHeartbeat implements ActionsPatternInterface
 {
     use ActionsPattern;
 
@@ -27,7 +27,7 @@ final readonly class ReceivePushHeartbeat implements ActionsPatternInterface
         $probe = $monitor->probes()->where('enabled', true)->first();
 
         if ($probe === null) {
-            throw new RuntimeException('Push monitor has no enabled probe.');
+            throw new RuntimeException('Heartbeat monitor has no enabled probe.');
         }
 
         $monitor->last_heartbeat_at = now();

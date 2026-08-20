@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Actions\ReceivePushHeartbeat;
+use App\Actions\ReceiveHeartbeat;
 use App\Enums\MonitorType;
 use App\Models\Monitor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-final class PushHeartbeatController
+final class HeartbeatController
 {
-    public function __invoke(Request $request, string $token, ReceivePushHeartbeat $receive): JsonResponse
+    public function __invoke(Request $request, string $token, ReceiveHeartbeat $receive): JsonResponse
     {
         $monitor = Monitor::query()
-            ->where('type', MonitorType::Push)
-            ->where('push_token', $token)
+            ->where('type', MonitorType::Heartbeat)
+            ->where('heartbeat_token', $token)
             ->firstOrFail();
 
         abort_unless($monitor->enabled, 404);

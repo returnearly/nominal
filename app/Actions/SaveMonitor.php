@@ -49,9 +49,9 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             'dns_query_type' => $type === MonitorType::Dns
                 ? $this->dnsQueryType($input['dnsQueryType'] ?? $input['dns_query_type'] ?? $monitor->dns_query_type ?? DnsQueryType::A)
                 : null,
-            'push_token' => $type === MonitorType::Push
-                ? ($monitor->push_token ?: Str::random(48))
-                : $monitor->push_token,
+            'heartbeat_token' => $type === MonitorType::Heartbeat
+                ? ($monitor->heartbeat_token ?: Str::random(48))
+                : $monitor->heartbeat_token,
             'follow_redirects' => $input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true,
             'verify_tls' => $input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true,
             'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,

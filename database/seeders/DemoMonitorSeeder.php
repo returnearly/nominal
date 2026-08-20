@@ -43,7 +43,7 @@ class DemoMonitorSeeder extends Seeder
 
             $monitor->probes()->syncWithoutDetaching([$probe->id]);
 
-            if ($monitor->last_checked_at === null && $monitor->type !== MonitorType::Push) {
+            if ($monitor->last_checked_at === null && $monitor->type !== MonitorType::Heartbeat) {
                 DispatchMonitorCheck::make()->handle($monitor);
             }
         }
@@ -99,10 +99,10 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
-                'name' => 'Example Push',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Push),
+                'name' => 'Example Heartbeat',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Heartbeat),
                 'attributes' => $this->attributes(
-                    type: MonitorType::Push,
+                    type: MonitorType::Heartbeat,
                     target: 'backup-job',
                 ),
             ],

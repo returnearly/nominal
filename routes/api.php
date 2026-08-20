@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\PushHeartbeatController;
+use App\Http\Controllers\HeartbeatController;
 use Illuminate\Support\Facades\Route;
 
-Route::match(['GET', 'POST'], '/push/{token}', PushHeartbeatController::class)
+Route::match(['GET', 'POST'], '/heartbeat/{token}', HeartbeatController::class)
     ->where('token', '[A-Za-z0-9]+')
-    ->name('push.heartbeat');
+    ->name('heartbeat');

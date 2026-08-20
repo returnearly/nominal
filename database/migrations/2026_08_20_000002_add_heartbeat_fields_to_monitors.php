@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('monitors', function (Blueprint $table) {
-            $table->string('push_token', 64)->nullable()->unique()->after('dns_query_type');
+            $table->string('heartbeat_token', 64)->nullable()->unique()->after('dns_query_type');
             $table->timestamp('last_heartbeat_at')->nullable()->after('last_checked_at');
         });
     }
@@ -19,8 +19,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('monitors', function (Blueprint $table) {
-            $table->dropUnique(['push_token']);
-            $table->dropColumn(['push_token', 'last_heartbeat_at']);
+            $table->dropUnique(['heartbeat_token']);
+            $table->dropColumn(['heartbeat_token', 'last_heartbeat_at']);
         });
     }
 };
