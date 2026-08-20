@@ -10,9 +10,4 @@
 <meta name="twitter:title" content="Nominal">
 <meta name="twitter:description" content="Modern self-hosted monitoring.">
 <meta name="twitter:image" content="{{ url('/images/og.jpg') }}">
-<style>
-    .fi-simple-header .fi-logo {
-        height: 2.75rem !important;
-    }
-</style>
 
