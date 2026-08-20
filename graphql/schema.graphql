@@ -235,6 +235,160 @@ type Query @guard(with: ["sanctum"]) {
     notificationChannel(id: ID! @eq): NotificationChannel @find
     notificationChannels: [NotificationChannel!]! @all
     probes: [Probe!]! @all
+    statusPage(id: ID! @eq): StatusPage @find
+    statusPages: [StatusPage!]! @all
+    incident(id: ID! @eq): Incident @find
+}
+
+enum StatusPageTheme {
+    Dark
+    Light
+}
+
+enum StatusPageHealth {
+    Operational
+    Degraded
+    PartialOutage
+    MajorOutage
+    Maintenance
+}
+
+enum IncidentStatus {
+    Investigating
+    Identified
+    Monitoring
+    Resolved
+    Scheduled
+}
+
+enum IncidentImpact {
+    None
+    Minor
+    Major
+    Critical
+}
+
+type StatusPageListing @model(class: "App\\Models\\StatusPageMonitor") {
+    id: ID!
+    public_name: String
+    sort: Int!
+    monitor: Monitor @belongsTo
+}
+
+type IncidentUpdate {
+    id: ID!
+    status: IncidentStatus!
+    message: String!
+    posted_at: DateTime
+}
+
+type Incident {
+    id: ID!
+    title: String!
+    status: IncidentStatus!
+    impact: IncidentImpact!
+    started_at: DateTime
+    resolved_at: DateTime
+    created_at: DateTime
+    updated_at: DateTime
+    statusPage: StatusPage @belongsTo
+    updates: [IncidentUpdate!]! @hasMany
+    monitors: [Monitor!]! @belongsToMany
+}
+
+type StatusPage {
+    id: ID!
+    name: String!
+    slug: String!
+    custom_domain: String
+    headline: String
+    description: String
+    logo_url: String
+    favicon_url: String
+    footer_text: String
+    custom_css: String
+    theme: StatusPageTheme!
+    published: Boolean!
+    show_targets: Boolean!
+    passwordProtected: Boolean! @method(name: "isPasswordProtected")
+    refresh_seconds: Int!
+    pathUrl: String! @method(name: "pathUrl")
+    publicUrl: String! @method(name: "publicUrl")
+    health: StatusPageHealth! @method(name: "health")
+    created_at: DateTime
+    updated_at: DateTime
+    listings: [StatusPageListing!]! @hasMany
+    monitors: [Monitor!]! @belongsToMany
+    incidents: [Incident!]! @hasMany
+}
+
+input StatusPageMonitorInput {
+    monitorId: ID!
+    publicName: String
+}
+
+input CreateStatusPageInput {
+    name: String!
+    slug: String!
+    customDomain: String
+    headline: String
+    description: String
+    logoUrl: String
+    faviconUrl: String
+    footerText: String
+    customCss: String
+    theme: StatusPageTheme = Dark
+    published: Boolean = false
+    showTargets: Boolean = false
+    password: String
+    refreshSeconds: Int
+    monitorIds: [ID!]
+    monitors: [StatusPageMonitorInput!]
+}
+
+input UpdateStatusPageInput {
+    name: String
+    slug: String
+    customDomain: String
+    headline: String
+    description: String
+    logoUrl: String
+    faviconUrl: String
+    footerText: String
+    customCss: String
+    theme: StatusPageTheme
+    published: Boolean
+    showTargets: Boolean
+    password: String
+    refreshSeconds: Int
+    monitorIds: [ID!]
+    monitors: [StatusPageMonitorInput!]
+}
+
+input CreateIncidentInput {
+    statusPageId: ID!
+    title: String!
+    status: IncidentStatus = Investigating
+    impact: IncidentImpact = Minor
+    message: String
+    startedAt: DateTime
+    resolvedAt: DateTime
+    monitorIds: [ID!]
+}
+
+input UpdateIncidentInput {
+    title: String
+    status: IncidentStatus
+    impact: IncidentImpact
+    startedAt: DateTime
+    resolvedAt: DateTime
+    monitorIds: [ID!]
+}
+
+input AddIncidentUpdateInput {
+    status: IncidentStatus
+    message: String!
+    postedAt: DateTime
 }
 
 type Mutation @guard(with: ["sanctum"]) {
@@ -245,4 +399,11 @@ type Mutation @guard(with: ["sanctum"]) {
     updateNotificationChannel(id: ID!, input: UpdateNotificationChannelInput!): NotificationChannel!
     deleteNotificationChannel(id: ID!): Boolean!
     syncMonitorChannels(monitorId: ID!, channelIds: [ID!]!): Monitor!
+    createStatusPage(input: CreateStatusPageInput!): StatusPage!
+    updateStatusPage(id: ID!, input: UpdateStatusPageInput!): StatusPage!
+    deleteStatusPage(id: ID!): Boolean!
+    createIncident(input: CreateIncidentInput!): Incident!
+    updateIncident(id: ID!, input: UpdateIncidentInput!): Incident!
+    deleteIncident(id: ID!): Boolean!
+    addIncidentUpdate(incidentId: ID!, input: AddIncidentUpdateInput!): Incident!
 }
