@@ -35,7 +35,7 @@ return [
     | Used for HTTP checks (when a monitor has no proxy_url) and notification
     | webhooks. SOCKS URLs belong in ALL_PROXY / NOMINAL_PROXY_URL, e.g.
     | socks5h://127.0.0.1:1080. Per-monitor proxy_url overrides this for
-    | HTTP, TCP, TLS, and WebSocket checks.
+    | HTTP, TCP, TLS, WebSocket, and Redis checks.
     |
     */
     'proxy' => [

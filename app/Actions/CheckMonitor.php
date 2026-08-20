@@ -23,6 +23,7 @@ final readonly class CheckMonitor implements ActionsPatternInterface
         private CheckHeartbeat $heartbeat,
         private CheckUdp $udp,
         private CheckWebSocket $webSocket,
+        private CheckDatabase $database,
     ) {}
 
     public function handle(Monitor $monitor): ProbeResult
@@ -38,6 +39,7 @@ final readonly class CheckMonitor implements ActionsPatternInterface
             MonitorType::Heartbeat => $this->heartbeat->handle($monitor),
             MonitorType::Udp => $this->udp->handle($monitor),
             MonitorType::WebSocket => $this->webSocket->handle($monitor),
+            MonitorType::Mysql, MonitorType::Redis, MonitorType::Postgres => $this->database->handle($monitor),
         };
     }
 }

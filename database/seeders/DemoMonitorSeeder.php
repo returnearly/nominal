@@ -225,6 +225,30 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example MySQL',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Mysql),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Mysql,
+                    target: 'mysql://app:secret@db.example.com:3306/app',
+                ),
+            ],
+            [
+                'name' => 'Example Redis',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Redis),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Redis,
+                    target: 'redis://:secret@cache.example.com:6379/0',
+                ),
+            ],
+            [
+                'name' => 'Example PostgreSQL',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Postgres),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Postgres,
+                    target: 'postgres://app:secret@db.example.com:5432/app',
+                ),
+            ],
+            [
                 'name' => 'Failing HTTP status',
                 'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
@@ -314,6 +338,36 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::WebSocket,
                     target: 'ws://down.invalid/socket',
+                    tags: ['synthetic'],
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing MySQL',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Mysql,
+                    target: 'mysql://app:secret@192.0.2.1:3306/app',
+                    tags: ['synthetic'],
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing Redis',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Redis,
+                    target: 'redis://192.0.2.1:6379/0',
+                    tags: ['synthetic'],
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing PostgreSQL',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Postgres,
+                    target: 'postgres://app:secret@192.0.2.1:5432/app',
                     tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),

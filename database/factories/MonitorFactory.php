@@ -130,6 +130,39 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function mysql(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Mysql,
+            'target' => 'mysql://app:secret@db.example.com:3306/app',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
+    public function redis(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Redis,
+            'target' => 'redis://:secret@cache.example.com:6379/0',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
+    public function postgres(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Postgres,
+            'target' => 'postgres://app:secret@db.example.com:5432/app',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

@@ -43,7 +43,10 @@ it('creates failing monitors for local testing', function () {
             'Failing GraphQL',
             'Failing HTTP status',
             'Failing HTTP unreachable',
+            'Failing MySQL',
             'Failing Ping',
+            'Failing PostgreSQL',
+            'Failing Redis',
             'Failing TCP',
             'Failing TLS',
             'Failing UDP',
@@ -62,7 +65,7 @@ it('does not duplicate demo monitors when seeded twice', function () {
     $this->seed(DemoMonitorSeeder::class);
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->count())->toBe(18)
+    expect(Monitor::query()->count())->toBe(24)
         ->and(MaintenanceWindow::query()->count())->toBe(2)
         ->and(StatusPage::query()->count())->toBe(1);
 });
@@ -106,5 +109,5 @@ it('queues a first check for demo monitors that have never run', function () {
 
     $this->seed(DemoMonitorSeeder::class);
 
-    Queue::assertPushed(RunCheckJob::class, 17);
+    Queue::assertPushed(RunCheckJob::class, 23);
 });

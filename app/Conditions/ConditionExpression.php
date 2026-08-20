@@ -130,7 +130,7 @@ final class ConditionExpression
                     'value' => '299',
                 ],
             ],
-            MonitorType::Ping, MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket => [
+            MonitorType::Ping, MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket, MonitorType::Mysql, MonitorType::Redis, MonitorType::Postgres => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
                     'path' => '',

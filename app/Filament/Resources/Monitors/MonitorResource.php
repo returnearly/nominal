@@ -140,8 +140,14 @@ final class MonitorResource extends Resource
                             MonitorType::Heartbeat => 'backup-job',
                             MonitorType::WebSocket => 'wss://example.com/socket',
                             MonitorType::GraphQL => 'https://countries.trevorblades.com/',
+                            MonitorType::Mysql => 'mysql://user:pass@db.example.com:3306/app',
+                            MonitorType::Redis => 'redis://:pass@cache.example.com:6379/0',
+                            MonitorType::Postgres => 'postgres://user:pass@db.example.com:5432/app',
                             default => 'https://example.com/health',
-                        }),
+                        })
+                        ->helperText(fn (Get $get): ?string => self::type($get)?->usesDatabaseUrl() === true
+                            ? 'Connection URL. The probe logs in and runs a version/status query, or your optional command.'
+                            : null),
                     TextInput::make('heartbeat_url')
                         ->label('Heartbeat URL')
                         ->disabled()
@@ -295,6 +301,8 @@ final class MonitorResource extends Resource
                         ->helperText(fn (Get $get): ?string => match (self::type($get)) {
                             MonitorType::GraphQL => 'Sent as {"query": "..."} with Content-Type application/json.',
                             MonitorType::Http => null,
+                            MonitorType::Mysql, MonitorType::Postgres => 'Optional SQL. Defaults to version, plus a table list when a database is set.',
+                            MonitorType::Redis => 'Optional Redis command (PING, INFO, DBSIZE). Defaults to PING, INFO server, and DBSIZE.',
                             default => 'Optional payload written after the connection is established.',
                         }),
                 ]),

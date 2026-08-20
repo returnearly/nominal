@@ -83,7 +83,7 @@ enum ConditionPlaceholder: string implements HasLabel
                 self::Ip,
                 self::DomainExpiration,
             ],
-            MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket => [
+            MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket, MonitorType::Mysql, MonitorType::Redis, MonitorType::Postgres => [
                 self::Connected,
                 self::ResponseTime,
                 self::Ip,

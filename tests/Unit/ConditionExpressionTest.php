@@ -113,6 +113,18 @@ it('returns type-specific default conditions', function () {
         ->and(ConditionExpression::defaultExpressions(MonitorType::GraphQL))->toBe([
             '[STATUS] >= 200',
             '[STATUS] <= 299',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Mysql))->toBe([
+            '[CONNECTED] == true',
+            '[RESPONSE_TIME] < 50',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Redis))->toBe([
+            '[CONNECTED] == true',
+            '[RESPONSE_TIME] < 50',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Postgres))->toBe([
+            '[CONNECTED] == true',
+            '[RESPONSE_TIME] < 50',
         ]);
 });
 
@@ -196,6 +208,27 @@ it('limits condition placeholders to values the check type can produce', functio
             '[RESPONSE_TIME]',
             '[IP]',
             '[CERTIFICATE_EXPIRATION]',
+            '[DOMAIN_EXPIRATION]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Mysql), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
+            '[DOMAIN_EXPIRATION]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Redis), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
+            '[DOMAIN_EXPIRATION]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Postgres), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
             '[DOMAIN_EXPIRATION]',
         ])
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[STATUS]')

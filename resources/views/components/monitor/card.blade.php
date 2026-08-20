@@ -20,7 +20,7 @@
             <h3 class="nm-card-name">{{ $name }}</h3>
             @if ($showTarget)
                 <p class="nm-card-meta">
-                    <span>{{ $monitor->target }}</span>
+                    <span>{{ $monitor->displayTarget() }}</span>
                 </p>
             @endif
             @if ($tags !== [])
