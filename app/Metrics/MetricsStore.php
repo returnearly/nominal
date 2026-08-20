@@ -11,14 +11,14 @@ use Illuminate\Support\Facades\Cache;
 
 final class MetricsStore
 {
-    public function record(Monitor $monitor, Probe $probe, ProbeResult $result): void
+    public function record(Monitor $monitor, ?Probe $probe, ProbeResult $result): void
     {
         $labels = [
             'monitor' => $monitor->name,
             'group' => $monitor->group ?? '',
             'type' => $monitor->type->value,
             'success' => $result->success ? 'true' : 'false',
-            'region' => $probe->slug,
+            'region' => $probe?->slug ?? 'web',
         ];
 
         $this->increment('nominal_results_total', $labels);
@@ -26,7 +26,7 @@ final class MetricsStore
             'monitor' => $monitor->name,
             'group' => $monitor->group ?? '',
             'type' => $monitor->type->value,
-            'region' => $probe->slug,
+            'region' => $probe?->slug ?? 'web',
         ], $result->success ? 1 : 0);
 
         if ($result->latencyMs !== null) {
@@ -34,7 +34,7 @@ final class MetricsStore
                 'monitor' => $monitor->name,
                 'group' => $monitor->group ?? '',
                 'type' => $monitor->type->value,
-                'region' => $probe->slug,
+                'region' => $probe?->slug ?? 'web',
             ], $result->latencyMs);
         }
     }

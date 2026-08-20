@@ -100,9 +100,7 @@ it('returns type-specific default conditions', function () {
             '[CONNECTED] == true',
             '[CERTIFICATE_EXPIRATION] > 48h',
         ])
-        ->and(ConditionExpression::defaultExpressions(MonitorType::Heartbeat))->toBe([
-            '[CONNECTED] == true',
-        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Heartbeat))->toBe([])
         ->and(ConditionExpression::defaultExpressions(MonitorType::Udp))->toBe([
             '[CONNECTED] == true',
             '[RESPONSE_TIME] < 50',
@@ -131,4 +129,56 @@ it('limits ordering comparators to numeric placeholders', function () {
         ->and(ConditionPlaceholder::comparatorOptions(ConditionPlaceholder::Ip))->not->toHaveKey('>')
         ->and(ConditionPlaceholder::comparatorOptions(ConditionPlaceholder::Ip))->not->toHaveKey('<')
         ->and(ConditionPlaceholder::comparatorOptions(ConditionPlaceholder::Body))->toHaveKey('>=');
+});
+
+it('limits condition placeholders to values the check type can produce', function () {
+    expect(array_column(ConditionPlaceholder::forType(MonitorType::Http), 'value'))->toBe([
+        '[STATUS]',
+        '[BODY]',
+        '[CONNECTED]',
+        '[RESPONSE_TIME]',
+        '[IP]',
+        '[CERTIFICATE_EXPIRATION]',
+    ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Ping), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Tcp), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Dns), 'value'))->toBe([
+            '[DNS_RCODE]',
+            '[BODY]',
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Tls), 'value'))->toBe([
+            '[CONNECTED]',
+            '[CERTIFICATE_EXPIRATION]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
+        ])
+        ->and(ConditionPlaceholder::forType(MonitorType::Heartbeat))->toBe([])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::Udp), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::WebSocket), 'value'))->toBe([
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[BODY]',
+        ])
+        ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[STATUS]')
+        ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[DNS_RCODE]')
+        ->and(ConditionPlaceholder::options('[STATUS]', MonitorType::Ping))->toHaveKey('[STATUS]');
 });

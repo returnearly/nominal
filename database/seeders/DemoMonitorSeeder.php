@@ -32,16 +32,18 @@ class DemoMonitorSeeder extends Seeder
                 $demo['attributes'],
             );
 
-            if ($monitor->conditions()->doesntExist()) {
-                foreach ($demo['conditions'] as $sort => $expression) {
-                    $monitor->conditions()->create([
-                        'expression' => $expression,
-                        'sort' => $sort,
-                    ]);
+            if ($monitor->type !== MonitorType::Heartbeat) {
+                if ($monitor->conditions()->doesntExist()) {
+                    foreach ($demo['conditions'] as $sort => $expression) {
+                        $monitor->conditions()->create([
+                            'expression' => $expression,
+                            'sort' => $sort,
+                        ]);
+                    }
                 }
-            }
 
-            $monitor->probes()->syncWithoutDetaching([$probe->id]);
+                $monitor->probes()->syncWithoutDetaching([$probe->id]);
+            }
 
             if ($monitor->last_checked_at === null && $monitor->type !== MonitorType::Heartbeat) {
                 DispatchMonitorCheck::make()->handle($monitor);
@@ -100,7 +102,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example Heartbeat',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Heartbeat),
+                'conditions' => [],
                 'attributes' => $this->attributes(
                     type: MonitorType::Heartbeat,
                     target: 'backup-job',

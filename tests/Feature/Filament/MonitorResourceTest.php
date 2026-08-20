@@ -285,6 +285,21 @@ it('queues a check immediately from the monitor view page', function () {
     });
 });
 
+it('queues a heartbeat check from the monitor view without probes', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->callAction('checkNow');
+
+    Queue::assertPushed(function (RunCheckJob $job) use ($monitor): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === null;
+    });
+});
+
 it('saves monitor conditions from the placeholder picker', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
@@ -382,4 +397,36 @@ it('defaults ping monitors to connected and under 50ms', function () {
             'comparator' => ConditionComparator::LessThan->value,
             'value' => '50',
         ]);
+});
+
+it('creates a heartbeat monitor without probes, IP family, or conditions', function () {
+    $user = User::factory()->create();
+    Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Nightly backup')
+        ->set('data.type', MonitorType::Heartbeat->value)
+        ->set('data.target', 'backup-job')
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Nightly backup')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->type)->toBe(MonitorType::Heartbeat)
+        ->and($monitor->probes()->count())->toBe(0)
+        ->and($monitor->conditions()->count())->toBe(0)
+        ->and($monitor->heartbeat_token)->toHaveLength(48);
+});
+
+it('hides probe timeout on heartbeat monitors', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.type', MonitorType::Heartbeat->value)
+        ->assertFormFieldIsHidden('timeout_seconds')
+        ->assertFormFieldIsHidden('ip_family')
+        ->assertFormFieldIsHidden('probes');
 });

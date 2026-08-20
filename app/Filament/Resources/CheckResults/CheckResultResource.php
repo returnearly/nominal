@@ -105,7 +105,7 @@ final class CheckResultResource extends Resource
                 ->sortable();
         }
 
-        $columns[] = TextColumn::make('probe.name')->label('Probe');
+        $columns[] = TextColumn::make('probe.name')->label('Probe')->placeholder('Web');
         $columns[] = TextColumn::make('http_status')->label('Status');
         $columns[] = TextColumn::make('latency_ms')->suffix(' ms');
         $columns[] = TextColumn::make('resolved_ip');

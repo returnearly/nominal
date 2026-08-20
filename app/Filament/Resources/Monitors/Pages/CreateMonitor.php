@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Conditions\ConditionExpression;
+use App\Enums\IpFamily;
 use App\Enums\MonitorType;
 use App\Filament\Resources\Monitors\MonitorResource;
 use Filament\Resources\Pages\CreateRecord;
@@ -22,15 +23,29 @@ final class CreateMonitor extends CreateRecord
         $type = $data['type'] ?? null;
         $isHeartbeat = $type === MonitorType::Heartbeat || $type === MonitorType::Heartbeat->value;
 
-        if ($isHeartbeat && blank($data['target'] ?? null)) {
+        if (! $isHeartbeat) {
+            return $data;
+        }
+
+        if (blank($data['target'] ?? null)) {
             $data['target'] = 'heartbeat';
         }
+
+        $data['ip_family'] = IpFamily::Any;
+        $data['timeout_seconds'] = $data['timeout_seconds'] ?? 10;
 
         return $data;
     }
 
     protected function afterCreate(): void
     {
+        if ($this->record->type->isHeartbeat()) {
+            $this->record->conditions()->delete();
+            $this->record->probes()->sync([]);
+
+            return;
+        }
+
         if ($this->record->conditions()->doesntExist()) {
             foreach (ConditionExpression::defaultExpressions($this->record->type) as $sort => $expression) {
                 $this->record->conditions()->create([

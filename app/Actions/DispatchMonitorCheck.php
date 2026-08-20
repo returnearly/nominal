@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Enums\MonitorType;
 use App\Jobs\RunCheckJob;
 use App\Models\Monitor;
 use App\Models\Probe;
@@ -16,6 +17,13 @@ final readonly class DispatchMonitorCheck implements ActionsPatternInterface
 
     public function handle(Monitor $monitor): int
     {
+        if ($monitor->type === MonitorType::Heartbeat) {
+            RunCheckJob::dispatch($monitor->id);
+            $monitor->scheduleNextCheck()->save();
+
+            return 1;
+        }
+
         $dispatched = 0;
 
         $monitor->probes()

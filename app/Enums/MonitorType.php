@@ -69,4 +69,9 @@ enum MonitorType: string implements HasLabel
     {
         return $this === self::Heartbeat;
     }
+
+    public function usesOutboundProbe(): bool
+    {
+        return ! $this->isHeartbeat();
+    }
 }

@@ -101,14 +101,7 @@ final class ConditionExpression
                     'value' => 'NOERROR',
                 ],
             ],
-            MonitorType::Heartbeat => [
-                [
-                    'placeholder' => ConditionPlaceholder::Connected->value,
-                    'path' => '',
-                    'comparator' => ConditionComparator::Equal->value,
-                    'value' => 'true',
-                ],
-            ],
+            MonitorType::Heartbeat => [],
             MonitorType::Tls => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
@@ -181,7 +174,12 @@ final class ConditionExpression
      */
     public static function newItem(mixed $type): array
     {
-        return self::defaultsForType($type)[0];
+        return self::defaultsForType($type)[0] ?? [
+            'placeholder' => ConditionPlaceholder::Connected->value,
+            'path' => '',
+            'comparator' => ConditionComparator::Equal->value,
+            'value' => 'true',
+        ];
     }
 
     /**

@@ -40,6 +40,21 @@ it('dispatches only monitors whose next_check_at is due', function () {
     Queue::assertNotPushed(fn (RunCheckJob $job): bool => $job->monitorId === $paused->id);
 });
 
+it('dispatches heartbeat monitors on the default queue without a probe', function () {
+    Queue::fake();
+    $this->freezeTime();
+
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'next_check_at' => now()->subSecond(),
+    ]);
+
+    expect(DispatchDueChecks::make()->handle())->toBe(1);
+
+    Queue::assertPushed(function (RunCheckJob $job) use ($monitor): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === null;
+    });
+});
+
 it('pushes next_check_at forward when due checks are dispatched', function () {
     Queue::fake();
     $this->freezeTime();

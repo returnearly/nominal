@@ -16,8 +16,16 @@ it('creates a demo monitor for each type', function () {
     foreach (MonitorType::cases() as $type) {
         $monitor = Monitor::query()->where('type', $type)->where('group', 'demo')->first();
 
-        expect($monitor)->not->toBeNull()
-            ->and($monitor?->probes()->where('slug', 'local')->exists())->toBeTrue()
+        expect($monitor)->not->toBeNull();
+
+        if ($type === MonitorType::Heartbeat) {
+            expect($monitor?->probes()->exists())->toBeFalse()
+                ->and($monitor?->conditions()->exists())->toBeFalse();
+
+            continue;
+        }
+
+        expect($monitor?->probes()->where('slug', 'local')->exists())->toBeTrue()
             ->and($monitor?->conditions()->exists())->toBeTrue();
     }
 });

@@ -57,13 +57,60 @@ enum ConditionPlaceholder: string implements HasLabel
     }
 
     /**
+     * @return list<self>
+     */
+    public static function forType(mixed $type): array
+    {
+        $type = $type instanceof MonitorType
+            ? $type
+            : MonitorType::tryFrom((string) $type) ?? MonitorType::Http;
+
+        return match ($type) {
+            MonitorType::Http => [
+                self::Status,
+                self::Body,
+                self::Connected,
+                self::ResponseTime,
+                self::Ip,
+                self::CertificateExpiration,
+            ],
+            MonitorType::Ping => [
+                self::Connected,
+                self::ResponseTime,
+                self::Ip,
+            ],
+            MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket => [
+                self::Connected,
+                self::ResponseTime,
+                self::Ip,
+                self::Body,
+            ],
+            MonitorType::Dns => [
+                self::DnsRcode,
+                self::Body,
+                self::Connected,
+                self::ResponseTime,
+                self::Ip,
+            ],
+            MonitorType::Tls => [
+                self::Connected,
+                self::CertificateExpiration,
+                self::ResponseTime,
+                self::Ip,
+                self::Body,
+            ],
+            MonitorType::Heartbeat => [],
+        };
+    }
+
+    /**
      * @return array<string, string>
      */
-    public static function options(?string $current = null): array
+    public static function options(?string $current = null, mixed $type = null): array
     {
         $options = [];
 
-        foreach (self::cases() as $case) {
+        foreach (self::forType($type) as $case) {
             $options[$case->value] = $case->value;
         }
 
