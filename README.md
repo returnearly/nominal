@@ -12,7 +12,7 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 - Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
 - Monitors: HTTP/HTTPS, GraphQL, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, and WebSocket
 - Proxies: per-monitor HTTP/SOCKS URL for HTTP, GraphQL, TCP, TLS, and WebSocket; `HTTP_PROXY` / `ALL_PROXY` for HTTP checks and notification webhooks
-- Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DNS_RCODE]`
+- Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DOMAIN_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
 - Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)

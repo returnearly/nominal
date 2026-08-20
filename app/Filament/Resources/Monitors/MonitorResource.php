@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors;
 
+use App\Actions\LookupDomainExpiration;
 use App\Conditions\ConditionExpression;
 use App\Enums\ConditionComparator;
 use App\Enums\ConditionPlaceholder;
@@ -218,10 +219,32 @@ final class MonitorResource extends Resource
                         ->numeric()
                         ->required()
                         ->default(60)
-                        ->minValue(10)
-                        ->helperText(fn (Get $get): ?string => self::type($get)?->isHeartbeat() === true
-                            ? 'How often a heartbeat is expected. After /start, the job must finish within this interval.'
-                            : null),
+                        ->live()
+                        ->minValue(fn (Get $get): int => self::formUsesDomainExpiration($get)
+                            ? LookupDomainExpiration::MinimumIntervalSeconds
+                            : 10)
+                        ->rule(function (Get $get): \Closure {
+                            return function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
+                                if (! self::formUsesDomainExpiration($get)) {
+                                    return;
+                                }
+
+                                if ((int) $value < LookupDomainExpiration::MinimumIntervalSeconds) {
+                                    $fail('The minimum interval for a monitor with a [DOMAIN_EXPIRATION] condition is 300s (5m).');
+                                }
+                            };
+                        })
+                        ->helperText(function (Get $get): ?string {
+                            if (self::type($get)?->isHeartbeat() === true) {
+                                return 'How often a heartbeat is expected. After /start, the job must finish within this interval.';
+                            }
+
+                            if (self::formUsesDomainExpiration($get)) {
+                                return 'Checks using [DOMAIN_EXPIRATION] must run at least every 5 minutes (300s).';
+                            }
+
+                            return null;
+                        }),
                     TextInput::make('timeout_seconds')
                         ->numeric()
                         ->default(10)
@@ -301,7 +324,10 @@ final class MonitorResource extends Resource
                                     ->native(false)
                                     ->selectablePlaceholder(false)
                                     ->live()
-                                    ->afterStateUpdated(self::syncComparator(...)),
+                                    ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                        self::syncComparator($set, $get, $state);
+                                        self::ensureDomainExpirationInterval($set, $get, $state);
+                                    }),
                                 TextInput::make('path')
                                     ->hiddenLabel()
                                     ->placeholder('.status')
@@ -330,6 +356,7 @@ final class MonitorResource extends Resource
                         ->minItems(fn (Get $get): int => self::usesOutboundProbe($get) ? 1 : 0)
                         ->dehydrated(self::usesOutboundProbe(...))
                         ->addActionLabel('Add condition')
+                        ->live()
                         ->columnSpanFull(),
                 ]),
             Section::make('Routing')
@@ -492,6 +519,48 @@ final class MonitorResource extends Resource
         }
 
         return MonitorType::tryFrom((string) $type);
+    }
+
+    private static function formUsesDomainExpiration(Get $get): bool
+    {
+        if (self::type($get)?->supportsDomainExpiration() !== true) {
+            return false;
+        }
+
+        foreach ($get('conditions') ?? [] as $condition) {
+            if (! is_array($condition)) {
+                continue;
+            }
+
+            $placeholder = (string) ($condition['placeholder'] ?? '');
+            $expression = (string) ($condition['expression'] ?? '');
+
+            if (
+                $placeholder === ConditionPlaceholder::DomainExpiration->value
+                || str_contains($expression, ConditionPlaceholder::DomainExpiration->value)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function ensureDomainExpirationInterval(Set $set, Get $get, mixed $state): void
+    {
+        $placeholder = $state instanceof ConditionPlaceholder
+            ? $state->value
+            : trim((string) $state);
+
+        if ($placeholder !== ConditionPlaceholder::DomainExpiration->value) {
+            return;
+        }
+
+        $interval = (int) $get('../../interval_seconds');
+
+        if ($interval < LookupDomainExpiration::MinimumIntervalSeconds) {
+            $set('../../interval_seconds', LookupDomainExpiration::MinimumIntervalSeconds);
+        }
     }
 
     private static function isBody(Get $get): bool

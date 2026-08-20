@@ -8,6 +8,7 @@ use App\Conditions\CheckContext;
 use App\Conditions\ConditionEvaluator;
 use App\Conditions\ConditionOutcome;
 use App\Models\Monitor;
+use DateTimeImmutable;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
@@ -17,13 +18,17 @@ final readonly class EvaluateCheckConditions implements ActionsPatternInterface
 
     public function __construct(
         private ConditionEvaluator $evaluator,
+        private LookupDomainExpiration $domains,
     ) {}
 
     /**
-     * @return array{0: list<ConditionOutcome>, 1: bool, 2: string|null}
+     * @return array{0: list<ConditionOutcome>, 1: bool, 2: string|null, 3: DateTimeImmutable|null}
      */
     public function handle(Monitor $monitor, CheckContext $context, ?string $error): array
     {
+        $domainExpiresAt = $this->domains->handle($monitor);
+        $context = $this->withDomainExpiration($context, $domainExpiresAt);
+
         $expressions = $monitor->conditions->pluck('expression')->all();
         $outcomes = $this->evaluator->evaluateAll($expressions, $context);
 
@@ -44,6 +49,22 @@ final readonly class EvaluateCheckConditions implements ActionsPatternInterface
             }
         }
 
-        return [$outcomes, $success, $message];
+        return [$outcomes, $success, $message, $domainExpiresAt];
+    }
+
+    private function withDomainExpiration(CheckContext $context, ?DateTimeImmutable $expiresAt): CheckContext
+    {
+        return new CheckContext(
+            status: $context->status,
+            responseTimeMs: $context->responseTimeMs,
+            ip: $context->ip,
+            connected: $context->connected,
+            certificateExpirationSeconds: $context->certificateExpirationSeconds,
+            domainExpirationSeconds: $this->domains->seconds($expiresAt),
+            body: $context->body,
+            rawBody: $context->rawBody,
+            bodyPathExisted: $context->bodyPathExisted,
+            dnsRcode: $context->dnsRcode,
+        );
     }
 }

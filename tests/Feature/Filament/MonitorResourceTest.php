@@ -459,6 +459,36 @@ it('saves monitor conditions from the placeholder picker', function () {
         ]);
 });
 
+it('saves a domain expiration condition', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'example.com')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com')
+        ->set('data.interval_seconds', 3600)
+        ->set('data.probes', [$probe->id])
+        ->set('data.conditions', [
+            'domain' => [
+                'placeholder' => ConditionPlaceholder::DomainExpiration->value,
+                'comparator' => ConditionComparator::GreaterThan->value,
+                'value' => '720h',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'example.com')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->interval_seconds)->toBe(3600)
+        ->and($monitor->conditions()->pluck('expression')->all())->toBe([
+            '[DOMAIN_EXPIRATION] > 720h',
+        ]);
+});
+
 it('hydrates the condition picker from stored expressions', function () {
     $user = User::factory()->create();
     $monitor = Monitor::factory()->create(['name' => 'Checkout']);

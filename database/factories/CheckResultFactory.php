@@ -25,6 +25,7 @@ class CheckResultFactory extends Factory
             'http_status' => 200,
             'resolved_ip' => '1.1.1.1',
             'certificate_expires_at' => null,
+            'domain_expires_at' => null,
             'message' => null,
             'condition_results' => [],
         ];
