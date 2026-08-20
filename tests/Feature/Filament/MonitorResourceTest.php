@@ -21,6 +21,7 @@ use App\Models\CheckResult;
 use App\Models\Monitor;
 use App\Models\Probe;
 use App\Models\User;
+use App\Support\DownMonitorFavicon;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
@@ -152,6 +153,39 @@ it('shows status totals at the top of the monitors list', function () {
         ->assertSee('3')
         ->assertSee('4')
         ->assertSee('5');
+});
+
+it('shows a red favicon with the down count on the monitors page', function () {
+    $user = User::factory()->create();
+
+    Monitor::factory()->count(2)->create(['status' => MonitorStatus::Up]);
+    Monitor::factory()->count(3)->create(['status' => MonitorStatus::Down]);
+    Monitor::factory()->create(['status' => MonitorStatus::Paused]);
+
+    $href = DownMonitorFavicon::href(3);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->assertSet('faviconHref', $href)
+        ->assertSet('downCount', 3)
+        ->assertSee('data-nm-favicon="'.$href.'"', escape: false)
+        ->assertSee('data-nm-down="3"', escape: false);
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('nm-logo-bg', escape: false)
+        ->assertSee('html.nm-monitors-down .nm-logo-bg', escape: false);
+});
+
+it('keeps the default favicon on the monitors page when none are down', function () {
+    $user = User::factory()->create();
+    Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->assertSet('downCount', 0)
+        ->assertSet('faviconHref', asset('favicon.svg'));
 });
 
 it('filters the monitors table when a status stat is clicked', function () {

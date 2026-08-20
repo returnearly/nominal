@@ -12,7 +12,7 @@
             <circle cx="20" cy="20" r="12.5"/>
         </clipPath>
     </defs>
-    <rect width="40" height="40" rx="10" fill="#5ADEB7"/>
+    <rect class="nm-logo-bg" width="40" height="40" rx="10" fill="#5ADEB7"/>
     <g clip-path="url(#nm-logo-face)">
         <rect width="40" height="20" fill="#95E6CD"/>
         <rect y="20" width="40" height="20" fill="#151414"/>
