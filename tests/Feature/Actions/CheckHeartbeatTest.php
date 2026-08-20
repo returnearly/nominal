@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Checking\HeartbeatChecker;
+use App\Actions\CheckHeartbeat;
 use App\Models\Monitor;
 
 it('fails heartbeat checks when no ping has arrived', function () {
     $monitor = Monitor::factory()->heartbeat()->create();
 
-    $result = app(HeartbeatChecker::class)->check($monitor);
+    $result = CheckHeartbeat::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()
@@ -24,7 +24,7 @@ it('passes heartbeat checks when a ping arrived inside the interval', function (
     $monitor->last_heartbeat_at = now()->subSeconds(15);
     $monitor->save();
 
-    $result = app(HeartbeatChecker::class)->check($monitor);
+    $result = CheckHeartbeat::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue();

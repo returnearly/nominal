@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Checking\DnsChecker;
+use App\Actions\CheckDns;
 use App\Checking\DnsOutcome;
 use App\Checking\DnsTransport;
 use App\Enums\DnsQueryType;
@@ -25,7 +25,7 @@ it('passes DNS checks when the rcode is NOERROR', function () {
         }
     });
 
-    $result = app(DnsChecker::class)->check($monitor);
+    $result = CheckDns::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue()
@@ -44,7 +44,7 @@ it('fails DNS checks when the rcode is NXDOMAIN', function () {
         }
     });
 
-    $result = app(DnsChecker::class)->check($monitor);
+    $result = CheckDns::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeTrue()
@@ -57,7 +57,7 @@ it('fails DNS checks when the query name is missing', function () {
     ]);
     $monitor->load('conditions');
 
-    $result = app(DnsChecker::class)->check($monitor);
+    $result = CheckDns::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()

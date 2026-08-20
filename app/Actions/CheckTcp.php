@@ -2,51 +2,52 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
+use App\Checking\ProbeResult;
+use App\Checking\SocketAddress;
+use App\Checking\SocketOutcome;
+use App\Checking\TcpTransport;
 use App\Conditions\CheckContext;
 use App\Models\Monitor;
-use DateTimeImmutable;
 use InvalidArgumentException;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 use Throwable;
 
-final class TlsChecker
+final readonly class CheckTcp implements ActionsPatternInterface
 {
+    use ActionsPattern;
+
     public function __construct(
-        private readonly ConditionRunner $conditions,
-        private readonly TlsTransport $transport,
+        private EvaluateCheckConditions $conditions,
+        private TcpTransport $transport,
     ) {}
 
-    public function check(Monitor $monitor): ProbeResult
+    public function handle(Monitor $monitor): ProbeResult
     {
         try {
-            $address = SocketAddress::parse($monitor->target, 443);
+            $address = SocketAddress::parse($monitor->target);
             $outcome = $this->transport->connect(
                 $address->host,
                 $address->port,
                 $monitor->timeout_seconds,
                 $monitor->ip_family,
-                $monitor->verify_tls,
                 $monitor->request_body,
             );
         } catch (InvalidArgumentException|Throwable $exception) {
             $outcome = SocketOutcome::failed(null, $exception->getMessage());
         }
 
-        $certificateSeconds = $outcome->certificateExpiresAt instanceof DateTimeImmutable
-            ? $outcome->certificateExpiresAt->getTimestamp() - time()
-            : null;
-
         $context = new CheckContext(
             responseTimeMs: $outcome->latencyMs,
             ip: $outcome->ip,
             connected: $outcome->connected,
-            certificateExpirationSeconds: $certificateSeconds,
             body: $outcome->body,
             rawBody: $outcome->body,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->run(
+        [$outcomes, $success, $message] = $this->conditions->handle(
             $monitor,
             $context,
             $outcome->connected ? null : $outcome->message,
@@ -58,7 +59,7 @@ final class TlsChecker
             latencyMs: $outcome->latencyMs,
             httpStatus: null,
             resolvedIp: $outcome->ip,
-            certificateExpiresAt: $outcome->certificateExpiresAt,
+            certificateExpiresAt: null,
             message: $message,
             conditionResults: $outcomes,
             responseBody: $outcome->body,

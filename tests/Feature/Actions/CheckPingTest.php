@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Checking\PingChecker;
+use App\Actions\CheckPing;
 use App\Checking\PingOutcome;
 use App\Checking\PingTransport;
 use App\Enums\IpFamily;
@@ -20,7 +20,7 @@ it('passes ping checks when the host is reachable', function () {
         }
     });
 
-    $result = app(PingChecker::class)->check($monitor);
+    $result = CheckPing::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue()
@@ -40,7 +40,7 @@ it('fails ping checks when the host is unreachable', function () {
         }
     });
 
-    $result = app(PingChecker::class)->check($monitor);
+    $result = CheckPing::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()

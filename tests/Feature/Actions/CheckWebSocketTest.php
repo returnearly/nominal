@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\CheckWebSocket;
 use App\Checking\SocketOutcome;
-use App\Checking\WebSocketChecker;
 use App\Checking\WebSocketTransport;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
@@ -37,7 +37,7 @@ it('passes WebSocket checks when the upgrade succeeds', function () {
         }
     });
 
-    $result = app(WebSocketChecker::class)->check($monitor);
+    $result = CheckWebSocket::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue()
@@ -68,7 +68,7 @@ it('fails WebSocket checks when the upgrade is refused', function () {
         }
     });
 
-    $result = app(WebSocketChecker::class)->check($monitor);
+    $result = CheckWebSocket::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()

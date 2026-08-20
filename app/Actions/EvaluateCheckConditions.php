@@ -2,23 +2,27 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
 use App\Conditions\CheckContext;
 use App\Conditions\ConditionEvaluator;
 use App\Conditions\ConditionOutcome;
 use App\Models\Monitor;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
-final class ConditionRunner
+final readonly class EvaluateCheckConditions implements ActionsPatternInterface
 {
+    use ActionsPattern;
+
     public function __construct(
-        private readonly ConditionEvaluator $evaluator,
+        private ConditionEvaluator $evaluator,
     ) {}
 
     /**
      * @return array{0: list<ConditionOutcome>, 1: bool, 2: string|null}
      */
-    public function run(Monitor $monitor, CheckContext $context, ?string $error): array
+    public function handle(Monitor $monitor, CheckContext $context, ?string $error): array
     {
         $expressions = $monitor->conditions->pluck('expression')->all();
         $outcomes = $this->evaluator->evaluateAll($expressions, $context);

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\CheckTls;
 use App\Checking\SocketOutcome;
-use App\Checking\TlsChecker;
 use App\Checking\TlsTransport;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
@@ -20,7 +20,7 @@ it('passes TLS checks when the handshake succeeds and the cert is valid', functi
         }
     });
 
-    $result = app(TlsChecker::class)->check($monitor);
+    $result = CheckTls::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue()
@@ -39,7 +39,7 @@ it('fails TLS checks when the handshake is refused', function () {
         }
     });
 
-    $result = app(TlsChecker::class)->check($monitor);
+    $result = CheckTls::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()
@@ -66,7 +66,7 @@ it('defaults TLS targets without a port to 443', function () {
         }
     });
 
-    app(TlsChecker::class)->check($monitor);
+    CheckTls::make()->handle($monitor);
 
     expect($captured->port)->toBe(443);
 });

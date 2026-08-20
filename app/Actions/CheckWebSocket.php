@@ -2,21 +2,29 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
+use App\Checking\ProbeResult;
+use App\Checking\SocketAddress;
+use App\Checking\SocketOutcome;
+use App\Checking\WebSocketTransport;
 use App\Conditions\CheckContext;
 use App\Models\Monitor;
 use InvalidArgumentException;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 use Throwable;
 
-final class WebSocketChecker
+final readonly class CheckWebSocket implements ActionsPatternInterface
 {
+    use ActionsPattern;
+
     public function __construct(
-        private readonly ConditionRunner $conditions,
-        private readonly WebSocketTransport $transport,
+        private EvaluateCheckConditions $conditions,
+        private WebSocketTransport $transport,
     ) {}
 
-    public function check(Monitor $monitor): ProbeResult
+    public function handle(Monitor $monitor): ProbeResult
     {
         try {
             $secure = $this->isSecure($monitor->target);
@@ -44,7 +52,7 @@ final class WebSocketChecker
             rawBody: $outcome->body,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->run(
+        [$outcomes, $success, $message] = $this->conditions->handle(
             $monitor,
             $context,
             $outcome->connected ? null : $outcome->message,

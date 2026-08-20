@@ -2,19 +2,25 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
+use App\Checking\PingTransport;
+use App\Checking\ProbeResult;
 use App\Conditions\CheckContext;
 use App\Models\Monitor;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
-final class PingChecker
+final readonly class CheckPing implements ActionsPatternInterface
 {
+    use ActionsPattern;
+
     public function __construct(
-        private readonly ConditionRunner $conditions,
-        private readonly PingTransport $transport,
+        private EvaluateCheckConditions $conditions,
+        private PingTransport $transport,
     ) {}
 
-    public function check(Monitor $monitor): ProbeResult
+    public function handle(Monitor $monitor): ProbeResult
     {
         $outcome = $this->transport->ping(
             $monitor->target,
@@ -28,7 +34,7 @@ final class PingChecker
             connected: $outcome->connected,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->run(
+        [$outcomes, $success, $message] = $this->conditions->handle(
             $monitor,
             $context,
             $outcome->connected ? null : $outcome->message,
