@@ -12,6 +12,7 @@ use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
 final class ViewMonitor extends ViewRecord
@@ -27,6 +28,28 @@ final class ViewMonitor extends ViewRecord
                 ->action($this->queueCheck(...)),
             EditAction::make(),
         ];
+    }
+
+    protected function hasInfolist(): bool
+    {
+        return false;
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                $this->getRelationManagersContentComponent(),
+            ]);
+    }
+
+    public function getSubheading(): ?string
+    {
+        /** @var Monitor $record */
+        $record = $this->getRecord();
+        $group = filled($record->group) ? $record->group : 'Ungrouped';
+
+        return $group.' · '.$record->target;
     }
 
     /**

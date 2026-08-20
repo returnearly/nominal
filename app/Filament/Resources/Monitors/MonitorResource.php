@@ -16,14 +16,9 @@ use App\Filament\Resources\Monitors\Pages\EditMonitor;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
-use App\Filament\Tables\Columns\HeartbeatColumn;
+use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
 use BackedEnum;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
@@ -38,10 +33,8 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Grouping\Group as TableGroup;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -179,24 +172,17 @@ final class MonitorResource extends Resource
         return $table
             ->poll('10s')
             ->columns([
-                TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('group')->toggleable()->sortable(),
-                TextColumn::make('type')->badge(),
-                TextColumn::make('status')->badge(),
-                HeartbeatColumn::make('heartbeat'),
-                TextColumn::make('target')->limit(40)->toggleable(),
-                IconColumn::make('enabled')->boolean(),
-                TextColumn::make('last_checked_at')->since()->sortable(),
-                TextColumn::make('next_check_at')->since()->sortable(),
+                Stack::make([
+                    MonitorCardColumn::make('name'),
+                ]),
             ])
+            ->contentGrid([
+                'md' => 2,
+                'xl' => 4,
+            ])
+            ->recordUrl(fn (Monitor $record): string => self::getUrl('view', ['record' => $record]))
             ->defaultSort('name')
-            ->defaultGroup('group')
-            ->groups([
-                TableGroup::make('group')
-                    ->titlePrefixedWithLabel(false)
-                    ->collapsible()
-                    ->getTitleFromRecordUsing(self::groupTitle(...)),
-            ])
+            ->selectable(false)
             ->paginated([50, 100, 250])
             ->defaultPaginationPageOption(50)
             ->filters([
@@ -204,16 +190,8 @@ final class MonitorResource extends Resource
                 SelectFilter::make('type')->options(MonitorType::class),
                 SelectFilter::make('group')->options(self::groupOptions(...)),
             ])
-            ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->recordActions([])
+            ->toolbarActions([]);
     }
 
     public static function getRelations(): array
@@ -279,11 +257,6 @@ final class MonitorResource extends Resource
     private static function monitorType(Get $get): mixed
     {
         return $get('type') ?? $get('../../type') ?? $get('../../../type');
-    }
-
-    private static function groupTitle(Monitor $record): string
-    {
-        return blank($record->group) ? 'Ungrouped' : $record->group;
     }
 
     /**

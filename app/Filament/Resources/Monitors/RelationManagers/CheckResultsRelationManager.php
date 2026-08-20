@@ -19,6 +19,8 @@ final class CheckResultsRelationManager extends RelationManager
     {
         return CheckResultResource::configureHistoryTable($table)
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('probe'))
+            ->paginated([10])
+            ->defaultPaginationPageOption(10)
             ->headerActions([])
             ->recordActions([])
             ->toolbarActions([]);

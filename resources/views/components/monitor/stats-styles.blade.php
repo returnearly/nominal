@@ -17,7 +17,12 @@
         }
 
         .fi-wi-stats-overview-stat.nm-stat {
+            padding: 0.7rem 0.9rem;
             background-color: color-mix(in oklab, var(--nm-stat) 16%, var(--color-white));
+        }
+
+        .fi-wi-stats-overview-stat.nm-stat .fi-wi-stats-overview-stat-content {
+            gap: 0.15rem;
         }
 
         .fi-wi-stats-overview-stat.nm-stat .fi-wi-stats-overview-stat-label,
@@ -25,8 +30,36 @@
             color: var(--nm-stat);
         }
 
+        .fi-wi-stats-overview-stat.nm-stat .fi-wi-stats-overview-stat-value {
+            font-size: 1.35rem;
+            line-height: 1.2;
+        }
+
         .fi-wi-stats-overview-stat.nm-stat:where(.dark, .dark *) {
             background-color: color-mix(in oklab, var(--nm-stat) 22%, var(--gray-900));
+        }
+
+        .fi-ta-content-grid .fi-ta-record,
+        .fi-ta-content-grid .fi-ta-record-content-ctn,
+        .fi-ta-content-grid .fi-ta-record-content {
+            overflow: visible;
+        }
+
+        .fi-ta-content-grid .fi-ta-record {
+            align-items: stretch;
+            padding: 1rem 1.05rem 0.95rem;
+        }
+
+        .fi-ta-content-grid .fi-ta-record-content-ctn {
+            padding-top: 0;
+            padding-bottom: 0;
+            gap: 0;
+        }
+
+        .fi-ta-content-grid .fi-ta-col,
+        .fi-ta-content-grid .nm-card {
+            width: 100%;
+            padding: 0;
         }
     </style>
 @endonce
