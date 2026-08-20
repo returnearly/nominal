@@ -14,6 +14,7 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 - Proxies: per-monitor HTTP/SOCKS URL for HTTP, GraphQL, TCP, TLS, and WebSocket; `HTTP_PROXY` / `ALL_PROXY` for HTTP checks and notification webhooks
 - Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
+- Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
 
 ## Quick start
@@ -92,6 +93,21 @@ mutation {
 ```
 
 Unauthenticated clients receive GraphQL `errors[]`. HTTP status is still 200 — Terraform maps those errors as failed applies.
+
+## Status pages
+
+Nominal’s Filament UI is admin-only. Publish one or more public status pages (Uptime Kuma-style) instead of using the dashboard as the status page (Gatus-style).
+
+Each page can:
+
+- List a subset of monitors, with optional public names (targets hidden by default)
+- Use a custom domain, logo, favicon, theme, footer, and CSS
+- Optionally require a password
+- Show incidents and scheduled maintenance with a public timeline
+
+Path URL: `/status/{slug}`. Custom domain: CNAME the hostname to Nominal; the page is served at `/` on that host.
+
+GraphQL: `createStatusPage`, `createIncident`, `addIncidentUpdate`.
 
 ## Reverb
 

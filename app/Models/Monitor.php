@@ -156,6 +156,17 @@ class Monitor extends Model
             ]);
     }
 
+    public function statusPages(): BelongsToMany
+    {
+        return $this->belongsToMany(StatusPage::class, 'status_page_monitor')
+            ->withPivot(['id', 'public_name', 'sort']);
+    }
+
+    public function incidents(): BelongsToMany
+    {
+        return $this->belongsToMany(Incident::class, 'incident_monitor');
+    }
+
     /**
      * @return list<array{key: string, value: string}>
      */
