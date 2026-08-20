@@ -32,16 +32,18 @@ class DemoMonitorSeeder extends Seeder
                 $demo['attributes'],
             );
 
-            if ($monitor->conditions()->doesntExist()) {
-                foreach ($demo['conditions'] as $sort => $expression) {
-                    $monitor->conditions()->create([
-                        'expression' => $expression,
-                        'sort' => $sort,
-                    ]);
+            if ($monitor->type !== MonitorType::Heartbeat) {
+                if ($monitor->conditions()->doesntExist()) {
+                    foreach ($demo['conditions'] as $sort => $expression) {
+                        $monitor->conditions()->create([
+                            'expression' => $expression,
+                            'sort' => $sort,
+                        ]);
+                    }
                 }
-            }
 
-            $monitor->probes()->syncWithoutDetaching([$probe->id]);
+                $monitor->probes()->syncWithoutDetaching([$probe->id]);
+            }
 
             if ($monitor->last_checked_at === null && $monitor->type !== MonitorType::Heartbeat) {
                 DispatchMonitorCheck::make()->handle($monitor);
@@ -100,7 +102,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example Heartbeat',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Heartbeat),
+                'conditions' => [],
                 'attributes' => $this->attributes(
                     type: MonitorType::Heartbeat,
                     target: 'backup-job',
@@ -112,6 +114,14 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Udp,
                     target: 'udp://1.1.1.1:53',
+                ),
+            ],
+            [
+                'name' => 'Example WebSocket',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::WebSocket),
+                'attributes' => $this->attributes(
+                    type: MonitorType::WebSocket,
+                    target: 'wss://echo.websocket.events',
                 ),
             ],
             [
@@ -183,6 +193,16 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Udp,
                     target: 'not-a-real-host.invalid:9',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing WebSocket',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::WebSocket,
+                    target: 'ws://down.invalid/socket',
                     group: 'failing',
                     timeoutSeconds: 5,
                 ),

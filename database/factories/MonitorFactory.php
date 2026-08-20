@@ -106,6 +106,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function websocket(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::WebSocket,
+            'target' => 'wss://example.com/socket',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => 'ping',
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

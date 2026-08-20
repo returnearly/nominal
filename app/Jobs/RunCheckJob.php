@@ -19,15 +19,19 @@ final class RunCheckJob implements ShouldQueue
 
     public function __construct(
         public string $monitorId,
-        public string $probeId,
+        public ?string $probeId = null,
     ) {}
 
     public function handle(Checker $checker, RecordCheckResult $recorder): void
     {
         $monitor = Monitor::query()->with('conditions')->find($this->monitorId);
-        $probe = Probe::query()->find($this->probeId);
+        $probe = $this->probeId === null ? null : Probe::query()->find($this->probeId);
 
-        if ($monitor === null || $probe === null || ! $monitor->enabled || ! $probe->enabled) {
+        if ($monitor === null || ! $monitor->enabled) {
+            return;
+        }
+
+        if ($this->probeId !== null && ($probe === null || ! $probe->enabled)) {
             return;
         }
 

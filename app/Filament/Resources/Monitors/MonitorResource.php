@@ -54,6 +54,7 @@ final class MonitorResource extends Resource
     {
         $usesHttp = self::usesHttpRequest(...);
         $usesRequestBody = self::usesRequestBody(...);
+        $usesRequestHeaders = self::usesRequestHeaders(...);
         $usesVerifyTls = self::usesVerifyTls(...);
 
         return $schema->components([
@@ -69,6 +70,41 @@ final class MonitorResource extends Resource
                         ->live()
                         ->afterStateUpdated(function (Set $set, mixed $state): void {
                             $set('conditions', ConditionExpression::defaultFormState($state));
+
+                            $type = $state instanceof MonitorType
+                                ? $state
+                                : MonitorType::tryFrom((string) $state);
+
+                            if ($type === null) {
+                                return;
+                            }
+
+                            if (! $type->usesOutboundProbe()) {
+                                $set('probes', []);
+                                $set('ip_family', IpFamily::Any);
+                            }
+
+                            if (! $type->usesHttpRequest()) {
+                                $set('method', null);
+                                $set('follow_redirects', true);
+                            }
+
+                            if (! $type->usesRequestHeaders()) {
+                                $set('request_headers', []);
+                            }
+
+                            if (! $type->usesRequestBody()) {
+                                $set('request_body', null);
+                            }
+
+                            if (! $type->usesVerifyTls()) {
+                                $set('verify_tls', true);
+                            }
+
+                            if (! $type->usesDnsQuery()) {
+                                $set('dns_query_name', null);
+                                $set('dns_query_type', null);
+                            }
                         }),
                     TextInput::make('target')
                         ->required(fn (Get $get): bool => self::type($get)?->isHeartbeat() !== true)
@@ -80,6 +116,7 @@ final class MonitorResource extends Resource
                             MonitorType::Dns => '1.1.1.1',
                             MonitorType::Ping => 'example.com',
                             MonitorType::Heartbeat => 'backup-job',
+                            MonitorType::WebSocket => 'wss://example.com/socket',
                             default => 'https://example.com/health',
                         }),
                     TextInput::make('heartbeat_url')
@@ -113,9 +150,24 @@ final class MonitorResource extends Resource
                     Select::make('ip_family')
                         ->options(IpFamily::class)
                         ->default(IpFamily::Any)
-                        ->required(),
-                    TextInput::make('interval_seconds')->numeric()->required()->default(60)->minValue(10),
-                    TextInput::make('timeout_seconds')->numeric()->required()->default(10)->minValue(1),
+                        ->required(self::usesOutboundProbe(...))
+                        ->visible(self::usesOutboundProbe(...))
+                        ->dehydrated(self::usesOutboundProbe(...)),
+                    TextInput::make('interval_seconds')
+                        ->numeric()
+                        ->required()
+                        ->default(60)
+                        ->minValue(10)
+                        ->helperText(fn (Get $get): ?string => self::type($get)?->isHeartbeat() === true
+                            ? 'How often a heartbeat is expected.'
+                            : null),
+                    TextInput::make('timeout_seconds')
+                        ->numeric()
+                        ->default(10)
+                        ->minValue(1)
+                        ->required(self::usesOutboundProbe(...))
+                        ->visible(self::usesOutboundProbe(...))
+                        ->dehydrated(self::usesOutboundProbe(...)),
                     TextInput::make('retention_days')->numeric()->required()->default(30)->minValue(1),
                     Toggle::make('enabled')->default(true),
                     Toggle::make('follow_redirects')
@@ -126,12 +178,12 @@ final class MonitorResource extends Resource
                         ->visible($usesVerifyTls),
                 ]),
             Section::make('Request')
-                ->visible($usesRequestBody)
+                ->visible(fn (Get $get): bool => $usesRequestBody($get) || $usesRequestHeaders($get))
                 ->components([
                     KeyValue::make('request_headers')
                         ->keyLabel('Header')
                         ->valueLabel('Value')
-                        ->visible($usesHttp),
+                        ->visible($usesRequestHeaders),
                     Textarea::make('request_body')
                         ->rows(6)
                         ->columnSpanFull()
@@ -141,6 +193,8 @@ final class MonitorResource extends Resource
                 ]),
             Section::make('Conditions')
                 ->description('These are what determine whether an endpoint is healthy or not.')
+                ->visible(self::usesOutboundProbe(...))
+                ->dehydrated(self::usesOutboundProbe(...))
                 ->components([
                     Repeater::make('conditions')
                         ->relationship()
@@ -154,7 +208,10 @@ final class MonitorResource extends Resource
                             Group::make([
                                 Select::make('placeholder')
                                     ->hiddenLabel()
-                                    ->options(fn (Get $get): array => ConditionPlaceholder::options($get('placeholder')))
+                                    ->options(fn (Get $get): array => ConditionPlaceholder::options(
+                                        $get('placeholder'),
+                                        self::monitorType($get),
+                                    ))
                                     ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['placeholder'])
                                     ->required()
                                     ->native(false)
@@ -186,7 +243,8 @@ final class MonitorResource extends Resource
                         ->mutateRelationshipDataBeforeSaveUsing(ConditionExpression::toRecord(...))
                         ->orderColumn('sort')
                         ->default(fn (Get $get): array => ConditionExpression::defaultsForType($get('type')))
-                        ->minItems(1)
+                        ->minItems(fn (Get $get): int => self::usesOutboundProbe($get) ? 1 : 0)
+                        ->dehydrated(self::usesOutboundProbe(...))
                         ->addActionLabel('Add condition')
                         ->columnSpanFull(),
                 ]),
@@ -197,7 +255,9 @@ final class MonitorResource extends Resource
                         ->relationship('probes', 'name')
                         ->multiple()
                         ->preload()
-                        ->required(),
+                        ->required(self::usesOutboundProbe(...))
+                        ->visible(self::usesOutboundProbe(...))
+                        ->dehydrated(self::usesOutboundProbe(...)),
                     Select::make('notificationChannels')
                         ->relationship('notificationChannels', 'name')
                         ->multiple()
@@ -258,6 +318,11 @@ final class MonitorResource extends Resource
             ]);
     }
 
+    private static function usesOutboundProbe(Get $get): bool
+    {
+        return self::type($get)?->usesOutboundProbe() ?? true;
+    }
+
     private static function usesHttpRequest(Get $get): bool
     {
         return self::type($get)?->usesHttpRequest() ?? false;
@@ -276,6 +341,11 @@ final class MonitorResource extends Resource
     private static function usesVerifyTls(Get $get): bool
     {
         return self::type($get)?->usesVerifyTls() ?? false;
+    }
+
+    private static function usesRequestHeaders(Get $get): bool
+    {
+        return self::type($get)?->usesRequestHeaders() ?? false;
     }
 
     private static function type(Get $get): ?MonitorType

@@ -84,3 +84,23 @@ it('schedules the next check when a result is recorded', function () {
     expect($monitor->fresh()->next_check_at?->toDateTimeString())
         ->toBe(now()->copy()->addSeconds(60)->toDateTimeString());
 });
+
+it('records heartbeat results without a probe', function () {
+    Event::fake([CheckCompleted::class, MonitorStatusUpdated::class]);
+
+    $monitor = Monitor::factory()->heartbeat()->create(['status' => MonitorStatus::Pending]);
+
+    $stored = RecordCheckResult::make()->handle($monitor, null, new ProbeResult(
+        success: true,
+        connected: true,
+        latencyMs: 12,
+        httpStatus: null,
+        resolvedIp: null,
+        certificateExpiresAt: null,
+        message: null,
+        conditionResults: [],
+    ));
+
+    expect($stored->probe_id)->toBeNull()
+        ->and($monitor->fresh()->status)->toBe(MonitorStatus::Up);
+});

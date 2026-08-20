@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\MonitorStatus;
+use App\Enums\MonitorType;
 use App\Jobs\RunCheckJob;
 use App\Models\Monitor;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
@@ -24,20 +25,34 @@ final readonly class DispatchDueChecks implements ActionsPatternInterface
             ->where('status', '!=', MonitorStatus::Paused)
             ->where('next_check_at', '<=', now())
             ->each(function (Monitor $monitor) use (&$dispatched): void {
-                $probes = $monitor->probes->where('enabled', true);
+                $queued = $this->queue($monitor);
 
-                if ($probes->isEmpty()) {
+                if ($queued === 0) {
                     return;
                 }
 
-                foreach ($probes as $probe) {
-                    RunCheckJob::dispatch($monitor->id, $probe->id)->onQueue($probe->queueName());
-                    $dispatched++;
-                }
-
+                $dispatched += $queued;
                 $monitor->scheduleNextCheck()->save();
             });
 
         return $dispatched;
+    }
+
+    private function queue(Monitor $monitor): int
+    {
+        if ($monitor->type === MonitorType::Heartbeat) {
+            RunCheckJob::dispatch($monitor->id);
+
+            return 1;
+        }
+
+        $queued = 0;
+
+        foreach ($monitor->probes->where('enabled', true) as $probe) {
+            RunCheckJob::dispatch($monitor->id, $probe->id)->onQueue($probe->queueName());
+            $queued++;
+        }
+
+        return $queued;
     }
 }

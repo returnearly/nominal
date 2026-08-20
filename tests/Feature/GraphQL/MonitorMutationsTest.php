@@ -101,6 +101,46 @@ it('creates a TCP monitor', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
+it('ignores HTTP-only fields on ping monitors', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                method
+                requestHeaders { key value }
+                request_body
+                follow_redirects
+                verify_tls
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Gateway ping',
+            'type' => 'Ping',
+            'target' => '1.1.1.1',
+            'method' => 'POST',
+            'requestBody' => 'ignored',
+            'requestHeaders' => [
+                ['key' => 'X-Token', 'value' => 'abc'],
+            ],
+            'followRedirects' => false,
+            'verifyTls' => false,
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('Ping')
+        ->and($created['method'])->toBeNull()
+        ->and($created['requestHeaders'])->toBe([])
+        ->and($created['request_body'])->toBeNull()
+        ->and($created['follow_redirects'])->toBeTrue()
+        ->and($created['verify_tls'])->toBeTrue()
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
 it('creates a DNS monitor', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
@@ -157,7 +197,7 @@ it('creates a TLS monitor', function () {
         ->and($created['conditions'][1]['expression'])->toBe('[CERTIFICATE_EXPIRATION] > 48h');
 });
 
-it('creates a heartbeat monitor with a heartbeat URL', function () {
+it('creates a heartbeat monitor without probes, IP family, or conditions', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
     $created = graphql('
@@ -165,9 +205,11 @@ it('creates a heartbeat monitor with a heartbeat URL', function () {
             createMonitor(input: $input) {
                 type
                 target
+                ip_family
                 heartbeat_token
                 heartbeatUrl
                 conditions { expression }
+                probes { id }
             }
         }
     ', [
@@ -175,14 +217,19 @@ it('creates a heartbeat monitor with a heartbeat URL', function () {
             'name' => 'Nightly backup',
             'type' => 'Heartbeat',
             'target' => 'backup-job',
+            'ipFamily' => 'Ipv6',
+            'conditions' => ['[CONNECTED] == true'],
+            'probeIds' => [Probe::query()->value('id')],
         ],
     ])->assertSuccessful()
         ->json('data.createMonitor');
 
     expect($created['type'])->toBe('Heartbeat')
+        ->and($created['ip_family'])->toBe('Any')
         ->and($created['heartbeat_token'])->toHaveLength(48)
         ->and($created['heartbeatUrl'])->toEndWith('/api/heartbeat/'.$created['heartbeat_token'])
-        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+        ->and($created['conditions'])->toBe([])
+        ->and($created['probes'])->toBe([]);
 });
 
 it('creates a UDP monitor', function () {
@@ -207,6 +254,32 @@ it('creates a UDP monitor', function () {
 
     expect($created['type'])->toBe('Udp')
         ->and($created['target'])->toBe('udp://1.1.1.1:53')
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
+it('creates a WebSocket monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Live socket',
+            'type' => 'WebSocket',
+            'target' => 'wss://example.com/socket',
+            'requestBody' => 'ping',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('WebSocket')
+        ->and($created['target'])->toBe('wss://example.com/socket')
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 

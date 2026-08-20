@@ -36,3 +36,15 @@ it('does not queue checks when no enabled probes are assigned', function () {
 
     Queue::assertNothingPushed();
 });
+
+it('queues heartbeat checks without a probe', function () {
+    Queue::fake();
+
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    expect(DispatchMonitorCheck::make()->handle($monitor))->toBe(1);
+
+    Queue::assertPushed(function (RunCheckJob $job) use ($monitor): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === null;
+    });
+});

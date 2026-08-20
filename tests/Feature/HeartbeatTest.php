@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\MonitorStatus;
 use App\Models\Monitor;
-use App\Models\Probe;
 
 it('records a successful check when a heartbeat is received', function () {
-    $probe = Probe::factory()->create();
-    $monitor = Monitor::factory()->heartbeat()->withDefaultConditions()->create();
-    $monitor->probes()->attach($probe);
+    $monitor = Monitor::factory()->heartbeat()->create();
 
     $this->getJson('/api/heartbeat/'.$monitor->heartbeat_token.'?latency=42')
         ->assertOk()
@@ -19,13 +16,12 @@ it('records a successful check when a heartbeat is received', function () {
 
     expect($monitor->status)->toBe(MonitorStatus::Up)
         ->and($monitor->last_heartbeat_at)->not->toBeNull()
-        ->and($monitor->checkResults()->first()?->latency_ms)->toBe(42);
+        ->and($monitor->checkResults()->first()?->latency_ms)->toBe(42)
+        ->and($monitor->checkResults()->first()?->probe_id)->toBeNull();
 });
 
 it('accepts POST heartbeats', function () {
-    $probe = Probe::factory()->create();
-    $monitor = Monitor::factory()->heartbeat()->withDefaultConditions()->create();
-    $monitor->probes()->attach($probe);
+    $monitor = Monitor::factory()->heartbeat()->create();
 
     $this->postJson('/api/heartbeat/'.$monitor->heartbeat_token, ['ping' => 12])
         ->assertOk()

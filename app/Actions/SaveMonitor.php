@@ -35,37 +35,54 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             'type' => $type,
             'enabled' => $input['enabled'] ?? $monitor->enabled ?? true,
             'interval_seconds' => $input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60,
-            'timeout_seconds' => $input['timeoutSeconds'] ?? $input['timeout_seconds'] ?? $monitor->timeout_seconds ?? 10,
-            'ip_family' => $this->ipFamily($input['ipFamily'] ?? $input['ip_family'] ?? $monitor->ip_family ?? IpFamily::Any),
+            'timeout_seconds' => $type->usesOutboundProbe()
+                ? ($input['timeoutSeconds'] ?? $input['timeout_seconds'] ?? $monitor->timeout_seconds ?? 10)
+                : ($monitor->timeout_seconds ?? 10),
+            'ip_family' => $type->usesOutboundProbe()
+                ? $this->ipFamily($input['ipFamily'] ?? $input['ip_family'] ?? $monitor->ip_family ?? IpFamily::Any)
+                : IpFamily::Any,
             'target' => $input['target'] ?? $monitor->target,
-            'method' => $type === MonitorType::Http
+            'method' => $type->usesHttpRequest()
                 ? $this->method($input['method'] ?? $monitor->method ?? HttpMethod::Get)
                 : null,
-            'request_headers' => $input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [],
-            'request_body' => $input['requestBody'] ?? $input['request_body'] ?? $monitor->request_body,
-            'dns_query_name' => $type === MonitorType::Dns
+            'request_headers' => $type->usesRequestHeaders()
+                ? ($input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [])
+                : null,
+            'request_body' => $type->usesRequestBody()
+                ? ($input['requestBody'] ?? $input['request_body'] ?? $monitor->request_body)
+                : null,
+            'dns_query_name' => $type->usesDnsQuery()
                 ? ($input['dnsQueryName'] ?? $input['dns_query_name'] ?? $monitor->dns_query_name)
                 : null,
-            'dns_query_type' => $type === MonitorType::Dns
+            'dns_query_type' => $type->usesDnsQuery()
                 ? $this->dnsQueryType($input['dnsQueryType'] ?? $input['dns_query_type'] ?? $monitor->dns_query_type ?? DnsQueryType::A)
                 : null,
             'heartbeat_token' => $type === MonitorType::Heartbeat
                 ? ($monitor->heartbeat_token ?: Str::random(48))
                 : $monitor->heartbeat_token,
-            'follow_redirects' => $input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true,
-            'verify_tls' => $input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true,
+            'follow_redirects' => $type->usesHttpRequest()
+                ? ($input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true)
+                : true,
+            'verify_tls' => $type->usesVerifyTls()
+                ? ($input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true)
+                : true,
             'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,
             'status' => $monitor->status ?? MonitorStatus::Pending,
         ]);
 
         $monitor->save();
 
-        if (array_key_exists('conditions', $input) || $monitor->conditions()->doesntExist()) {
-            $this->syncConditions($monitor, $input['conditions'] ?? null);
-        }
+        if ($type === MonitorType::Heartbeat) {
+            $monitor->conditions()->delete();
+            $monitor->probes()->sync([]);
+        } else {
+            if (array_key_exists('conditions', $input) || $monitor->conditions()->doesntExist()) {
+                $this->syncConditions($monitor, $input['conditions'] ?? null);
+            }
 
-        if (array_key_exists('probeIds', $input) || array_key_exists('probe_ids', $input) || $monitor->probes()->doesntExist()) {
-            $this->syncProbes($monitor, $input['probeIds'] ?? $input['probe_ids'] ?? null);
+            if (array_key_exists('probeIds', $input) || array_key_exists('probe_ids', $input) || $monitor->probes()->doesntExist()) {
+                $this->syncProbes($monitor, $input['probeIds'] ?? $input['probe_ids'] ?? null);
+            }
         }
 
         return $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;

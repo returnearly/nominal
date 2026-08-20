@@ -6,8 +6,7 @@ use App\Checking\HeartbeatChecker;
 use App\Models\Monitor;
 
 it('fails heartbeat checks when no ping has arrived', function () {
-    $monitor = Monitor::factory()->heartbeat()->withDefaultConditions()->create();
-    $monitor->load('conditions');
+    $monitor = Monitor::factory()->heartbeat()->create();
 
     $result = app(HeartbeatChecker::class)->check($monitor);
 
@@ -19,12 +18,11 @@ it('fails heartbeat checks when no ping has arrived', function () {
 it('passes heartbeat checks when a ping arrived inside the interval', function () {
     $this->freezeTime();
 
-    $monitor = Monitor::factory()->heartbeat()->withDefaultConditions()->create([
+    $monitor = Monitor::factory()->heartbeat()->create([
         'interval_seconds' => 60,
     ]);
     $monitor->last_heartbeat_at = now()->subSeconds(15);
     $monitor->save();
-    $monitor->load('conditions');
 
     $result = app(HeartbeatChecker::class)->check($monitor);
 

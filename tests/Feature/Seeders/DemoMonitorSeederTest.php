@@ -16,8 +16,16 @@ it('creates a demo monitor for each type', function () {
     foreach (MonitorType::cases() as $type) {
         $monitor = Monitor::query()->where('type', $type)->where('group', 'demo')->first();
 
-        expect($monitor)->not->toBeNull()
-            ->and($monitor?->probes()->where('slug', 'local')->exists())->toBeTrue()
+        expect($monitor)->not->toBeNull();
+
+        if ($type === MonitorType::Heartbeat) {
+            expect($monitor?->probes()->exists())->toBeFalse()
+                ->and($monitor?->conditions()->exists())->toBeFalse();
+
+            continue;
+        }
+
+        expect($monitor?->probes()->where('slug', 'local')->exists())->toBeTrue()
             ->and($monitor?->conditions()->exists())->toBeTrue();
     }
 });
@@ -36,6 +44,7 @@ it('creates failing monitors for local testing', function () {
             'Failing TCP',
             'Failing TLS',
             'Failing UDP',
+            'Failing WebSocket',
         ]);
 });
 
@@ -45,7 +54,7 @@ it('does not duplicate demo monitors when seeded twice', function () {
     $this->seed(DemoMonitorSeeder::class);
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->count())->toBe(14);
+    expect(Monitor::query()->count())->toBe(16);
 });
 
 it('queues a first check for demo monitors that have never run', function () {
@@ -53,5 +62,5 @@ it('queues a first check for demo monitors that have never run', function () {
 
     $this->seed(DemoMonitorSeeder::class);
 
-    Queue::assertPushed(RunCheckJob::class, 13);
+    Queue::assertPushed(RunCheckJob::class, 15);
 });

@@ -24,13 +24,13 @@ final readonly class RecordCheckResult implements ActionsPatternInterface
         private MetricsStore $metrics,
     ) {}
 
-    public function handle(Monitor $monitor, Probe $probe, ProbeResult $result): CheckResult
+    public function handle(Monitor $monitor, ?Probe $probe, ProbeResult $result): CheckResult
     {
         $now = now();
         $previousStatus = $monitor->status;
 
         $checkResult = $monitor->checkResults()->create([
-            'probe_id' => $probe->id,
+            'probe_id' => $probe?->id,
             'checked_at' => $now,
             'success' => $result->success,
             'latency_ms' => $result->latencyMs,

@@ -17,6 +17,7 @@ final class Checker
         private readonly TlsChecker $tls,
         private readonly HeartbeatChecker $heartbeat,
         private readonly UdpChecker $udp,
+        private readonly WebSocketChecker $webSocket,
     ) {}
 
     public function check(Monitor $monitor): ProbeResult
@@ -31,6 +32,7 @@ final class Checker
             MonitorType::Tls => $this->tls->check($monitor),
             MonitorType::Heartbeat => $this->heartbeat->check($monitor),
             MonitorType::Udp => $this->udp->check($monitor),
+            MonitorType::WebSocket => $this->webSocket->check($monitor),
         };
     }
 }
