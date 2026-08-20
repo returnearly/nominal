@@ -166,7 +166,15 @@ it('shows a red favicon with the down count on the monitors page', function () {
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
         ->assertSet('faviconHref', $href)
-        ->assertSee('data-nm-favicon="'.$href.'"', escape: false);
+        ->assertSet('downCount', 3)
+        ->assertSee('data-nm-favicon="'.$href.'"', escape: false)
+        ->assertSee('data-nm-down="3"', escape: false);
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('nm-logo-bg', escape: false)
+        ->assertSee('html.nm-monitors-down .nm-logo-bg', escape: false);
 });
 
 it('keeps the default favicon on the monitors page when none are down', function () {
@@ -175,6 +183,7 @@ it('keeps the default favicon on the monitors page when none are down', function
 
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->assertSet('downCount', 0)
         ->assertSet('faviconHref', asset('favicon.svg'));
 });
 

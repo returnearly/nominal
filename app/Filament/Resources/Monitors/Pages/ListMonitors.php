@@ -27,6 +27,8 @@ final class ListMonitors extends ListRecords
 
     public string $faviconHref = '';
 
+    public int $downCount = 0;
+
     protected function getHeaderActions(): array
     {
         return [
@@ -51,8 +53,8 @@ final class ListMonitors extends ListRecords
 
     public function booted(): void
     {
-        $downCount = Monitor::query()->where('status', MonitorStatus::Down)->count();
-        $this->faviconHref = DownMonitorFavicon::href($downCount) ?? asset('favicon.svg');
+        $this->downCount = Monitor::query()->where('status', MonitorStatus::Down)->count();
+        $this->faviconHref = DownMonitorFavicon::href($this->downCount) ?? asset('favicon.svg');
     }
 
     public function getFooter(): ?View

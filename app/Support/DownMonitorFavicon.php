@@ -6,7 +6,7 @@ namespace App\Support;
 
 final class DownMonitorFavicon
 {
-    public const string Color = '#D15C5C';
+    public const string Color = '#E11D1D';
 
     public const string TextColor = '#FDFFF8';
 

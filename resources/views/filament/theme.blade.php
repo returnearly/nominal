@@ -10,6 +10,7 @@
             --nm-celadon: #5adeb7;
             --nm-celadon-mid: #95e6cd;
             --nm-celadon-soft: #e0f8f2;
+            --nm-down: #e11d1d;
             --nm-mist: #b5c4f5;
             --nm-void: #030a08;
             --nm-forest: #0c1613;
@@ -123,6 +124,10 @@
 
         .fi-simple-header .fi-logo {
             height: 2.75rem !important;
+        }
+
+        html.nm-monitors-down .nm-logo-bg {
+            fill: var(--nm-down);
         }
     </style>
 @endonce
