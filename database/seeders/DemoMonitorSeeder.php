@@ -68,6 +68,16 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example GraphQL',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::GraphQL),
+                'attributes' => $this->attributes(
+                    type: MonitorType::GraphQL,
+                    target: 'https://countries.trevorblades.com/',
+                    method: HttpMethod::Post,
+                    requestBody: '{ __typename }',
+                ),
+            ],
+            [
                 'name' => 'Example Ping',
                 'conditions' => ConditionExpression::defaultExpressions(MonitorType::Ping),
                 'attributes' => $this->attributes(
@@ -133,6 +143,17 @@ class DemoMonitorSeeder extends Seeder
                     target: 'https://example.com',
                     method: HttpMethod::Get,
                     group: 'failing',
+                ),
+            ],
+            [
+                'name' => 'Failing GraphQL',
+                'conditions' => ['[STATUS] == 500'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::GraphQL,
+                    target: 'https://countries.trevorblades.com/',
+                    method: HttpMethod::Post,
+                    group: 'failing',
+                    requestBody: '{ __typename }',
                 ),
             ],
             [
@@ -222,12 +243,14 @@ class DemoMonitorSeeder extends Seeder
         int $timeoutSeconds = 10,
         ?string $dnsQueryName = null,
         ?string $dnsQueryType = null,
+        ?string $requestBody = null,
     ): array {
         return [
             'group' => $group,
             'type' => $type,
             'target' => $target,
             'method' => $method,
+            'request_body' => $requestBody,
             'enabled' => true,
             'interval_seconds' => 60,
             'timeout_seconds' => $timeoutSeconds,

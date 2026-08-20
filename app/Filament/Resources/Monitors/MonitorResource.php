@@ -88,7 +88,9 @@ final class MonitorResource extends Resource
                                 $set('ip_family', IpFamily::Any);
                             }
 
-                            if (! $type->usesHttpRequest()) {
+                            if ($type->wrapsGraphQLBody()) {
+                                $set('method', HttpMethod::Post);
+                            } elseif (! $type->usesHttpRequest()) {
                                 $set('method', null);
                                 $set('follow_redirects', true);
                             }
@@ -125,6 +127,7 @@ final class MonitorResource extends Resource
                             MonitorType::Ping => 'example.com',
                             MonitorType::Heartbeat => 'backup-job',
                             MonitorType::WebSocket => 'wss://example.com/socket',
+                            MonitorType::GraphQL => 'https://countries.trevorblades.com/',
                             default => 'https://example.com/health',
                         }),
                     TextInput::make('heartbeat_url')
@@ -190,7 +193,9 @@ final class MonitorResource extends Resource
                         ->visible(self::usesDnsQuery(...)),
                     Select::make('method')
                         ->options(HttpMethod::class)
-                        ->default(HttpMethod::Get)
+                        ->default(fn (Get $get): HttpMethod => self::type($get)?->wrapsGraphQLBody() === true
+                            ? HttpMethod::Post
+                            : HttpMethod::Get)
                         ->visible($usesHttp),
                     Select::make('ip_family')
                         ->options(IpFamily::class)
@@ -253,9 +258,11 @@ final class MonitorResource extends Resource
                     Textarea::make('request_body')
                         ->rows(6)
                         ->columnSpanFull()
-                        ->helperText(fn (Get $get): ?string => self::usesHttpRequest($get)
-                            ? null
-                            : 'Optional payload written after the connection is established.'),
+                        ->helperText(fn (Get $get): ?string => match (self::type($get)) {
+                            MonitorType::GraphQL => 'Sent as {"query": "..."} with Content-Type application/json.',
+                            MonitorType::Http => null,
+                            default => 'Optional payload written after the connection is established.',
+                        }),
                 ]),
             Section::make('Conditions')
                 ->description('These are what determine whether an endpoint is healthy or not.')

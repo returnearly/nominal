@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\AggregateGranularity;
 use App\Enums\ConditionComparator;
 use App\Enums\ConditionPlaceholder;
+use App\Enums\HttpMethod;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
 use App\Filament\Resources\Monitors\Pages\CreateMonitor;
@@ -456,6 +457,29 @@ it('defaults new http monitors to a 200-299 status range', function () {
         ]);
 });
 
+it('defaults graphql monitors to POST and a 200-299 status range', function () {
+    $user = User::factory()->create();
+
+    $livewire = Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.type', MonitorType::GraphQL->value);
+
+    $conditions = array_values($livewire->get('data.conditions'));
+
+    expect($livewire->get('data.method'))->toBe(HttpMethod::Post->value)
+        ->and($conditions)->toHaveCount(2)
+        ->and($conditions[0])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::GreaterThanOrEqual->value,
+            'value' => '200',
+        ])
+        ->and($conditions[1])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::LessThanOrEqual->value,
+            'value' => '299',
+        ]);
+});
+
 it('defaults ping monitors to connected and under 50ms', function () {
     $user = User::factory()->create();
 
@@ -524,11 +548,13 @@ it('hides probe timeout on heartbeat monitors', function () {
         ->assertFormFieldIsHidden('proxy_url');
 });
 
-it('shows a proxy url field for HTTP, TCP, TLS, and WebSocket monitors', function () {
+it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, and WebSocket monitors', function () {
     $user = User::factory()->create();
 
     Livewire::actingAs($user)
         ->test(CreateMonitor::class)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::GraphQL->value)
         ->assertFormFieldIsVisible('proxy_url')
         ->set('data.type', MonitorType::Tcp->value)
         ->assertFormFieldIsVisible('proxy_url')

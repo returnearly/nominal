@@ -118,14 +118,15 @@ final readonly class CheckHttp implements ActionsPatternInterface
             },
         ];
 
-        $headers = $monitor->requestHeadersArray();
+        $headers = $this->requestHeaders($monitor);
+        $body = $this->requestBody($monitor);
 
         if ($headers !== []) {
             $options[RequestOptions::HEADERS] = $headers;
         }
 
-        if ($monitor->request_body !== null && $monitor->request_body !== '') {
-            $options[RequestOptions::BODY] = $monitor->request_body;
+        if ($body !== null) {
+            $options[RequestOptions::BODY] = $body;
         }
 
         $proxy = $this->proxy($monitor);
@@ -135,6 +136,50 @@ final readonly class CheckHttp implements ActionsPatternInterface
         }
 
         return $options;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function requestHeaders(Monitor $monitor): array
+    {
+        $headers = $monitor->requestHeadersArray();
+
+        if ($monitor->type->wrapsGraphQLBody() && ! $this->hasHeader($headers, 'Content-Type')) {
+            $headers['Content-Type'] = 'application/json';
+        }
+
+        return $headers;
+    }
+
+    private function requestBody(Monitor $monitor): ?string
+    {
+        if ($monitor->type->wrapsGraphQLBody()) {
+            return json_encode(
+                ['query' => (string) $monitor->request_body],
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            );
+        }
+
+        if ($monitor->request_body === null || $monitor->request_body === '') {
+            return null;
+        }
+
+        return $monitor->request_body;
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function hasHeader(array $headers, string $name): bool
+    {
+        foreach (array_keys($headers) as $key) {
+            if (strcasecmp((string) $key, $name) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

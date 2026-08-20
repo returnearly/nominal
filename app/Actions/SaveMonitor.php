@@ -43,7 +43,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
                 : IpFamily::Any,
             'target' => $input['target'] ?? $monitor->target,
             'method' => $type->usesHttpRequest()
-                ? $this->method($input['method'] ?? $monitor->method ?? HttpMethod::Get)
+                ? $this->method($input['method'] ?? $monitor->method ?? ($type->wrapsGraphQLBody() ? HttpMethod::Post : HttpMethod::Get))
                 : null,
             'request_headers' => $type->usesRequestHeaders()
                 ? ($input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [])

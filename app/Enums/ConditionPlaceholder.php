@@ -66,7 +66,7 @@ enum ConditionPlaceholder: string implements HasLabel
             : MonitorType::tryFrom((string) $type) ?? MonitorType::Http;
 
         return match ($type) {
-            MonitorType::Http => [
+            MonitorType::Http, MonitorType::GraphQL => [
                 self::Status,
                 self::Body,
                 self::Connected,
