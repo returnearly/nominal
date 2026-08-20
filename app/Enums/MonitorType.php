@@ -13,6 +13,7 @@ enum MonitorType: string implements HasLabel
     case Tcp = 'tcp';
     case Dns = 'dns';
     case Tls = 'tls';
+    case Push = 'push';
 
     public function getLabel(): string
     {
@@ -22,6 +23,7 @@ enum MonitorType: string implements HasLabel
             self::Tcp => 'TCP',
             self::Dns => 'DNS',
             self::Tls => 'TLS',
+            self::Push => 'Push',
         };
     }
 
@@ -49,5 +51,10 @@ enum MonitorType: string implements HasLabel
     public function usesDnsQuery(): bool
     {
         return $this === self::Dns;
+    }
+
+    public function isPush(): bool
+    {
+        return $this === self::Push;
     }
 }

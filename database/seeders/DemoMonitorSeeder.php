@@ -43,7 +43,7 @@ class DemoMonitorSeeder extends Seeder
 
             $monitor->probes()->syncWithoutDetaching([$probe->id]);
 
-            if ($monitor->last_checked_at === null) {
+            if ($monitor->last_checked_at === null && $monitor->type !== MonitorType::Push) {
                 DispatchMonitorCheck::make()->handle($monitor);
             }
         }
@@ -96,6 +96,14 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Tls,
                     target: 'tls://1.1.1.1:443',
+                ),
+            ],
+            [
+                'name' => 'Example Push',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Push),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Push,
+                    target: 'backup-job',
                 ),
             ],
             [

@@ -157,6 +157,34 @@ it('creates a TLS monitor', function () {
         ->and($created['conditions'][1]['expression'])->toBe('[CERTIFICATE_EXPIRATION] > 48h');
 });
 
+it('creates a push monitor with a heartbeat URL', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                push_token
+                pushUrl
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Nightly backup',
+            'type' => 'Push',
+            'target' => 'backup-job',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('Push')
+        ->and($created['push_token'])->toHaveLength(48)
+        ->and($created['pushUrl'])->toEndWith('/api/push/'.$created['push_token'])
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

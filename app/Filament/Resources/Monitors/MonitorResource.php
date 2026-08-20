@@ -71,15 +71,28 @@ final class MonitorResource extends Resource
                             $set('conditions', ConditionExpression::defaultFormState($state));
                         }),
                     TextInput::make('target')
-                        ->required()
+                        ->required(fn (Get $get): bool => self::type($get)?->isPush() !== true)
                         ->maxLength(2048)
                         ->placeholder(fn (Get $get): string => match (self::type($get)) {
                             MonitorType::Tcp => 'tcp://db.example.com:5432',
                             MonitorType::Tls => 'tls://db.example.com:5432',
                             MonitorType::Dns => '1.1.1.1',
                             MonitorType::Ping => 'example.com',
+                            MonitorType::Push => 'backup-job',
                             default => 'https://example.com/health',
                         }),
+                    TextInput::make('push_url')
+                        ->label('Push URL')
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => self::type($get)?->isPush() === true)
+                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                            if ($record instanceof Monitor) {
+                                $component->state($record->pushUrl());
+                            }
+                        })
+                        ->helperText('Send GET or POST to this URL from cron or a batch job. Generated after save.'),
                     TextInput::make('dns_query_name')
                         ->label('Query name')
                         ->maxLength(255)

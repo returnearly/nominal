@@ -84,6 +84,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function push(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Push,
+            'target' => 'backup-job',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

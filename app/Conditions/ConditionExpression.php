@@ -101,6 +101,14 @@ final class ConditionExpression
                     'value' => 'NOERROR',
                 ],
             ],
+            MonitorType::Push => [
+                [
+                    'placeholder' => ConditionPlaceholder::Connected->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::Equal->value,
+                    'value' => 'true',
+                ],
+            ],
             MonitorType::Tls => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
