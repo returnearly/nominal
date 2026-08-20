@@ -10,8 +10,8 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 
 - PHP 8.5, Laravel 13, Filament 5, Lighthouse GraphQL, Sanctum, Reverb
 - Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
-- Monitors: HTTP/HTTPS (custom method, headers, body), ICMP ping (TCP fallback), and TCP port checks
-- Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`
+- Monitors: HTTP/HTTPS (custom method, headers, body), ICMP ping (TCP fallback), TCP port checks, and DNS queries
+- Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
 

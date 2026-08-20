@@ -81,6 +81,16 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example DNS',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Dns),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Dns,
+                    target: '1.1.1.1',
+                    dnsQueryName: 'example.com',
+                    dnsQueryType: 'A',
+                ),
+            ],
+            [
                 'name' => 'Failing HTTP status',
                 'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
@@ -121,6 +131,18 @@ class DemoMonitorSeeder extends Seeder
                     timeoutSeconds: 5,
                 ),
             ],
+            [
+                'name' => 'Failing DNS',
+                'conditions' => ['[DNS_RCODE] == NOERROR'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Dns,
+                    target: '1.1.1.1',
+                    dnsQueryName: 'this-name-should-not-exist.invalid',
+                    dnsQueryType: 'A',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
         ];
     }
 
@@ -133,6 +155,8 @@ class DemoMonitorSeeder extends Seeder
         ?HttpMethod $method = null,
         string $group = 'demo',
         int $timeoutSeconds = 10,
+        ?string $dnsQueryName = null,
+        ?string $dnsQueryType = null,
     ): array {
         return [
             'group' => $group,
@@ -146,6 +170,8 @@ class DemoMonitorSeeder extends Seeder
             'follow_redirects' => true,
             'verify_tls' => true,
             'retention_days' => 30,
+            'dns_query_name' => $dnsQueryName,
+            'dns_query_type' => $dnsQueryType,
         ];
     }
 }

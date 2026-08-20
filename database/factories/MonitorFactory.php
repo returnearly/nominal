@@ -60,6 +60,19 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function dns(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Dns,
+            'target' => '1.1.1.1',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+            'dns_query_name' => 'example.com',
+            'dns_query_type' => 'A',
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

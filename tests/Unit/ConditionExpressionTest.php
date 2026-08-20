@@ -92,6 +92,9 @@ it('returns type-specific default conditions', function () {
         ->and(ConditionExpression::defaultExpressions(MonitorType::Tcp))->toBe([
             '[CONNECTED] == true',
             '[RESPONSE_TIME] < 50',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Dns))->toBe([
+            '[DNS_RCODE] == NOERROR',
         ]);
 });
 
@@ -101,6 +104,10 @@ it('limits ordering comparators to numeric placeholders', function () {
         ConditionComparator::NotEqual,
     ])
         ->and(ConditionPlaceholder::Connected->comparators())->toBe([
+            ConditionComparator::Equal,
+            ConditionComparator::NotEqual,
+        ])
+        ->and(ConditionPlaceholder::DnsRcode->comparators())->toBe([
             ConditionComparator::Equal,
             ConditionComparator::NotEqual,
         ])

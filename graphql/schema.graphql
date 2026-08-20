@@ -5,6 +5,18 @@ enum MonitorType {
     Http
     Ping
     Tcp
+    Dns
+}
+
+enum DnsQueryType {
+    A
+    AAAA
+    CNAME
+    MX
+    NS
+    PTR
+    SRV
+    TXT
 }
 
 enum MonitorStatus {
@@ -114,6 +126,8 @@ type Monitor {
     method: HttpMethod
     requestHeaders: [KeyValue!]! @method(name: "graphqlRequestHeaders")
     request_body: String
+    dns_query_name: String
+    dns_query_type: DnsQueryType
     follow_redirects: Boolean!
     verify_tls: Boolean!
     status: MonitorStatus!
@@ -144,6 +158,8 @@ input CreateMonitorInput {
     method: HttpMethod
     requestHeaders: [KeyValueInput!]
     requestBody: String
+    dnsQueryName: String
+    dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
     retentionDays: Int
@@ -163,6 +179,8 @@ input UpdateMonitorInput {
     method: HttpMethod
     requestHeaders: [KeyValueInput!]
     requestBody: String
+    dnsQueryName: String
+    dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
     retentionDays: Int

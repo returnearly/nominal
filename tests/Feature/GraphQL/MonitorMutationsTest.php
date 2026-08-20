@@ -101,6 +101,36 @@ it('creates a TCP monitor', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
+it('creates a DNS monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                dns_query_name
+                dns_query_type
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Resolver',
+            'type' => 'Dns',
+            'target' => '1.1.1.1',
+            'dnsQueryName' => 'example.com',
+            'dnsQueryType' => 'A',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('Dns')
+        ->and($created['dns_query_name'])->toBe('example.com')
+        ->and($created['dns_query_type'])->toBe('A')
+        ->and($created['conditions'][0]['expression'])->toBe('[DNS_RCODE] == NOERROR');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

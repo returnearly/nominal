@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DnsQueryType;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -32,6 +33,8 @@ use Illuminate\Support\Carbon;
     'method',
     'request_headers',
     'request_body',
+    'dns_query_name',
+    'dns_query_type',
     'follow_redirects',
     'verify_tls',
     'status',
@@ -53,6 +56,7 @@ class Monitor extends Model
             'type' => MonitorType::class,
             'ip_family' => IpFamily::class,
             'method' => HttpMethod::class,
+            'dns_query_type' => DnsQueryType::class,
             'status' => MonitorStatus::class,
             'enabled' => 'boolean',
             'follow_redirects' => 'boolean',
