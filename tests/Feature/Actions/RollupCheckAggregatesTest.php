@@ -25,9 +25,23 @@ it('writes check aggregates with uuid v7 primary keys', function () {
 
     RollupCheckAggregates::make()->handle($hour);
 
-    $aggregate = CheckAggregate::query()->first();
+    $aggregate = CheckAggregate::query()
+        ->where('granularity', AggregateGranularity::Hour)
+        ->whereNull('probe_id')
+        ->first();
 
     expect($aggregate)->not->toBeNull()
         ->and(Str::isUuid($aggregate->id, 7))->toBeTrue()
-        ->and($aggregate->granularity)->toBe(AggregateGranularity::Hour);
+        ->and($aggregate->granularity)->toBe(AggregateGranularity::Hour)
+        ->and($aggregate->up_count)->toBe(1);
+
+    $daily = CheckAggregate::query()
+        ->where('granularity', AggregateGranularity::Day)
+        ->whereNull('probe_id')
+        ->first();
+
+    expect($daily)->not->toBeNull()
+        ->and($daily->period_start->equalTo($hour->copy()->startOfDay()))->toBeTrue()
+        ->and($daily->up_count)->toBe(1)
+        ->and($daily->avg_latency_ms)->toBe(20);
 });

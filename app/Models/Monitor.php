@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\ComputeMonitorUptime;
 use App\Enums\DnsQueryType;
 use App\Enums\HeartbeatSignal;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
+use App\Uptime\MonitorUptime;
 use Database\Factories\MonitorFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -52,6 +54,8 @@ class Monitor extends Model
 {
     /** @use HasFactory<MonitorFactory> */
     use HasFactory, HasUuids, SoftDeletes;
+
+    private ?MonitorUptime $computedUptime = null;
 
     protected function casts(): array
     {
@@ -198,6 +202,28 @@ class Monitor extends Model
     {
         return $this->heartbeat_started_at !== null
             && $this->heartbeat_started_at->lte(now()->subSeconds($this->interval_seconds));
+    }
+
+    public function setComputedUptime(MonitorUptime $uptime): static
+    {
+        $this->computedUptime = $uptime;
+
+        return $this;
+    }
+
+    public function uptime(): MonitorUptime
+    {
+        return $this->computedUptime ??= ComputeMonitorUptime::make()
+            ->handle([$this->id])
+            ->get($this->id, MonitorUptime::empty());
+    }
+
+    /**
+     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float}
+     */
+    public function graphqlUptime(): array
+    {
+        return $this->uptime()->toGraphQL();
     }
 
     protected static function booted(): void

@@ -109,6 +109,13 @@ type CheckAggregate {
     avg_latency_ms: Int
 }
 
+type MonitorUptime {
+    oneHour: Float
+    twentyFourHours: Float
+    sevenDays: Float
+    thirtyDays: Float
+}
+
 type NotificationChannel {
     id: ID!
     name: String!
@@ -149,6 +156,7 @@ type Monitor {
     retention_days: Int!
     created_at: DateTime
     updated_at: DateTime
+    uptime: MonitorUptime! @method(name: "graphqlUptime")
     conditions: [MonitorCondition!]! @hasMany
     probes: [Probe!]! @belongsToMany
     notificationChannels: [NotificationChannel!]! @belongsToMany
