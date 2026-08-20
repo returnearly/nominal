@@ -8,5 +8,5 @@ use DateTimeImmutable;
 
 interface TlsCertificateReader
 {
-    public function expiresAt(string $host, int $port, int $timeoutSeconds): ?DateTimeImmutable;
+    public function expiresAt(string $host, int $port, int $timeoutSeconds, ?string $proxyUrl = null): ?DateTimeImmutable;
 }

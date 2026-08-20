@@ -9,6 +9,7 @@ use App\Checking\TlsCertificateReader;
 use App\Conditions\CheckContext;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
+use App\Support\ProxyUrl;
 use DateTimeImmutable;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -127,7 +128,27 @@ final readonly class CheckHttp implements ActionsPatternInterface
             $options[RequestOptions::BODY] = $monitor->request_body;
         }
 
+        $proxy = $this->proxy($monitor);
+
+        if ($proxy !== null) {
+            $options[RequestOptions::PROXY] = $proxy;
+        }
+
         return $options;
+    }
+
+    /**
+     * @return string|array<string, mixed>|null
+     */
+    private function proxy(Monitor $monitor): string|array|null
+    {
+        $configured = $monitor->outboundProxyUrl();
+
+        if ($configured !== null) {
+            return $configured;
+        }
+
+        return ProxyUrl::guzzleFromConfig();
     }
 
     private function decodeBody(?string $rawBody): mixed
@@ -159,6 +180,6 @@ final readonly class CheckHttp implements ActionsPatternInterface
 
         $port = (int) ($parts['port'] ?? 443);
 
-        return $this->certificates->expiresAt($host, $port, $monitor->timeout_seconds);
+        return $this->certificates->expiresAt($host, $port, $monitor->timeout_seconds, $monitor->outboundProxyUrl());
     }
 }

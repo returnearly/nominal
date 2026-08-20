@@ -50,6 +50,7 @@ it('creates, updates, and deletes a monitor', function () {
                 target
                 method
                 requestHeaders { key value }
+                proxy_url
                 conditions { expression }
             }
         }
@@ -62,6 +63,7 @@ it('creates, updates, and deletes a monitor', function () {
             'requestHeaders' => [
                 ['key' => 'X-Token', 'value' => 'abc'],
             ],
+            'proxyUrl' => 'socks5h://127.0.0.1:1080',
             'conditions' => ['[STATUS] == 200'],
         ],
     ])->assertSuccessful()
@@ -70,6 +72,7 @@ it('creates, updates, and deletes a monitor', function () {
     expect($created['name'])->toBe('API health')
         ->and($created['type'])->toBe('Http')
         ->and($created['requestHeaders'][0]['key'])->toBe('X-Token')
+        ->and($created['proxy_url'])->toBe('socks5h://127.0.0.1:1080')
         ->and($created['conditions'][0]['expression'])->toBe('[STATUS] == 200');
 
     $updated = graphql('
@@ -137,6 +140,7 @@ it('ignores HTTP-only fields on ping monitors', function () {
                 request_body
                 follow_redirects
                 verify_tls
+                proxy_url
                 conditions { expression }
             }
         }
@@ -152,6 +156,7 @@ it('ignores HTTP-only fields on ping monitors', function () {
             ],
             'followRedirects' => false,
             'verifyTls' => false,
+            'proxyUrl' => 'http://proxy.example:8080',
         ],
     ])->assertSuccessful()
         ->json('data.createMonitor');
@@ -162,6 +167,7 @@ it('ignores HTTP-only fields on ping monitors', function () {
         ->and($created['request_body'])->toBeNull()
         ->and($created['follow_redirects'])->toBeTrue()
         ->and($created['verify_tls'])->toBeTrue()
+        ->and($created['proxy_url'])->toBeNull()
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 

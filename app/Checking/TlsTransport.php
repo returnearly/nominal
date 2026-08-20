@@ -15,5 +15,6 @@ interface TlsTransport
         IpFamily $family,
         bool $verifyTls,
         ?string $body = null,
+        ?string $proxyUrl = null,
     ): SocketOutcome;
 }

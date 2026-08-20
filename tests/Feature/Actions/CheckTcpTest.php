@@ -14,7 +14,7 @@ it('passes TCP checks when the port accepts a connection', function () {
 
     app()->instance(TcpTransport::class, new class implements TcpTransport
     {
-        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null): SocketOutcome
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
         {
             return SocketOutcome::ok(12, '93.184.216.34');
         }
@@ -34,7 +34,7 @@ it('fails TCP checks when the port is closed', function () {
 
     app()->instance(TcpTransport::class, new class implements TcpTransport
     {
-        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null): SocketOutcome
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
         {
             return SocketOutcome::failed(8, 'Connection refused');
         }
@@ -72,7 +72,7 @@ it('writes an optional payload after connecting', function () {
     {
         public function __construct(private readonly object $captured) {}
 
-        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null): SocketOutcome
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
         {
             $this->captured->body = $body;
 
@@ -85,4 +85,29 @@ it('writes an optional payload after connecting', function () {
     expect($captured->body)->toBe('PING')
         ->and($result->success)->toBeTrue()
         ->and($result->responseBody)->toBe('+PONG');
+});
+
+it('passes the monitor proxy to the TCP transport', function () {
+    $monitor = Monitor::factory()->tcp()->withDefaultConditions()->create([
+        'proxy_url' => 'socks5://127.0.0.1:1080',
+    ]);
+    $monitor->load('conditions');
+
+    $captured = (object) ['proxy' => 'unset'];
+
+    app()->instance(TcpTransport::class, new class($captured) implements TcpTransport
+    {
+        public function __construct(private readonly object $captured) {}
+
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
+        {
+            $this->captured->proxy = $proxyUrl;
+
+            return SocketOutcome::ok(4, '127.0.0.1');
+        }
+    });
+
+    CheckTcp::make()->handle($monitor);
+
+    expect($captured->proxy)->toBe('socks5://127.0.0.1:1080');
 });

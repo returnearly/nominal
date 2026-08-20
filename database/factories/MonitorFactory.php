@@ -33,6 +33,7 @@ class MonitorFactory extends Factory
             'request_body' => null,
             'follow_redirects' => true,
             'verify_tls' => true,
+            'proxy_url' => null,
             'status' => MonitorStatus::Pending,
             'retention_days' => 30,
         ];

@@ -39,6 +39,7 @@ final readonly class CheckWebSocket implements ActionsPatternInterface
                 $monitor->verify_tls,
                 $monitor->requestHeadersArray(),
                 $monitor->request_body,
+                $monitor->outboundProxyUrl(),
             );
         } catch (InvalidArgumentException|Throwable $exception) {
             $outcome = SocketOutcome::failed(null, $exception->getMessage());

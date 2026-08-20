@@ -20,6 +20,7 @@ use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager
 use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
 use App\Models\Probe;
+use App\Support\ProxyUrl;
 use BackedEnum;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
@@ -40,6 +41,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use InvalidArgumentException;
 
 final class MonitorResource extends Resource
 {
@@ -57,6 +59,7 @@ final class MonitorResource extends Resource
         $usesRequestBody = self::usesRequestBody(...);
         $usesRequestHeaders = self::usesRequestHeaders(...);
         $usesVerifyTls = self::usesVerifyTls(...);
+        $usesProxy = self::usesProxy(...);
 
         return $schema->components([
             Section::make('Monitor')
@@ -100,6 +103,10 @@ final class MonitorResource extends Resource
 
                             if (! $type->usesVerifyTls()) {
                                 $set('verify_tls', true);
+                            }
+
+                            if (! $type->usesProxy()) {
+                                $set('proxy_url', null);
                             }
 
                             if (! $type->usesDnsQuery()) {
@@ -214,6 +221,27 @@ final class MonitorResource extends Resource
                     Toggle::make('verify_tls')
                         ->default(true)
                         ->visible($usesVerifyTls),
+                    TextInput::make('proxy_url')
+                        ->label('Proxy URL')
+                        ->maxLength(2048)
+                        ->placeholder('socks5h://127.0.0.1:1080')
+                        ->helperText('HTTP (`http://proxy:8080`) or SOCKS (`socks5://`, `socks5h://`). Leave blank to use HTTP_PROXY / ALL_PROXY for HTTP checks.')
+                        ->dehydrateStateUsing(fn (mixed $state): ?string => filled($state) ? (string) $state : null)
+                        ->rule(function (): \Closure {
+                            return function (string $attribute, mixed $value, \Closure $fail): void {
+                                if (! filled($value)) {
+                                    return;
+                                }
+
+                                try {
+                                    ProxyUrl::parse((string) $value);
+                                } catch (InvalidArgumentException $exception) {
+                                    $fail($exception->getMessage());
+                                }
+                            };
+                        })
+                        ->visible($usesProxy)
+                        ->columnSpanFull(),
                 ]),
             Section::make('Request')
                 ->visible(fn (Get $get): bool => $usesRequestBody($get) || $usesRequestHeaders($get))
@@ -380,6 +408,11 @@ final class MonitorResource extends Resource
     private static function usesVerifyTls(Get $get): bool
     {
         return self::type($get)?->usesVerifyTls() ?? false;
+    }
+
+    private static function usesProxy(Get $get): bool
+    {
+        return self::type($get)?->usesProxy() ?? false;
     }
 
     private static function usesRequestHeaders(Get $get): bool

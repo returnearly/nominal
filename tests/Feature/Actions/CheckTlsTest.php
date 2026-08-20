@@ -14,7 +14,7 @@ it('passes TLS checks when the handshake succeeds and the cert is valid', functi
 
     app()->instance(TlsTransport::class, new class implements TlsTransport
     {
-        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null): SocketOutcome
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
         {
             return SocketOutcome::ok(15, '1.1.1.1', null, new DateTimeImmutable('+60 days'));
         }
@@ -33,7 +33,7 @@ it('fails TLS checks when the handshake is refused', function () {
 
     app()->instance(TlsTransport::class, new class implements TlsTransport
     {
-        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null): SocketOutcome
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
         {
             return SocketOutcome::failed(6, 'Connection refused');
         }
@@ -58,7 +58,7 @@ it('defaults TLS targets without a port to 443', function () {
     {
         public function __construct(private readonly object $captured) {}
 
-        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null): SocketOutcome
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
         {
             $this->captured->port = $port;
 
@@ -69,4 +69,29 @@ it('defaults TLS targets without a port to 443', function () {
     CheckTls::make()->handle($monitor);
 
     expect($captured->port)->toBe(443);
+});
+
+it('passes the monitor proxy to the TLS transport', function () {
+    $monitor = Monitor::factory()->tls()->withDefaultConditions()->create([
+        'proxy_url' => 'http://proxy.internal:3128',
+    ]);
+    $monitor->load('conditions');
+
+    $captured = (object) ['proxy' => 'unset'];
+
+    app()->instance(TlsTransport::class, new class($captured) implements TlsTransport
+    {
+        public function __construct(private readonly object $captured) {}
+
+        public function connect(string $host, int $port, int $timeoutSeconds, IpFamily $family, bool $verifyTls, ?string $body = null, ?string $proxyUrl = null): SocketOutcome
+        {
+            $this->captured->proxy = $proxyUrl;
+
+            return SocketOutcome::ok(3, '1.1.1.1', null, new DateTimeImmutable('+60 days'));
+        }
+    });
+
+    CheckTls::make()->handle($monitor);
+
+    expect($captured->proxy)->toBe('http://proxy.internal:3128');
 });

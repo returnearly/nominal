@@ -6,21 +6,20 @@ namespace App\Checking;
 
 use App\Enums\IpFamily;
 
-interface WebSocketTransport
+interface StreamDialer
 {
     /**
-     * @param  array<string, string>  $headers
+     * Open a TCP (and optionally TLS) connection, tunneling through an HTTP or SOCKS proxy when given.
+     *
+     * @param  array<string, mixed>  $ssl
+     * @return resource
      */
     public function connect(
         string $host,
         int $port,
-        string $path,
-        bool $secure,
         int $timeoutSeconds,
         IpFamily $family,
-        bool $verifyTls,
-        array $headers,
-        ?string $body = null,
         ?string $proxyUrl = null,
-    ): SocketOutcome;
+        array $ssl = [],
+    ): mixed;
 }

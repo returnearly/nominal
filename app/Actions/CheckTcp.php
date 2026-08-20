@@ -34,6 +34,7 @@ final readonly class CheckTcp implements ActionsPatternInterface
                 $monitor->timeout_seconds,
                 $monitor->ip_family,
                 $monitor->request_body,
+                $monitor->outboundProxyUrl(),
             );
         } catch (InvalidArgumentException|Throwable $exception) {
             $outcome = SocketOutcome::failed(null, $exception->getMessage());
