@@ -524,5 +524,38 @@
             font-weight: 650;
             font-variant-numeric: tabular-nums;
         }
+
+        .nm-copy-url {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+
+        .nm-copy-url-value {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.82rem;
+        }
+
+        .nm-copy-url-button {
+            flex: none;
+            padding: 0.25rem 0.65rem;
+            border: 1px solid color-mix(in oklab, var(--gray-950, #18181b) 12%, transparent);
+            border-radius: 0.45rem;
+            background: transparent;
+            color: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .dark .nm-copy-url-button {
+            border-color: color-mix(in oklab, white 14%, transparent);
+        }
     </style>
 @endonce

@@ -285,19 +285,14 @@ it('queues a check immediately from the monitor view page', function () {
     });
 });
 
-it('queues a heartbeat check from the monitor view without probes', function () {
-    Queue::fake();
-
+it('hides check now and shows the heartbeat url on the monitor view', function () {
     $user = User::factory()->create();
     $monitor = Monitor::factory()->heartbeat()->create();
 
     Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
-        ->callAction('checkNow');
-
-    Queue::assertPushed(function (RunCheckJob $job) use ($monitor): bool {
-        return $job->monitorId === $monitor->id && $job->probeId === null;
-    });
+        ->assertActionHidden('checkNow')
+        ->assertSee($monitor->heartbeatUrl());
 });
 
 it('saves monitor conditions from the placeholder picker', function () {

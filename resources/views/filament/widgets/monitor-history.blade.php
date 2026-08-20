@@ -27,6 +27,30 @@
         </div>
     </div>
 
+    @if ($heartbeatUrl = $record->heartbeatUrl())
+        <section class="nm-panel">
+            <span class="nm-metrics-label">Heartbeat URL</span>
+            <div
+                class="nm-copy-url"
+                x-data="{ copied: false }"
+            >
+                <code class="nm-copy-url-value">{{ $heartbeatUrl }}</code>
+                <button
+                    type="button"
+                    class="nm-copy-url-button"
+                    x-on:click="
+                        navigator.clipboard.writeText({{ \Illuminate\Support\Js::from($heartbeatUrl) }});
+                        copied = true;
+                        setTimeout(() => copied = false, 1500)
+                    "
+                >
+                    <span x-show="! copied">Copy</span>
+                    <span x-show="copied" x-cloak>Copied</span>
+                </button>
+            </div>
+        </section>
+    @endif
+
     <section class="nm-panel">
         <header class="nm-section-head">
             <div>
