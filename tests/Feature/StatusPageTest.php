@@ -25,7 +25,7 @@ it('renders a published status page without monitor targets', function () {
         'name' => 'Internal API',
         'target' => 'https://secret.internal/health',
         'status' => MonitorStatus::Up,
-        'group' => 'core',
+        'tags' => ['core'],
     ]);
     $page->listings()->create([
         'monitor_id' => $monitor->id,

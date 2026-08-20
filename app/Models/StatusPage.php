@@ -67,7 +67,6 @@ class StatusPage extends Model
         return $this->belongsToMany(Monitor::class, 'status_page_monitor')
             ->withPivot(['id', 'public_name', 'sort'])
             ->orderByPivot('sort')
-            ->orderBy('group')
             ->orderBy('name');
     }
 

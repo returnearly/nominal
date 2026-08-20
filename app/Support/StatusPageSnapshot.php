@@ -57,7 +57,11 @@ final readonly class StatusPageSnapshot
             ->filter()
             ->values();
 
-        $groups = $monitors->groupBy(fn (Monitor $monitor): string => filled($monitor->group) ? (string) $monitor->group : 'Services');
+        $groups = $monitors->groupBy(function (Monitor $monitor): string {
+            $tags = $monitor->tags;
+
+            return $tags === [] ? 'Services' : $tags[0];
+        });
 
         $recentChecks = LoadRecentCheckResults::make()->handle($monitors->pluck('id'));
 

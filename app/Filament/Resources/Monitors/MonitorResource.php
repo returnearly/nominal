@@ -20,12 +20,14 @@ use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager
 use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
 use App\Models\Probe;
+use App\Support\MonitorTags;
 use App\Support\ProxyUrl;
 use BackedEnum;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -65,8 +67,17 @@ final class MonitorResource extends Resource
             Section::make('Monitor')
                 ->columns(2)
                 ->components([
-                    TextInput::make('name')->required()->maxLength(255),
-                    TextInput::make('group')->maxLength(255),
+                    TextInput::make('name')->required()->maxLength(255)->columnSpanFull(),
+                    TagsInput::make('tags')
+                        ->suggestions(self::tagSuggestions(...))
+                        ->nestedRecursiveRules(['max:'.MonitorTags::MaxLength])
+                        ->columnSpanFull()
+                        ->helperText('Filter labels. A monitor can have several.'),
+                    Textarea::make('description')
+                        ->rows(3)
+                        ->columnSpanFull()
+                        ->maxLength(4000)
+                        ->helperText('What this is, who owns it, and what to do when it fails.'),
                     Select::make('type')
                         ->options(MonitorType::class)
                         ->default(MonitorType::Http)
@@ -381,7 +392,18 @@ final class MonitorResource extends Resource
             ->filters([
                 SelectFilter::make('status')->options(MonitorStatus::class),
                 SelectFilter::make('type')->options(MonitorType::class),
-                SelectFilter::make('group')->options(self::groupOptions(...)),
+                SelectFilter::make('tag')
+                    ->label('Tag')
+                    ->options(self::tagOptions(...))
+                    ->query(function (Builder $query, array $data): Builder {
+                        $tag = $data['value'] ?? null;
+
+                        if (! is_string($tag) || $tag === '') {
+                            return $query;
+                        }
+
+                        return $query->tagged($tag);
+                    }),
             ])
             ->recordActions([])
             ->toolbarActions([]);
@@ -511,12 +533,23 @@ final class MonitorResource extends Resource
     /**
      * @return array<string, string>
      */
-    private static function groupOptions(): array
+    private static function tagOptions(): array
     {
         return Monitor::query()
-            ->whereNotNull('group')
-            ->distinct()
-            ->pluck('group', 'group')
+            ->pluck('tags')
+            ->flatten()
+            ->filter(fn (mixed $tag): bool => is_string($tag) && $tag !== '')
+            ->unique()
+            ->sort()
+            ->mapWithKeys(fn (string $tag): array => [$tag => $tag])
             ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function tagSuggestions(): array
+    {
+        return array_values(self::tagOptions());
     }
 }

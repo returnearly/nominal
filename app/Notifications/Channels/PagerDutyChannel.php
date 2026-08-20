@@ -35,7 +35,6 @@ final class PagerDutyChannel
                 'source' => 'nominal',
                 'severity' => $notification->kind === AlertKind::Recovered ? 'info' : 'error',
                 'component' => $notification->monitor->target,
-                'group' => $notification->monitor->group,
                 'class' => $notification->monitor->type->value,
             ],
         ])->throw();
