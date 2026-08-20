@@ -34,7 +34,7 @@ final readonly class CheckPing implements ActionsPatternInterface
             connected: $outcome->connected,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->handle(
+        [$outcomes, $success, $message, $domainExpiresAt] = $this->conditions->handle(
             $monitor,
             $context,
             $outcome->connected ? null : $outcome->message,
@@ -49,6 +49,7 @@ final readonly class CheckPing implements ActionsPatternInterface
             certificateExpiresAt: null,
             message: $message,
             conditionResults: $outcomes,
+            domainExpiresAt: $domainExpiresAt,
         );
     }
 }

@@ -92,4 +92,12 @@ enum MonitorType: string implements HasLabel
     {
         return ! $this->isHeartbeat();
     }
+
+    public function supportsDomainExpiration(): bool
+    {
+        return match ($this) {
+            self::Dns, self::Heartbeat => false,
+            default => true,
+        };
+    }
 }

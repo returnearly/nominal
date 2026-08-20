@@ -95,6 +95,7 @@ type CheckResult {
     http_status: Int
     resolved_ip: String
     certificate_expires_at: DateTime
+    domain_expires_at: DateTime
     message: String
     condition_results: String @method(name: "graphqlConditionResults")
     checked_at: DateTime

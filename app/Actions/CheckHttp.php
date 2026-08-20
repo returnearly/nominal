@@ -75,7 +75,7 @@ final readonly class CheckHttp implements ActionsPatternInterface
             rawBody: $rawBody,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->handle($monitor, $context, $error);
+        [$outcomes, $success, $message, $domainExpiresAt] = $this->conditions->handle($monitor, $context, $error);
 
         return new ProbeResult(
             success: $success,
@@ -87,6 +87,7 @@ final readonly class CheckHttp implements ActionsPatternInterface
             message: $message,
             conditionResults: $outcomes,
             responseBody: $rawBody,
+            domainExpiresAt: $domainExpiresAt,
         );
     }
 

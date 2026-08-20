@@ -15,6 +15,7 @@ use App\Models\Probe;
 use App\Support\EnumValue;
 use App\Support\MonitorTags;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
@@ -29,6 +30,13 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     {
         $monitor ??= new Monitor;
         $type = $this->type($input['type'] ?? $monitor->type);
+        $intervalSeconds = (int) ($input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60);
+
+        $this->assertDomainExpirationInterval(
+            $type,
+            $intervalSeconds,
+            $input['conditions'] ?? $monitor->conditions?->pluck('expression')->all(),
+        );
 
         $monitor->fill([
             'name' => $input['name'] ?? $monitor->name,
@@ -40,7 +48,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
                 : $monitor->tags,
             'type' => $type,
             'enabled' => $input['enabled'] ?? $monitor->enabled ?? true,
-            'interval_seconds' => $input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60,
+            'interval_seconds' => $intervalSeconds,
             'timeout_seconds' => $type->usesOutboundProbe()
                 ? ($input['timeoutSeconds'] ?? $input['timeout_seconds'] ?? $monitor->timeout_seconds ?? 10)
                 : ($monitor->timeout_seconds ?? 10),
@@ -95,6 +103,26 @@ final readonly class SaveMonitor implements ActionsPatternInterface
         }
 
         return $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
+    }
+
+    /**
+     * @param  list<string>|null  $expressions
+     */
+    private function assertDomainExpirationInterval(MonitorType $type, int $intervalSeconds, ?array $expressions): void
+    {
+        if (! $type->supportsDomainExpiration()) {
+            return;
+        }
+
+        if (! LookupDomainExpiration::expressionsNeedLookup($expressions)) {
+            return;
+        }
+
+        if ($intervalSeconds < LookupDomainExpiration::MinimumIntervalSeconds) {
+            throw ValidationException::withMessages([
+                'intervalSeconds' => 'The minimum interval for a monitor with a [DOMAIN_EXPIRATION] condition is 300s (5m).',
+            ]);
+        }
     }
 
     /**

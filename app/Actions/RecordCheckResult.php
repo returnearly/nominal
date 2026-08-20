@@ -38,6 +38,7 @@ final readonly class RecordCheckResult implements ActionsPatternInterface
             'http_status' => $result->httpStatus,
             'resolved_ip' => $result->resolvedIp,
             'certificate_expires_at' => $result->certificateExpiresAt,
+            'domain_expires_at' => $result->domainExpiresAt,
             'message' => $result->message,
             'condition_results' => array_map(
                 fn ($outcome): array => $outcome->toArray(),

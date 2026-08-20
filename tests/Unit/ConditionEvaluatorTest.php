@@ -21,6 +21,7 @@ function httpContext(array $overrides = []): CheckContext
         ip: $overrides['ip'] ?? '93.184.216.34',
         connected: $overrides['connected'] ?? true,
         certificateExpirationSeconds: $overrides['certificateExpirationSeconds'] ?? 86400 * 60,
+        domainExpirationSeconds: $overrides['domainExpirationSeconds'] ?? 86400 * 400,
         body: $body,
         rawBody: is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR),
     );
@@ -70,6 +71,15 @@ it('evaluates certificate expiration durations', function () {
     ])))->toBeTrue()
         ->and(evaluate('[CERTIFICATE_EXPIRATION] > 48h', httpContext([
             'certificateExpirationSeconds' => 3600,
+        ])))->toBeFalse();
+});
+
+it('evaluates domain expiration durations', function () {
+    expect(evaluate('[DOMAIN_EXPIRATION] > 720h', httpContext([
+        'domainExpirationSeconds' => 721 * 3600,
+    ])))->toBeTrue()
+        ->and(evaluate('[DOMAIN_EXPIRATION] > 720h', httpContext([
+            'domainExpirationSeconds' => 24 * 3600,
         ])))->toBeFalse();
 });
 

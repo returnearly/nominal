@@ -12,6 +12,7 @@ final readonly class CheckContext
         public ?string $ip = null,
         public bool $connected = false,
         public ?int $certificateExpirationSeconds = null,
+        public ?int $domainExpirationSeconds = null,
         public mixed $body = null,
         public ?string $rawBody = null,
         public bool $bodyPathExisted = true,
