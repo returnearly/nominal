@@ -149,6 +149,14 @@ docker compose up --build
 
 App is on [http://localhost:8000](http://localhost:8000) (container port 8080). Queue, scheduler, and Reverb are the same image with `command:` overrides. Extra regional workers copy `worker` and change `PROBE_REGION` / `--queue`.
 
+Production images (`linux/amd64` and `linux/arm64`) are published to the GitHub Container Registry on every push to `master` (`latest`) and on version tags:
+
+```bash
+docker pull ghcr.io/returnearly/nominal:latest
+```
+
+The package is public. If the first publish lands as private, set visibility to **Public** once under the repo's Packages settings.
+
 ## License
 
 Copyright © 2026 Return Early.
