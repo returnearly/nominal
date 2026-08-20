@@ -15,5 +15,6 @@ final readonly class CheckContext
         public mixed $body = null,
         public ?string $rawBody = null,
         public bool $bodyPathExisted = true,
+        public ?string $dnsRcode = null,
     ) {}
 }

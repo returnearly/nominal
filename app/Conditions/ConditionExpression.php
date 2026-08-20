@@ -93,6 +93,14 @@ final class ConditionExpression
     public static function defaultsForType(mixed $type): array
     {
         return match (self::type($type)) {
+            MonitorType::Dns => [
+                [
+                    'placeholder' => ConditionPlaceholder::DnsRcode->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::Equal->value,
+                    'value' => 'NOERROR',
+                ],
+            ],
             MonitorType::Ping, MonitorType::Tcp => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,

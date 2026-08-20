@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Monitors;
 use App\Conditions\ConditionExpression;
 use App\Enums\ConditionComparator;
 use App\Enums\ConditionPlaceholder;
+use App\Enums\DnsQueryType;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -73,9 +74,22 @@ final class MonitorResource extends Resource
                         ->maxLength(2048)
                         ->placeholder(fn (Get $get): string => match (self::type($get)) {
                             MonitorType::Tcp => 'tcp://db.example.com:5432',
+                            MonitorType::Dns => '1.1.1.1',
                             MonitorType::Ping => 'example.com',
                             default => 'https://example.com/health',
                         }),
+                    TextInput::make('dns_query_name')
+                        ->label('Query name')
+                        ->maxLength(255)
+                        ->placeholder('example.com')
+                        ->required(fn (Get $get): bool => self::type($get) === MonitorType::Dns)
+                        ->visible(self::usesDnsQuery(...)),
+                    Select::make('dns_query_type')
+                        ->label('Query type')
+                        ->options(DnsQueryType::class)
+                        ->default(DnsQueryType::A)
+                        ->required(fn (Get $get): bool => self::type($get) === MonitorType::Dns)
+                        ->visible(self::usesDnsQuery(...)),
                     Select::make('method')
                         ->options(HttpMethod::class)
                         ->default(HttpMethod::Get)
@@ -236,6 +250,11 @@ final class MonitorResource extends Resource
     private static function usesRequestBody(Get $get): bool
     {
         return self::type($get)?->usesRequestBody() ?? false;
+    }
+
+    private static function usesDnsQuery(Get $get): bool
+    {
+        return self::type($get)?->usesDnsQuery() ?? false;
     }
 
     private static function type(Get $get): ?MonitorType

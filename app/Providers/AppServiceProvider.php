@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Checking\DnsTransport;
 use App\Checking\IcmpThenTcpPingTransport;
 use App\Checking\OpensslCertificateReader;
+use App\Checking\PhpDnsTransport;
 use App\Checking\PhpStreamTcpTransport;
 use App\Checking\PingTransport;
 use App\Checking\TcpTransport;
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TlsCertificateReader::class, OpensslCertificateReader::class);
         $this->app->bind(PingTransport::class, IcmpThenTcpPingTransport::class);
         $this->app->bind(TcpTransport::class, PhpStreamTcpTransport::class);
+        $this->app->bind(DnsTransport::class, PhpDnsTransport::class);
     }
 
     public function boot(): void

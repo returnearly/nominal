@@ -14,6 +14,7 @@ enum ConditionPlaceholder: string implements HasLabel
     case ResponseTime = '[RESPONSE_TIME]';
     case Ip = '[IP]';
     case CertificateExpiration = '[CERTIFICATE_EXPIRATION]';
+    case DnsRcode = '[DNS_RCODE]';
 
     public function getLabel(): string
     {
@@ -26,7 +27,7 @@ enum ConditionPlaceholder: string implements HasLabel
     public function comparators(): array
     {
         return match ($this) {
-            self::Connected, self::Ip => [
+            self::Connected, self::Ip, self::DnsRcode => [
                 ConditionComparator::Equal,
                 ConditionComparator::NotEqual,
             ],
@@ -50,6 +51,7 @@ enum ConditionPlaceholder: string implements HasLabel
             self::Connected => 'true',
             self::ResponseTime => '50',
             self::CertificateExpiration => '48h',
+            self::DnsRcode => 'NOERROR',
             self::Body, self::Ip => '',
         };
     }

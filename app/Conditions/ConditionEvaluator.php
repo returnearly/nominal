@@ -150,6 +150,7 @@ final class ConditionEvaluator
             'IP' => $context->ip,
             'CONNECTED' => $context->connected,
             'CERTIFICATE_EXPIRATION' => $context->certificateExpirationSeconds,
+            'DNS_RCODE' => $context->dnsRcode,
             'BODY' => $this->resolveBody($path, $context),
             default => throw new InvalidConditionException("Unknown placeholder [{$name}]."),
         };

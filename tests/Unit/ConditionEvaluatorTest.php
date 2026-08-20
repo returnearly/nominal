@@ -73,6 +73,19 @@ it('evaluates certificate expiration durations', function () {
         ])))->toBeFalse();
 });
 
+it('evaluates DNS response codes and answer bodies', function () {
+    $context = new CheckContext(
+        connected: true,
+        body: '93.184.216.34',
+        rawBody: '93.184.216.34',
+        dnsRcode: 'NOERROR',
+    );
+
+    expect(evaluate('[DNS_RCODE] == NOERROR', $context))->toBeTrue()
+        ->and(evaluate('[DNS_RCODE] == NXDOMAIN', $context))->toBeFalse()
+        ->and(evaluate('[BODY] == 93.184.216.34', $context))->toBeTrue();
+});
+
 it('treats inverted HTTP success as a normal condition', function () {
     expect(evaluate('[STATUS] == 403', httpContext(['status' => 403])))->toBeTrue()
         ->and(evaluate('[STATUS] == 403', httpContext(['status' => 200])))->toBeFalse();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Conditions\ConditionExpression;
+use App\Enums\DnsQueryType;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -41,6 +42,12 @@ final readonly class SaveMonitor implements ActionsPatternInterface
                 : null,
             'request_headers' => $input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [],
             'request_body' => $input['requestBody'] ?? $input['request_body'] ?? $monitor->request_body,
+            'dns_query_name' => $type === MonitorType::Dns
+                ? ($input['dnsQueryName'] ?? $input['dns_query_name'] ?? $monitor->dns_query_name)
+                : null,
+            'dns_query_type' => $type === MonitorType::Dns
+                ? $this->dnsQueryType($input['dnsQueryType'] ?? $input['dns_query_type'] ?? $monitor->dns_query_type ?? DnsQueryType::A)
+                : null,
             'follow_redirects' => $input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true,
             'verify_tls' => $input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true,
             'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,
@@ -110,5 +117,10 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function method(mixed $method): HttpMethod
     {
         return $method instanceof HttpMethod ? $method : EnumValue::parse(HttpMethod::class, $method);
+    }
+
+    private function dnsQueryType(mixed $type): DnsQueryType
+    {
+        return $type instanceof DnsQueryType ? $type : EnumValue::parse(DnsQueryType::class, $type);
     }
 }
