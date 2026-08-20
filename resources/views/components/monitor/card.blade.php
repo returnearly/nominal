@@ -5,7 +5,8 @@
 
 @php
     $checks = collect($checks)->values();
-    $group = filled($monitor->group) ? $monitor->group : 'Ungrouped';
+    $group = $monitor->groupLabel();
+    $tags = $monitor->tags;
 @endphp
 
 <x-monitor.history-styles />
@@ -19,6 +20,13 @@
                 <span class="nm-card-dot">•</span>
                 <span>{{ $monitor->target }}</span>
             </p>
+            @if ($tags !== [])
+                <ul class="nm-card-tags">
+                    @foreach ($tags as $tag)
+                        <li class="nm-tag">{{ $tag }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
         <x-monitor.status-badge :status="$monitor->status" :enabled="$monitor->enabled" />
     </header>

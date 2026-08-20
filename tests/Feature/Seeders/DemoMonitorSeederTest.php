@@ -46,6 +46,11 @@ it('creates failing monitors for local testing', function () {
             'Failing UDP',
             'Failing WebSocket',
         ]);
+
+    $failing = Monitor::query()->where('group', 'failing')->first();
+
+    expect($failing?->tags)->toBe(['synthetic'])
+        ->and($failing?->description)->toContain('Intentionally broken');
 });
 
 it('does not duplicate demo monitors when seeded twice', function () {

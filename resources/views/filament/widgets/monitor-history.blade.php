@@ -1,5 +1,6 @@
 @php
-    $group = filled($record->group) ? $record->group : 'Ungrouped';
+    $group = $record->groupLabel();
+    $tags = $record->tags;
     $format = \App\Actions\FormatMilliseconds::make();
     $averageLatency = $format->handle($averageLatencyMs);
     $range = $minLatencyMs !== null && $maxLatencyMs !== null
@@ -28,6 +29,13 @@
             <span class="nm-metrics-value">{{ $record->last_checked_at?->diffForHumans() ?? 'Never' }}</span>
         </div>
     </div>
+
+    @if (filled($record->description))
+        <section class="nm-panel">
+            <span class="nm-metrics-label">When this fails</span>
+            <p class="nm-runbook">{{ $record->description }}</p>
+        </section>
+    @endif
 
     @if ($heartbeatUrl = $record->heartbeatUrl())
         <section class="nm-panel">
@@ -62,6 +70,13 @@
                     <span class="nm-card-dot">·</span>
                     <span>{{ $record->target }}</span>
                 </p>
+                @if ($tags !== [])
+                    <ul class="nm-card-tags">
+                        @foreach ($tags as $tag)
+                            <li class="nm-tag">{{ $tag }}</li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
             @if ($averageLatency !== null)
                 <span class="nm-card-latency">~{{ $averageLatency }}</span>

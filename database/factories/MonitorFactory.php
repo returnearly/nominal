@@ -22,6 +22,8 @@ class MonitorFactory extends Factory
         return [
             'name' => fake()->unique()->words(3, true),
             'group' => 'core',
+            'description' => null,
+            'tags' => [],
             'type' => MonitorType::Http,
             'enabled' => true,
             'interval_seconds' => 60,
@@ -133,6 +135,16 @@ class MonitorFactory extends Factory
     {
         return $this->state(fn (): array => [
             'enabled' => false,
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $tags
+     */
+    public function tagged(array $tags): static
+    {
+        return $this->state(fn (): array => [
+            'tags' => $tags,
         ]);
     }
 }

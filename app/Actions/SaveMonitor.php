@@ -13,6 +13,7 @@ use App\Enums\MonitorType;
 use App\Models\Monitor;
 use App\Models\Probe;
 use App\Support\EnumValue;
+use App\Support\MonitorTags;
 use Illuminate\Support\Str;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
@@ -32,6 +33,12 @@ final readonly class SaveMonitor implements ActionsPatternInterface
         $monitor->fill([
             'name' => $input['name'] ?? $monitor->name,
             'group' => $input['group'] ?? $monitor->group,
+            'description' => array_key_exists('description', $input)
+                ? $this->description($input['description'])
+                : $monitor->description,
+            'tags' => array_key_exists('tags', $input)
+                ? MonitorTags::normalize($input['tags'])
+                : $monitor->tags,
             'type' => $type,
             'enabled' => $input['enabled'] ?? $monitor->enabled ?? true,
             'interval_seconds' => $input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60,
@@ -143,5 +150,16 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function dnsQueryType(mixed $type): DnsQueryType
     {
         return $type instanceof DnsQueryType ? $type : EnumValue::parse(DnsQueryType::class, $type);
+    }
+
+    private function description(mixed $description): ?string
+    {
+        if (! is_string($description)) {
+            return null;
+        }
+
+        $description = trim($description);
+
+        return $description === '' ? null : $description;
     }
 }

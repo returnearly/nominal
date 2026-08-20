@@ -69,6 +69,70 @@ it('shows the monitor group on each card', function () {
     expect($livewire->instance()->getTable()->getDefaultGroup())->toBeNull();
 });
 
+it('shows tags on monitor cards and filters by tag', function () {
+    $user = User::factory()->create();
+    $prod = Monitor::factory()->create([
+        'name' => 'Checkout API',
+        'group' => 'payments',
+        'tags' => ['prod', 'critical'],
+    ]);
+    $staging = Monitor::factory()->create([
+        'name' => 'Checkout staging',
+        'group' => 'payments',
+        'tags' => ['staging'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->assertSee('Checkout API')
+        ->assertSee('Checkout staging')
+        ->assertSee('prod')
+        ->assertSee('critical')
+        ->assertSee('staging')
+        ->filterTable('tag', 'critical')
+        ->assertCanSeeTableRecords([$prod])
+        ->assertCanNotSeeTableRecords([$staging]);
+});
+
+it('saves tags and a description from the create form', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Checkout API')
+        ->set('data.group', 'payments')
+        ->set('data.tags', [' Payments ', 'prod'])
+        ->set('data.description', 'Owned by payments. Page #payments-oncall if this is down.')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://pay.example/health')
+        ->set('data.probes', [$probe->id])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Checkout API')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->group)->toBe('payments')
+        ->and($monitor->tags)->toBe(['Payments', 'prod'])
+        ->and($monitor->description)->toBe('Owned by payments. Page #payments-oncall if this is down.');
+});
+
+it('shows the description on the monitor view', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Checkout API',
+        'description' => 'Owned by payments. Restart the worker pool if this fails.',
+        'tags' => ['prod'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSee('When this fails')
+        ->assertSee('Owned by payments. Restart the worker pool if this fails.')
+        ->assertSee('prod');
+});
+
 it('shows status totals at the top of the monitors list', function () {
     $user = User::factory()->create();
 

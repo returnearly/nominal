@@ -121,6 +121,8 @@ type Monitor {
     id: ID!
     name: String!
     group: String
+    description: String
+    tags: [String!]! @method(name: "graphqlTags")
     type: MonitorType!
     enabled: Boolean!
     interval_seconds: Int!
@@ -158,6 +160,8 @@ type Monitor {
 input CreateMonitorInput {
     name: String!
     group: String
+    description: String
+    tags: [String!]
     type: MonitorType!
     enabled: Boolean = true
     intervalSeconds: Int
@@ -179,6 +183,8 @@ input CreateMonitorInput {
 input UpdateMonitorInput {
     name: String
     group: String
+    description: String
+    tags: [String!]
     type: MonitorType
     enabled: Boolean
     intervalSeconds: Int
@@ -211,7 +217,10 @@ input UpdateNotificationChannelInput {
 
 type Query @guard(with: ["sanctum"]) {
     monitor(id: ID! @eq): Monitor @find
-    monitors: [Monitor!]! @all
+    monitors(
+        group: String @eq
+        tag: String @whereJsonContains(key: "tags")
+    ): [Monitor!]! @all
     notificationChannel(id: ID! @eq): NotificationChannel @find
     notificationChannels: [NotificationChannel!]! @all
     probes: [Probe!]! @all

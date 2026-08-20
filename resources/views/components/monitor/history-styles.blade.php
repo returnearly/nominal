@@ -176,6 +176,40 @@
             margin: 0 0.2rem;
         }
 
+        .nm-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin: 0.45rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .nm-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.08rem 0.45rem;
+            border-radius: 999px;
+            background: color-mix(in oklab, var(--nm-sage, #e0eadd) 85%, transparent);
+            color: color-mix(in oklab, var(--gray-950, #18181b) 72%, transparent);
+            font-size: 0.65rem;
+            font-weight: 650;
+            letter-spacing: 0.01em;
+            line-height: 1.35;
+        }
+
+        .dark .nm-tag {
+            background: color-mix(in oklab, #5adeb7 16%, #0c1613);
+            color: color-mix(in oklab, #fdfff8 78%, transparent);
+        }
+
+        .nm-runbook {
+            margin: 0;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
         .nm-card-chart {
             display: flex;
             flex-direction: column;

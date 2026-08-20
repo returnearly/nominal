@@ -64,6 +64,7 @@ class DemoMonitorSeeder extends Seeder
                     type: MonitorType::Http,
                     target: 'https://example.com',
                     method: HttpMethod::Get,
+                    description: 'Public example.com homepage. If this fails, example.com itself is down — nothing to page for.',
                 ),
             ],
             [
@@ -211,6 +212,7 @@ class DemoMonitorSeeder extends Seeder
     }
 
     /**
+     * @param  list<string>  $tags
      * @return array<string, mixed>
      */
     private function attributes(
@@ -221,9 +223,15 @@ class DemoMonitorSeeder extends Seeder
         int $timeoutSeconds = 10,
         ?string $dnsQueryName = null,
         ?string $dnsQueryType = null,
+        array $tags = [],
+        ?string $description = null,
     ): array {
         return [
             'group' => $group,
+            'description' => $description ?? ($group === 'failing'
+                ? 'Intentionally broken so local installs have something red. Safe to ignore or delete.'
+                : null),
+            'tags' => $tags !== [] ? $tags : ($group === 'failing' ? ['synthetic'] : ['example']),
             'type' => $type,
             'target' => $target,
             'method' => $method,

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Monitor;
 use App\Models\Probe;
 use App\Models\User;
 
@@ -339,4 +340,75 @@ it('manages notification channels and syncs them to a monitor', function () {
 
     expect($synced)->toHaveCount(1)
         ->and($synced[0]['id'])->toBe($channel['id']);
+});
+
+it('saves tags and a description on a monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                id
+                group
+                description
+                tags
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Checkout API',
+            'group' => 'payments',
+            'description' => "Owned by payments.\nIf this fails, check Redis and the card processor.",
+            'tags' => [' Payments ', 'prod', 'payments'],
+            'type' => 'Http',
+            'target' => 'https://pay.example/health',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['group'])->toBe('payments')
+        ->and($created['description'])->toBe("Owned by payments.\nIf this fails, check Redis and the card processor.")
+        ->and($created['tags'])->toBe(['Payments', 'prod']);
+
+    $updated = graphql('
+        mutation ($id: ID!, $input: UpdateMonitorInput!) {
+            updateMonitor(id: $id, input: $input) {
+                description
+                tags
+            }
+        }
+    ', [
+        'id' => $created['id'],
+        'input' => [
+            'description' => null,
+            'tags' => ['critical'],
+        ],
+    ])->json('data.updateMonitor');
+
+    expect($updated['description'])->toBeNull()
+        ->and($updated['tags'])->toBe(['critical']);
+});
+
+it('filters monitors by group and tag', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    Monitor::factory()->create(['name' => 'Pay API', 'group' => 'payments', 'tags' => ['prod', 'critical']]);
+    Monitor::factory()->create(['name' => 'Docs', 'group' => 'public', 'tags' => ['prod']]);
+    Monitor::factory()->create(['name' => 'Nightly', 'group' => 'payments', 'tags' => ['jobs']]);
+
+    $byGroup = graphql('
+        query ($group: String) {
+            monitors(group: $group) { name }
+        }
+    ', ['group' => 'payments'])->json('data.monitors');
+
+    expect(collect($byGroup)->pluck('name')->sort()->values()->all())->toBe(['Nightly', 'Pay API']);
+
+    $byTag = graphql('
+        query ($tag: String) {
+            monitors(tag: $tag) { name }
+        }
+    ', ['tag' => 'prod'])->json('data.monitors');
+
+    expect(collect($byTag)->pluck('name')->sort()->values()->all())->toBe(['Docs', 'Pay API']);
 });

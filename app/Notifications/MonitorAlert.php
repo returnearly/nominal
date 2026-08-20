@@ -55,6 +55,9 @@ final class MonitorAlert extends Notification
             ->line('Monitor: '.$this->monitor->name)
             ->line('Target: '.$this->monitor->target)
             ->line('Status: '.$this->monitor->status->value)
+            ->when($this->monitor->group, fn (MailMessage $mail): MailMessage => $mail->line('Group: '.$this->monitor->group))
+            ->when($this->monitor->tags !== [], fn (MailMessage $mail): MailMessage => $mail->line('Tags: '.implode(', ', $this->monitor->tags)))
+            ->when($this->monitor->description, fn (MailMessage $mail): MailMessage => $mail->line($this->monitor->description))
             ->when($this->result->message, fn (MailMessage $mail): MailMessage => $mail->line('Detail: '.$this->result->message));
     }
 
@@ -70,6 +73,8 @@ final class MonitorAlert extends Notification
                 'id' => $this->monitor->id,
                 'name' => $this->monitor->name,
                 'group' => $this->monitor->group,
+                'description' => $this->monitor->description,
+                'tags' => $this->monitor->tags,
                 'type' => $this->monitor->type->value,
                 'target' => $this->monitor->target,
                 'status' => $this->monitor->status->value,
@@ -87,8 +92,9 @@ final class MonitorAlert extends Notification
     public function text(): string
     {
         $detail = $this->result->message ? " — {$this->result->message}" : '';
+        $runbook = filled($this->monitor->description) ? "\n{$this->monitor->description}" : '';
 
-        return $this->headline()." ({$this->monitor->name} → {$this->monitor->target}){$detail}";
+        return $this->headline()." ({$this->monitor->name} → {$this->monitor->target}){$detail}{$runbook}";
     }
 
     public function headline(): string
