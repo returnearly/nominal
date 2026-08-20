@@ -123,7 +123,7 @@ final class ConditionExpression
                     'value' => '48h',
                 ],
             ],
-            MonitorType::Ping, MonitorType::Tcp => [
+            MonitorType::Ping, MonitorType::Tcp, MonitorType::Udp => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
                     'path' => '',

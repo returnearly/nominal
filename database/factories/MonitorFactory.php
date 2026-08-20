@@ -95,6 +95,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function udp(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Udp,
+            'target' => '1.1.1.1:53',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

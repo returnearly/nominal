@@ -107,6 +107,14 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example UDP',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Udp),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Udp,
+                    target: 'udp://1.1.1.1:53',
+                ),
+            ],
+            [
                 'name' => 'Failing HTTP status',
                 'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
@@ -165,6 +173,16 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Tls,
                     target: '192.0.2.1:59999',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing UDP',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Udp,
+                    target: 'not-a-real-host.invalid:9',
                     group: 'failing',
                     timeoutSeconds: 5,
                 ),

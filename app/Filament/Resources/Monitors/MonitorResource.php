@@ -75,6 +75,7 @@ final class MonitorResource extends Resource
                         ->maxLength(2048)
                         ->placeholder(fn (Get $get): string => match (self::type($get)) {
                             MonitorType::Tcp => 'tcp://db.example.com:5432',
+                            MonitorType::Udp => 'udp://dns.example.com:53',
                             MonitorType::Tls => 'tls://db.example.com:5432',
                             MonitorType::Dns => '1.1.1.1',
                             MonitorType::Ping => 'example.com',

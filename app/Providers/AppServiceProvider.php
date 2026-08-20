@@ -10,10 +10,12 @@ use App\Checking\OpensslCertificateReader;
 use App\Checking\PhpDnsTransport;
 use App\Checking\PhpStreamTcpTransport;
 use App\Checking\PhpStreamTlsTransport;
+use App\Checking\PhpStreamUdpTransport;
 use App\Checking\PingTransport;
 use App\Checking\TcpTransport;
 use App\Checking\TlsCertificateReader;
 use App\Checking\TlsTransport;
+use App\Checking\UdpTransport;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TcpTransport::class, PhpStreamTcpTransport::class);
         $this->app->bind(DnsTransport::class, PhpDnsTransport::class);
         $this->app->bind(TlsTransport::class, PhpStreamTlsTransport::class);
+        $this->app->bind(UdpTransport::class, PhpStreamUdpTransport::class);
     }
 
     public function boot(): void

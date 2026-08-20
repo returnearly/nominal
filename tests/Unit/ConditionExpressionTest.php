@@ -102,6 +102,10 @@ it('returns type-specific default conditions', function () {
         ])
         ->and(ConditionExpression::defaultExpressions(MonitorType::Heartbeat))->toBe([
             '[CONNECTED] == true',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Udp))->toBe([
+            '[CONNECTED] == true',
+            '[RESPONSE_TIME] < 50',
         ]);
 });
 
