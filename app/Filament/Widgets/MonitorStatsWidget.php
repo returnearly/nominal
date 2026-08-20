@@ -57,7 +57,7 @@ final class MonitorStatsWidget extends StatsOverviewWidget
     {
         $value = $status->value;
 
-        return Stat::make($status->name, (int) $counts->get($value, 0))
+        return Stat::make($status->badgeLabel(), (int) $counts->get($value, 0))
             ->color($status->getColor())
             ->description(data_get($this->tableFilters, 'status.value') === $value ? 'Filtered' : null)
             ->extraAttributes([

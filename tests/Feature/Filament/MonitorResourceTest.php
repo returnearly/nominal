@@ -80,8 +80,8 @@ it('shows status totals at the top of the monitors list', function () {
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
         ->assertSeeLivewire(MonitorStatsWidget::class)
-        ->assertSee('Up')
-        ->assertSee('Down')
+        ->assertSee('Healthy')
+        ->assertSee('Unhealthy')
         ->assertSee('Pending')
         ->assertSee('Paused');
 
