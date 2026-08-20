@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\CheckTcp;
 use App\Checking\SocketOutcome;
-use App\Checking\TcpChecker;
 use App\Checking\TcpTransport;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
@@ -20,7 +20,7 @@ it('passes TCP checks when the port accepts a connection', function () {
         }
     });
 
-    $result = app(TcpChecker::class)->check($monitor);
+    $result = CheckTcp::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue()
@@ -40,7 +40,7 @@ it('fails TCP checks when the port is closed', function () {
         }
     });
 
-    $result = app(TcpChecker::class)->check($monitor);
+    $result = CheckTcp::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()
@@ -53,7 +53,7 @@ it('fails TCP checks when the target has no port', function () {
     ]);
     $monitor->load('conditions');
 
-    $result = app(TcpChecker::class)->check($monitor);
+    $result = CheckTcp::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()
@@ -80,7 +80,7 @@ it('writes an optional payload after connecting', function () {
         }
     });
 
-    $result = app(TcpChecker::class)->check($monitor);
+    $result = CheckTcp::make()->handle($monitor);
 
     expect($captured->body)->toBe('PING')
         ->and($result->success)->toBeTrue()

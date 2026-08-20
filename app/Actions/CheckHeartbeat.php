@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
+use App\Checking\ProbeResult;
 use App\Models\Monitor;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
-final class HeartbeatChecker
+final readonly class CheckHeartbeat implements ActionsPatternInterface
 {
-    public function check(Monitor $monitor): ProbeResult
+    use ActionsPattern;
+
+    public function handle(Monitor $monitor): ProbeResult
     {
         $fresh = $monitor->last_heartbeat_at !== null
             && $monitor->last_heartbeat_at->gte(now()->subSeconds($monitor->interval_seconds));

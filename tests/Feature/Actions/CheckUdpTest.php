@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\CheckUdp;
 use App\Checking\SocketOutcome;
-use App\Checking\UdpChecker;
 use App\Checking\UdpTransport;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
@@ -20,7 +20,7 @@ it('passes UDP checks when the datagram is accepted', function () {
         }
     });
 
-    $result = app(UdpChecker::class)->check($monitor);
+    $result = CheckUdp::make()->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->connected)->toBeTrue()
@@ -39,7 +39,7 @@ it('fails UDP checks when the host cannot be reached', function () {
         }
     });
 
-    $result = app(UdpChecker::class)->check($monitor);
+    $result = CheckUdp::make()->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse()

@@ -2,22 +2,29 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
+use App\Checking\DnsOutcome;
+use App\Checking\DnsTransport;
+use App\Checking\ProbeResult;
 use App\Conditions\CheckContext;
 use App\Enums\DnsQueryType;
 use App\Models\Monitor;
 use InvalidArgumentException;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 use Throwable;
 
-final class DnsChecker
+final readonly class CheckDns implements ActionsPatternInterface
 {
+    use ActionsPattern;
+
     public function __construct(
-        private readonly ConditionRunner $conditions,
-        private readonly DnsTransport $transport,
+        private EvaluateCheckConditions $conditions,
+        private DnsTransport $transport,
     ) {}
 
-    public function check(Monitor $monitor): ProbeResult
+    public function handle(Monitor $monitor): ProbeResult
     {
         $name = trim((string) $monitor->dns_query_name);
         $type = $monitor->dns_query_type ?? DnsQueryType::A;
@@ -48,7 +55,7 @@ final class DnsChecker
             dnsRcode: $outcome->rcode,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->run(
+        [$outcomes, $success, $message] = $this->conditions->handle(
             $monitor,
             $context,
             $outcome->connected ? null : $outcome->message,

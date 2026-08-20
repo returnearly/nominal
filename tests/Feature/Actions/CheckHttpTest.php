@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Checking\HttpChecker;
+use App\Actions\CheckHttp;
 use App\Checking\TlsCertificateReader;
 use App\Models\Monitor;
 use GuzzleHttp\Client;
@@ -25,15 +25,15 @@ function fakeCertificates(?DateTimeImmutable $expiresAt = null): TlsCertificateR
     };
 }
 
-function httpChecker(array $responses, ?DateTimeImmutable $cert = null): HttpChecker
+function checkHttp(array $responses, ?DateTimeImmutable $cert = null): CheckHttp
 {
     app()->instance(TlsCertificateReader::class, fakeCertificates($cert));
 
-    $client = new Client([
+    app()->instance(Client::class, new Client([
         'handler' => HandlerStack::create(new MockHandler($responses)),
-    ]);
+    ]));
 
-    return app(HttpChecker::class)->withClient($client);
+    return CheckHttp::make();
 }
 
 it('passes HTTP checks when conditions match', function () {
@@ -45,9 +45,9 @@ it('passes HTTP checks when conditions match', function () {
     ]);
     $monitor->load('conditions');
 
-    $result = httpChecker([
+    $result = checkHttp([
         new Response(200, [], '{"status":"UP"}'),
-    ], new DateTimeImmutable('+60 days'))->check($monitor);
+    ], new DateTimeImmutable('+60 days'))->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->httpStatus)->toBe(200)
@@ -58,9 +58,9 @@ it('fails HTTP checks when a condition fails', function () {
     $monitor = Monitor::factory()->withDefaultConditions()->create();
     $monitor->load('conditions');
 
-    $result = httpChecker([
+    $result = checkHttp([
         new Response(500, [], 'nope'),
-    ])->check($monitor);
+    ])->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->httpStatus)->toBe(500)
@@ -72,12 +72,12 @@ it('sends a custom method and treats connection errors as failed conditions', fu
     $monitor->conditions()->create(['expression' => '[CONNECTED] == true', 'sort' => 0]);
     $monitor->load('conditions');
 
-    $result = httpChecker([
+    $result = checkHttp([
         new ConnectException(
             'Could not connect',
             new Request('GET', 'https://example.com/health'),
         ),
-    ])->check($monitor);
+    ])->handle($monitor);
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse();

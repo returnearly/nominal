@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Checking;
+namespace App\Actions;
 
+use App\Checking\ProbeResult;
+use App\Checking\TlsCertificateReader;
 use App\Conditions\CheckContext;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
@@ -12,25 +14,21 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\RequestOptions;
 use GuzzleHttp\TransferStats;
+use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
+use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 use Throwable;
 
-final class HttpChecker
+final readonly class CheckHttp implements ActionsPatternInterface
 {
-    private ?Client $client = null;
+    use ActionsPattern;
 
     public function __construct(
-        private readonly ConditionRunner $conditions,
-        private readonly TlsCertificateReader $certificates,
+        private EvaluateCheckConditions $conditions,
+        private TlsCertificateReader $certificates,
+        private Client $client,
     ) {}
 
-    public function withClient(Client $client): self
-    {
-        $this->client = $client;
-
-        return $this;
-    }
-
-    public function check(Monitor $monitor): ProbeResult
+    public function handle(Monitor $monitor): ProbeResult
     {
         $ip = null;
         $status = null;
@@ -42,7 +40,7 @@ final class HttpChecker
         $started = hrtime(true);
 
         try {
-            $response = $this->client()->request(
+            $response = $this->client->request(
                 $monitor->method?->value ?? 'GET',
                 $monitor->target,
                 $this->options($monitor, $ip),
@@ -76,7 +74,7 @@ final class HttpChecker
             rawBody: $rawBody,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->run($monitor, $context, $error);
+        [$outcomes, $success, $message] = $this->conditions->handle($monitor, $context, $error);
 
         return new ProbeResult(
             success: $success,
@@ -162,10 +160,5 @@ final class HttpChecker
         $port = (int) ($parts['port'] ?? 443);
 
         return $this->certificates->expiresAt($host, $port, $monitor->timeout_seconds);
-    }
-
-    private function client(): Client
-    {
-        return $this->client ?? new Client;
     }
 }
