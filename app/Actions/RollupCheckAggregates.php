@@ -21,6 +21,7 @@ final readonly class RollupCheckAggregates implements ActionsPatternInterface
         $periodStart = ($hourStart ?? now()->subHour()->startOfHour())->copy()->startOfHour();
         $periodEnd = $periodStart->copy()->addHour();
         $written = 0;
+        $dayKeys = [];
 
         $groups = CheckResult::query()
             ->where('checked_at', '>=', $periodStart)
@@ -30,12 +31,13 @@ final readonly class RollupCheckAggregates implements ActionsPatternInterface
 
         foreach ($groups as $results) {
             $first = $results->first();
-            $this->upsert(
+            $this->upsertHour(
                 $first->monitor_id,
                 $first->probe_id,
                 $periodStart,
                 $results,
             );
+            $dayKeys[$first->monitor_id.'|'.$first->probe_id] = [$first->monitor_id, $first->probe_id];
             $written++;
         }
 
@@ -46,7 +48,13 @@ final readonly class RollupCheckAggregates implements ActionsPatternInterface
             ->groupBy('monitor_id');
 
         foreach ($byMonitor as $monitorId => $results) {
-            $this->upsert((string) $monitorId, null, $periodStart, $results);
+            $this->upsertHour((string) $monitorId, null, $periodStart, $results);
+            $dayKeys[$monitorId.'|'] = [(string) $monitorId, null];
+            $written++;
+        }
+
+        foreach ($dayKeys as [$monitorId, $probeId]) {
+            $this->upsertDay($monitorId, $probeId, $periodStart);
             $written++;
         }
 
@@ -56,7 +64,7 @@ final readonly class RollupCheckAggregates implements ActionsPatternInterface
     /**
      * @param  Collection<int, CheckResult>  $results
      */
-    private function upsert(string $monitorId, ?string $probeId, Carbon $periodStart, $results): void
+    private function upsertHour(string $monitorId, ?string $probeId, Carbon $periodStart, $results): void
     {
         $up = $results->where('success', true)->count();
         $down = $results->where('success', false)->count();
@@ -73,6 +81,49 @@ final readonly class RollupCheckAggregates implements ActionsPatternInterface
                 'up_count' => $up,
                 'down_count' => $down,
                 'avg_latency_ms' => $avgLatency === null ? null : (int) round((float) $avgLatency),
+            ],
+        );
+    }
+
+    private function upsertDay(string $monitorId, ?string $probeId, Carbon $hourStart): void
+    {
+        $dayStart = $hourStart->copy()->startOfDay();
+        $hours = CheckAggregate::query()
+            ->where('monitor_id', $monitorId)
+            ->where('granularity', AggregateGranularity::Hour)
+            ->where('period_start', '>=', $dayStart)
+            ->where('period_start', '<', $dayStart->copy()->addDay())
+            ->when(
+                $probeId === null,
+                fn ($query) => $query->whereNull('probe_id'),
+                fn ($query) => $query->where('probe_id', $probeId),
+            )
+            ->get();
+
+        if ($hours->isEmpty()) {
+            return;
+        }
+
+        $up = (int) $hours->sum('up_count');
+        $down = (int) $hours->sum('down_count');
+        $weightedLatency = $hours
+            ->filter(fn (CheckAggregate $hour): bool => $hour->avg_latency_ms !== null)
+            ->sum(fn (CheckAggregate $hour): int => $hour->avg_latency_ms * ($hour->up_count + $hour->down_count));
+        $latencySamples = (int) $hours
+            ->filter(fn (CheckAggregate $hour): bool => $hour->avg_latency_ms !== null)
+            ->sum(fn (CheckAggregate $hour): int => $hour->up_count + $hour->down_count);
+
+        CheckAggregate::query()->updateOrCreate(
+            [
+                'monitor_id' => $monitorId,
+                'probe_id' => $probeId,
+                'period_start' => $dayStart,
+                'granularity' => AggregateGranularity::Day,
+            ],
+            [
+                'up_count' => $up,
+                'down_count' => $down,
+                'avg_latency_ms' => $latencySamples === 0 ? null : (int) round($weightedLatency / $latencySamples),
             ],
         );
     }

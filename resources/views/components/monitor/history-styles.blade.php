@@ -195,6 +195,59 @@
             margin-top: 0.35rem;
         }
 
+        .nm-uptime {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem 1rem;
+        }
+
+        .nm-uptime-detail {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        @media (min-width: 768px) {
+            .nm-uptime-detail {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        .nm-uptime-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.12rem;
+            min-width: 0;
+        }
+
+        .nm-uptime-item .nm-metrics-label {
+            margin-bottom: 0;
+        }
+
+        .nm-uptime-value {
+            font-size: 1.05rem;
+            font-weight: 650;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .nm-uptime-value[data-uptime="ok"] {
+            color: #178a6a;
+        }
+
+        .nm-uptime-value[data-uptime="warn"] {
+            color: #b45309;
+        }
+
+        .nm-uptime-value[data-uptime="bad"] {
+            color: #d15c5c;
+        }
+
+        .dark .nm-uptime-value[data-uptime="ok"] {
+            color: #5adeb7;
+        }
+
+        .dark .nm-uptime-value[data-uptime="warn"] {
+            color: #fbbf24;
+        }
+
         .nm-card-latency {
             flex: none;
             margin: 0;
