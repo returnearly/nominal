@@ -25,6 +25,12 @@ final class ViewMonitor extends ViewRecord
             Action::make('checkNow')
                 ->label('Check now')
                 ->icon(Heroicon::OutlinedPlay)
+                ->visible(function (): bool {
+                    /** @var Monitor $record */
+                    $record = $this->getRecord();
+
+                    return $record->type->usesOutboundProbe();
+                })
                 ->action($this->queueCheck(...)),
             EditAction::make(),
         ];
@@ -49,7 +55,7 @@ final class ViewMonitor extends ViewRecord
         $record = $this->getRecord();
         $group = filled($record->group) ? $record->group : 'Ungrouped';
 
-        return $group.' · '.$record->target;
+        return $group.' · '.($record->heartbeatUrl() ?? $record->target);
     }
 
     /**
