@@ -185,6 +185,31 @@ it('creates a heartbeat monitor with a heartbeat URL', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
+it('creates a UDP monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'DNS UDP',
+            'type' => 'Udp',
+            'target' => 'udp://1.1.1.1:53',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('Udp')
+        ->and($created['target'])->toBe('udp://1.1.1.1:53')
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

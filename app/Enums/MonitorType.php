@@ -14,6 +14,7 @@ enum MonitorType: string implements HasLabel
     case Dns = 'dns';
     case Tls = 'tls';
     case Heartbeat = 'heartbeat';
+    case Udp = 'udp';
 
     public function getLabel(): string
     {
@@ -24,6 +25,7 @@ enum MonitorType: string implements HasLabel
             self::Dns => 'DNS',
             self::Tls => 'TLS',
             self::Heartbeat => 'Heartbeat',
+            self::Udp => 'UDP',
         };
     }
 
@@ -35,7 +37,7 @@ enum MonitorType: string implements HasLabel
     public function usesRequestBody(): bool
     {
         return match ($this) {
-            self::Http, self::Tcp, self::Tls => true,
+            self::Http, self::Tcp, self::Tls, self::Udp => true,
             default => false,
         };
     }

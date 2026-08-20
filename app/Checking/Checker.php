@@ -16,6 +16,7 @@ final class Checker
         private readonly DnsChecker $dns,
         private readonly TlsChecker $tls,
         private readonly HeartbeatChecker $heartbeat,
+        private readonly UdpChecker $udp,
     ) {}
 
     public function check(Monitor $monitor): ProbeResult
@@ -29,6 +30,7 @@ final class Checker
             MonitorType::Dns => $this->dns->check($monitor),
             MonitorType::Tls => $this->tls->check($monitor),
             MonitorType::Heartbeat => $this->heartbeat->check($monitor),
+            MonitorType::Udp => $this->udp->check($monitor),
         };
     }
 }

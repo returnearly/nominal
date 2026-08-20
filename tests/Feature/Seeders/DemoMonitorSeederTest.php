@@ -35,6 +35,7 @@ it('creates failing monitors for local testing', function () {
             'Failing Ping',
             'Failing TCP',
             'Failing TLS',
+            'Failing UDP',
         ]);
 });
 
@@ -44,7 +45,7 @@ it('does not duplicate demo monitors when seeded twice', function () {
     $this->seed(DemoMonitorSeeder::class);
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->count())->toBe(12);
+    expect(Monitor::query()->count())->toBe(14);
 });
 
 it('queues a first check for demo monitors that have never run', function () {
@@ -52,5 +53,5 @@ it('queues a first check for demo monitors that have never run', function () {
 
     $this->seed(DemoMonitorSeeder::class);
 
-    Queue::assertPushed(RunCheckJob::class, 11);
+    Queue::assertPushed(RunCheckJob::class, 13);
 });

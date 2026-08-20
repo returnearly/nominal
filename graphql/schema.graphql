@@ -8,6 +8,7 @@ enum MonitorType {
     Dns
     Tls
     Heartbeat
+    Udp
 }
 
 enum DnsQueryType {
