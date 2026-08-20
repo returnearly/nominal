@@ -91,7 +91,7 @@ Reverb through Cloudflare needs extra setup; GraphQL HTTP does not.
 
 ## Prometheus
 
-`GET /metrics` — Redis/cache-backed counters and gauges, prefix `nominal_`. Labels: `monitor`, `group`, `type`, `success`, `region`.
+`GET /metrics` — Redis/cache-backed counters and gauges, prefix `nominal_`. Labels: `monitor`, `type`, `success`, `region`.
 
 ## Multi-region workers
 

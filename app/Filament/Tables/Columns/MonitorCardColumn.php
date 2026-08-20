@@ -22,7 +22,6 @@ final class MonitorCardColumn extends Column
                 return $query->where(function (Builder $query) use ($like): void {
                     $query->where('name', 'like', $like)
                         ->orWhere('target', 'like', $like)
-                        ->orWhere('group', 'like', $like)
                         ->orWhere('description', 'like', $like)
                         ->orWhere('tags', 'like', $like);
                 });

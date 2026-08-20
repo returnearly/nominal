@@ -349,7 +349,6 @@ it('saves tags and a description on a monitor', function () {
         mutation ($input: CreateMonitorInput!) {
             createMonitor(input: $input) {
                 id
-                group
                 description
                 tags
             }
@@ -357,7 +356,6 @@ it('saves tags and a description on a monitor', function () {
     ', [
         'input' => [
             'name' => 'Checkout API',
-            'group' => 'payments',
             'description' => "Owned by payments.\nIf this fails, check Redis and the card processor.",
             'tags' => [' Payments ', 'prod', 'payments'],
             'type' => 'Http',
@@ -366,8 +364,7 @@ it('saves tags and a description on a monitor', function () {
     ])->assertSuccessful()
         ->json('data.createMonitor');
 
-    expect($created['group'])->toBe('payments')
-        ->and($created['description'])->toBe("Owned by payments.\nIf this fails, check Redis and the card processor.")
+    expect($created['description'])->toBe("Owned by payments.\nIf this fails, check Redis and the card processor.")
         ->and($created['tags'])->toBe(['Payments', 'prod']);
 
     $updated = graphql('
@@ -389,20 +386,12 @@ it('saves tags and a description on a monitor', function () {
         ->and($updated['tags'])->toBe(['critical']);
 });
 
-it('filters monitors by group and tag', function () {
+it('filters monitors by tag', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
-    Monitor::factory()->create(['name' => 'Pay API', 'group' => 'payments', 'tags' => ['prod', 'critical']]);
-    Monitor::factory()->create(['name' => 'Docs', 'group' => 'public', 'tags' => ['prod']]);
-    Monitor::factory()->create(['name' => 'Nightly', 'group' => 'payments', 'tags' => ['jobs']]);
-
-    $byGroup = graphql('
-        query ($group: String) {
-            monitors(group: $group) { name }
-        }
-    ', ['group' => 'payments'])->json('data.monitors');
-
-    expect(collect($byGroup)->pluck('name')->sort()->values()->all())->toBe(['Nightly', 'Pay API']);
+    Monitor::factory()->create(['name' => 'Pay API', 'tags' => ['prod', 'critical']]);
+    Monitor::factory()->create(['name' => 'Docs', 'tags' => ['prod']]);
+    Monitor::factory()->create(['name' => 'Nightly', 'tags' => ['jobs']]);
 
     $byTag = graphql('
         query ($tag: String) {

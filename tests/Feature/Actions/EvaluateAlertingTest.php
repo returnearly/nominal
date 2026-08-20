@@ -94,7 +94,6 @@ it('includes the runbook and tags on down alerts', function () {
         'consecutive_failures' => 3,
         'description' => 'Owned by payments. Restart the worker pool.',
         'tags' => ['prod', 'critical'],
-        'group' => 'payments',
     ]);
     $channel = NotificationChannel::factory()->create();
     $monitor->notificationChannels()->attach($channel->id, [
@@ -112,7 +111,6 @@ it('includes the runbook and tags on down alerts', function () {
         expect($alert->text())->toContain('Owned by payments. Restart the worker pool.')
             ->and($payload['monitor']['description'])->toBe('Owned by payments. Restart the worker pool.')
             ->and($payload['monitor']['tags'])->toBe(['prod', 'critical'])
-            ->and($payload['monitor']['group'])->toBe('payments')
             ->and($payload['monitor']['id'])->toBe($monitor->id);
 
         return $alert->kind === AlertKind::Down;

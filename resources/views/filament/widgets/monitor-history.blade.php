@@ -1,5 +1,4 @@
 @php
-    $group = $record->groupLabel();
     $tags = $record->tags;
     $format = \App\Actions\FormatMilliseconds::make();
     $averageLatency = $format->handle($averageLatencyMs);
@@ -32,7 +31,7 @@
 
     @if (filled($record->description))
         <section class="nm-panel">
-            <span class="nm-metrics-label">When this fails</span>
+            <span class="nm-metrics-label">Monitor Description</span>
             <p class="nm-runbook">{{ $record->description }}</p>
         </section>
     @endif
@@ -66,8 +65,6 @@
             <div>
                 <h3 class="nm-section-title">Recent checks</h3>
                 <p class="nm-card-meta">
-                    <span>{{ $group }}</span>
-                    <span class="nm-card-dot">·</span>
                     <span>{{ $record->target }}</span>
                 </p>
                 @if ($tags !== [])

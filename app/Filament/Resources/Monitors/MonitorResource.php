@@ -63,10 +63,7 @@ final class MonitorResource extends Resource
             Section::make('Monitor')
                 ->columns(2)
                 ->components([
-                    TextInput::make('name')->required()->maxLength(255),
-                    TextInput::make('group')
-                        ->maxLength(255)
-                        ->helperText('Dashboard section. One bucket per monitor.'),
+                    TextInput::make('name')->required()->maxLength(255)->columnSpanFull(),
                     TagsInput::make('tags')
                         ->suggestions(self::tagSuggestions(...))
                         ->nestedRecursiveRules(['max:'.MonitorTags::MaxLength])
@@ -338,7 +335,6 @@ final class MonitorResource extends Resource
             ->filters([
                 SelectFilter::make('status')->options(MonitorStatus::class),
                 SelectFilter::make('type')->options(MonitorType::class),
-                SelectFilter::make('group')->options(self::groupOptions(...)),
                 SelectFilter::make('tag')
                     ->label('Tag')
                     ->options(self::tagOptions(...))
@@ -453,18 +449,6 @@ final class MonitorResource extends Resource
     private static function monitorType(Get $get): mixed
     {
         return $get('type') ?? $get('../../type') ?? $get('../../../type');
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function groupOptions(): array
-    {
-        return Monitor::query()
-            ->whereNotNull('group')
-            ->distinct()
-            ->pluck('group', 'group')
-            ->all();
     }
 
     /**

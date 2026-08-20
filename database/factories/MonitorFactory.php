@@ -21,7 +21,6 @@ class MonitorFactory extends Factory
     {
         return [
             'name' => fake()->unique()->words(3, true),
-            'group' => 'core',
             'description' => null,
             'tags' => [],
             'type' => MonitorType::Http,

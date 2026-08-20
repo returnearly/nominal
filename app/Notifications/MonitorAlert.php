@@ -55,7 +55,6 @@ final class MonitorAlert extends Notification
             ->line('Monitor: '.$this->monitor->name)
             ->line('Target: '.$this->monitor->target)
             ->line('Status: '.$this->monitor->status->value)
-            ->when($this->monitor->group, fn (MailMessage $mail): MailMessage => $mail->line('Group: '.$this->monitor->group))
             ->when($this->monitor->tags !== [], fn (MailMessage $mail): MailMessage => $mail->line('Tags: '.implode(', ', $this->monitor->tags)))
             ->when($this->monitor->description, fn (MailMessage $mail): MailMessage => $mail->line($this->monitor->description))
             ->when($this->result->message, fn (MailMessage $mail): MailMessage => $mail->line('Detail: '.$this->result->message));
@@ -72,7 +71,6 @@ final class MonitorAlert extends Notification
             'monitor' => [
                 'id' => $this->monitor->id,
                 'name' => $this->monitor->name,
-                'group' => $this->monitor->group,
                 'description' => $this->monitor->description,
                 'tags' => $this->monitor->tags,
                 'type' => $this->monitor->type->value,

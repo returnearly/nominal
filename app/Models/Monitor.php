@@ -28,7 +28,6 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'name',
-    'group',
     'description',
     'tags',
     'type',
@@ -98,11 +97,6 @@ class Monitor extends Model
             },
             set: fn (mixed $value): string => json_encode(MonitorTags::normalize($value)),
         );
-    }
-
-    public function groupLabel(): string
-    {
-        return filled($this->group) ? (string) $this->group : 'Ungrouped';
     }
 
     /**

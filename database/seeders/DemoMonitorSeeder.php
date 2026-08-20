@@ -132,7 +132,7 @@ class DemoMonitorSeeder extends Seeder
                     type: MonitorType::Http,
                     target: 'https://example.com',
                     method: HttpMethod::Get,
-                    group: 'failing',
+                    tags: ['synthetic'],
                 ),
             ],
             [
@@ -142,7 +142,7 @@ class DemoMonitorSeeder extends Seeder
                     type: MonitorType::Http,
                     target: 'https://down.invalid',
                     method: HttpMethod::Get,
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -152,7 +152,7 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Ping,
                     target: '192.0.2.1',
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -162,7 +162,7 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Tcp,
                     target: '192.0.2.1:59999',
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -174,7 +174,7 @@ class DemoMonitorSeeder extends Seeder
                     target: '1.1.1.1',
                     dnsQueryName: 'this-name-should-not-exist.invalid',
                     dnsQueryType: 'A',
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -184,7 +184,7 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Tls,
                     target: '192.0.2.1:59999',
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -194,7 +194,7 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Udp,
                     target: 'not-a-real-host.invalid:9',
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -204,7 +204,7 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::WebSocket,
                     target: 'ws://down.invalid/socket',
-                    group: 'failing',
+                    tags: ['synthetic'],
                     timeoutSeconds: 5,
                 ),
             ],
@@ -219,19 +219,17 @@ class DemoMonitorSeeder extends Seeder
         MonitorType $type,
         string $target,
         ?HttpMethod $method = null,
-        string $group = 'demo',
         int $timeoutSeconds = 10,
         ?string $dnsQueryName = null,
         ?string $dnsQueryType = null,
-        array $tags = [],
+        array $tags = ['example'],
         ?string $description = null,
     ): array {
         return [
-            'group' => $group,
-            'description' => $description ?? ($group === 'failing'
+            'description' => $description ?? (in_array('synthetic', $tags, true)
                 ? 'Intentionally broken so local installs have something red. Safe to ignore or delete.'
                 : null),
-            'tags' => $tags !== [] ? $tags : ($group === 'failing' ? ['synthetic'] : ['example']),
+            'tags' => $tags,
             'type' => $type,
             'target' => $target,
             'method' => $method,

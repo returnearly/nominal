@@ -5,7 +5,6 @@
 
 @php
     $checks = collect($checks)->values();
-    $group = $monitor->groupLabel();
     $tags = $monitor->tags;
 @endphp
 
@@ -16,8 +15,6 @@
         <div class="nm-card-copy">
             <h3 class="nm-card-name">{{ $monitor->name }}</h3>
             <p class="nm-card-meta">
-                <span>{{ $group }}</span>
-                <span class="nm-card-dot">•</span>
                 <span>{{ $monitor->target }}</span>
             </p>
             @if ($tags !== [])

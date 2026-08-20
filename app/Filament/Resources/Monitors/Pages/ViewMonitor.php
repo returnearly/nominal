@@ -53,9 +53,8 @@ final class ViewMonitor extends ViewRecord
     {
         /** @var Monitor $record */
         $record = $this->getRecord();
-        $group = $record->groupLabel();
 
-        return $group.' · '.($record->heartbeatUrl() ?? $record->target);
+        return $record->heartbeatUrl() ?? $record->target;
     }
 
     /**

@@ -51,34 +51,18 @@ it('paginates monitors at 50, 100, or 250 rows', function () {
         ->getTable();
 
     expect($table->getPaginationPageOptions())->toBe([50, 100, 250])
-        ->and($table->getDefaultPaginationPageOption())->toBe(50);
-});
-
-it('shows the monitor group on each card', function () {
-    $user = User::factory()->create();
-    Monitor::factory()->create(['name' => 'Checkout', 'group' => 'payments']);
-    Monitor::factory()->create(['name' => 'Status page', 'group' => 'public']);
-
-    $livewire = Livewire::actingAs($user)
-        ->test(ListMonitors::class)
-        ->assertSee('Checkout')
-        ->assertSee('Status page')
-        ->assertSee('payments')
-        ->assertSee('public');
-
-    expect($livewire->instance()->getTable()->getDefaultGroup())->toBeNull();
+        ->and($table->getDefaultPaginationPageOption())->toBe(50)
+        ->and($table->getDefaultGroup())->toBeNull();
 });
 
 it('shows tags on monitor cards and filters by tag', function () {
     $user = User::factory()->create();
     $prod = Monitor::factory()->create([
         'name' => 'Checkout API',
-        'group' => 'payments',
         'tags' => ['prod', 'critical'],
     ]);
     $staging = Monitor::factory()->create([
         'name' => 'Checkout staging',
-        'group' => 'payments',
         'tags' => ['staging'],
     ]);
 
@@ -101,7 +85,6 @@ it('saves tags and a description from the create form', function () {
     Livewire::actingAs($user)
         ->test(CreateMonitor::class)
         ->set('data.name', 'Checkout API')
-        ->set('data.group', 'payments')
         ->set('data.tags', [' Payments ', 'prod'])
         ->set('data.description', 'Owned by payments. Page #payments-oncall if this is down.')
         ->set('data.type', MonitorType::Http->value)
@@ -113,7 +96,6 @@ it('saves tags and a description from the create form', function () {
     $monitor = Monitor::query()->where('name', 'Checkout API')->first();
 
     expect($monitor)->not->toBeNull()
-        ->and($monitor->group)->toBe('payments')
         ->and($monitor->tags)->toBe(['Payments', 'prod'])
         ->and($monitor->description)->toBe('Owned by payments. Page #payments-oncall if this is down.');
 });
@@ -128,7 +110,7 @@ it('shows the description on the monitor view', function () {
 
     Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
-        ->assertSee('When this fails')
+        ->assertSee('Monitor Description')
         ->assertSee('Owned by payments. Restart the worker pool if this fails.')
         ->assertSee('prod');
 });
@@ -193,7 +175,6 @@ it('renders monitors as status cards instead of a table', function () {
     $probe = Probe::factory()->create();
     $monitor = Monitor::factory()->create([
         'name' => 'Payments API',
-        'group' => 'core',
         'target' => 'https://pay.example/health',
         'status' => MonitorStatus::Up,
     ]);
@@ -223,7 +204,6 @@ it('renders monitors as status cards instead of a table', function () {
     $html = Livewire::actingAs($user)
         ->test(ListMonitors::class)
         ->assertSee('Payments API')
-        ->assertSee('core')
         ->assertSee('https://pay.example/health')
         ->assertSee('Healthy')
         ->html();

@@ -8,7 +8,7 @@ use App\Models\Monitor;
 use App\Models\Probe;
 
 it('renders prometheus metrics for recorded checks', function () {
-    $monitor = Monitor::factory()->create(['name' => 'api', 'group' => 'core']);
+    $monitor = Monitor::factory()->create(['name' => 'api']);
     $probe = Probe::factory()->create(['slug' => 'local']);
 
     app(MetricsStore::class)->record($monitor, $probe, new ProbeResult(

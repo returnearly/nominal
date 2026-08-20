@@ -32,7 +32,6 @@ final readonly class SaveMonitor implements ActionsPatternInterface
 
         $monitor->fill([
             'name' => $input['name'] ?? $monitor->name,
-            'group' => $input['group'] ?? $monitor->group,
             'description' => array_key_exists('description', $input)
                 ? $this->description($input['description'])
                 : $monitor->description,
