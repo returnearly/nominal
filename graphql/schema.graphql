@@ -137,6 +137,13 @@ type Monitor {
     heartbeatStartUrl: String @method(name: "heartbeatStartUrl")
     heartbeatFinishUrl: String @method(name: "heartbeatFinishUrl")
     heartbeatErrorUrl: String @method(name: "heartbeatErrorUrl")
+    statusBadgeUrl: String @method(name: "statusBadgeSvgUrl")
+    statusBadgeJsonUrl: String @method(name: "statusBadgeJsonUrl")
+    uptimeBadgeUrl: String @method(name: "uptimeBadgeSvgUrl")
+    uptimeBadgeJsonUrl: String @method(name: "uptimeBadgeJsonUrl")
+    latencyBadgeUrl: String @method(name: "latencyBadgeSvgUrl")
+    latencyBadgeJsonUrl: String @method(name: "latencyBadgeJsonUrl")
+    badgeMarkdown: String @method(name: "badgeMarkdown")
     follow_redirects: Boolean!
     verify_tls: Boolean!
     status: MonitorStatus!

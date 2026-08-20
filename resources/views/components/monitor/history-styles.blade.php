@@ -568,5 +568,17 @@
         .dark .nm-copy-url-button {
             border-color: color-mix(in oklab, white 14%, transparent);
         }
+
+        .nm-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin: 0.35rem 0 0.75rem;
+        }
+
+        .nm-badges img {
+            height: 20px;
+        }
     </style>
 @endonce
