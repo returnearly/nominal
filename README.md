@@ -95,21 +95,21 @@ Reverb through Cloudflare needs extra setup; GraphQL HTTP does not.
 
 ## Badges
 
-Public SVG and JSON badges for each monitor — the same first-class integration Gatus, Healthchecks, and Uptime Kuma expose.
+Public SVG and JSON badges for each monitor — the same first-class integration Gatus, Healthchecks, and Uptime Kuma expose. Served from `/embed` so they can be allowlisted independently of `/api` (e.g. through a firewall).
 
 ```
-GET /api/badges/{id}/status.svg
-GET /api/badges/{id}/status.json
-GET /api/badges/{id}/uptime/{period}/badge.svg
-GET /api/badges/{id}/uptime/{period}
-GET /api/badges/{id}/latency/{period}/badge.svg
-GET /api/badges/{id}/latency/{period}
+GET /embed/badges/{id}/status.svg
+GET /embed/badges/{id}/status.json
+GET /embed/badges/{id}/uptime/{period}/badge.svg
+GET /embed/badges/{id}/uptime/{period}
+GET /embed/badges/{id}/latency/{period}/badge.svg
+GET /embed/badges/{id}/latency/{period}
 ```
 
 Periods: `1h`, `24h`, `7d`, `30d` (any `{n}h` / `{n}d` up to 90 days). Omit the period to default to `24h`. JSON is [Shields.io endpoint](https://shields.io/badges/endpoint-badge) compatible (`schemaVersion`, `label`, `message`, `color`).
 
 ```md
-![status](https://nominal.example/api/badges/{id}/status.svg)
+![status](https://nominal.example/embed/badges/{id}/status.svg)
 ```
 
 Copy URLs and markdown from the monitor page.

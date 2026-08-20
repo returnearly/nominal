@@ -17,14 +17,14 @@ it('serves a status svg and shields json badge', function () {
         'enabled' => true,
     ]);
 
-    $this->get('/api/badges/'.$monitor->id.'/status.svg')
+    $this->get('/embed/badges/'.$monitor->id.'/status.svg')
         ->assertOk()
         ->assertHeader('Content-Type', 'image/svg+xml; charset=utf-8')
         ->assertHeader('Cache-Control', 'max-age=60, public')
         ->assertSee('status', escape: false)
         ->assertSee('healthy', escape: false);
 
-    $this->getJson('/api/badges/'.$monitor->id.'/status.json')
+    $this->getJson('/embed/badges/'.$monitor->id.'/status.json')
         ->assertOk()
         ->assertJson([
             'schemaVersion' => 1,
@@ -45,14 +45,14 @@ it('renders disabled and unhealthy status badges', function () {
         'enabled' => true,
     ]);
 
-    $this->getJson('/api/badges/'.$disabled->id.'/status.json')
+    $this->getJson('/embed/badges/'.$disabled->id.'/status.json')
         ->assertOk()
         ->assertJson([
             'message' => 'disabled',
             'status' => 'disabled',
         ]);
 
-    $this->getJson('/api/badges/'.$down->id.'/status.json')
+    $this->getJson('/embed/badges/'.$down->id.'/status.json')
         ->assertOk()
         ->assertJson([
             'message' => 'unhealthy',
@@ -79,7 +79,7 @@ it('computes uptime and latency badges from recent checks', function () {
         'checked_at' => now()->subMinutes(5),
     ]);
 
-    $this->getJson('/api/badges/'.$monitor->id.'/uptime/1h')
+    $this->getJson('/embed/badges/'.$monitor->id.'/uptime/1h')
         ->assertOk()
         ->assertJson([
             'schemaVersion' => 1,
@@ -89,14 +89,14 @@ it('computes uptime and latency badges from recent checks', function () {
             'samples' => 4,
         ]);
 
-    $this->getJson('/api/badges/'.$monitor->id.'/latency')
+    $this->getJson('/embed/badges/'.$monitor->id.'/latency')
         ->assertOk()
         ->assertJsonPath('label', 'latency 24h')
         ->assertJsonPath('message', '50ms')
         ->assertJsonPath('latency_ms', 50)
         ->assertJsonPath('period', '24h');
 
-    $this->get('/api/badges/'.$monitor->id.'/uptime/1h/badge.svg')
+    $this->get('/embed/badges/'.$monitor->id.'/uptime/1h/badge.svg')
         ->assertOk()
         ->assertSee('uptime 1h', escape: false)
         ->assertSee('75%', escape: false);
@@ -125,12 +125,12 @@ it('uses hourly aggregates for windows longer than an hour', function () {
         'checked_at' => now()->subMinutes(10),
     ]);
 
-    $this->getJson('/api/badges/'.$monitor->id.'/uptime/24h')
+    $this->getJson('/embed/badges/'.$monitor->id.'/uptime/24h')
         ->assertOk()
         ->assertJsonPath('samples', 11)
         ->assertJsonPath('message', '90.91%');
 
-    $this->getJson('/api/badges/'.$monitor->id.'/latency/24h')
+    $this->getJson('/embed/badges/'.$monitor->id.'/latency/24h')
         ->assertOk()
         ->assertJsonPath('latency_ms', 22)
         ->assertJsonPath('message', '22ms');
@@ -139,7 +139,7 @@ it('uses hourly aggregates for windows longer than an hour', function () {
 it('returns n/a when a window has no samples', function () {
     $monitor = Monitor::factory()->create();
 
-    $this->getJson('/api/badges/'.$monitor->id.'/uptime/7d')
+    $this->getJson('/embed/badges/'.$monitor->id.'/uptime/7d')
         ->assertOk()
         ->assertJson([
             'message' => 'n/a',
@@ -147,7 +147,7 @@ it('returns n/a when a window has no samples', function () {
             'samples' => 0,
         ]);
 
-    $this->getJson('/api/badges/'.$monitor->id.'/latency/7d')
+    $this->getJson('/embed/badges/'.$monitor->id.'/latency/7d')
         ->assertOk()
         ->assertJson([
             'message' => 'n/a',
@@ -156,14 +156,25 @@ it('returns n/a when a window has no samples', function () {
 });
 
 it('returns 404 for unknown monitors and invalid periods', function () {
-    $this->get('/api/badges/'.Str::uuid().'/status.svg')->assertNotFound();
-    $this->get('/api/badges/'.Str::uuid().'/uptime/1h')->assertNotFound();
+    $this->get('/embed/badges/'.Str::uuid().'/status.svg')->assertNotFound();
+    $this->get('/embed/badges/'.Str::uuid().'/uptime/1h')->assertNotFound();
 
     $monitor = Monitor::factory()->create();
 
-    $this->get('/api/badges/'.$monitor->id.'/uptime/0h')->assertNotFound();
-    $this->get('/api/badges/'.$monitor->id.'/uptime/99d/badge.svg')->assertNotFound();
-    $this->get('/api/badges/'.$monitor->id.'/uptime/week')->assertNotFound();
+    $this->get('/embed/badges/'.$monitor->id.'/uptime/0h')->assertNotFound();
+    $this->get('/embed/badges/'.$monitor->id.'/uptime/99d/badge.svg')->assertNotFound();
+    $this->get('/embed/badges/'.$monitor->id.'/uptime/week')->assertNotFound();
+});
+
+it('builds public embed urls rather than api urls', function () {
+    $monitor = Monitor::factory()->create();
+
+    expect($monitor->statusBadgeSvgUrl())
+        ->toEndWith('/embed/badges/'.$monitor->id.'/status.svg')
+        ->and($monitor->uptimeBadgeSvgUrl())
+        ->toEndWith('/embed/badges/'.$monitor->id.'/uptime/24h/badge.svg')
+        ->and($monitor->badgeMarkdown())
+        ->not->toContain('/api/');
 });
 
 it('exposes badge urls on monitors in graphql', function () {

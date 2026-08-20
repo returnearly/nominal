@@ -190,7 +190,7 @@ class Monitor extends Model
 
     public function badgeUrl(string $kind, string $format = 'svg', ?string $period = null): string
     {
-        $path = '/api/badges/'.$this->id.'/'.$kind;
+        $path = '/embed/badges/'.$this->id.'/'.$kind;
 
         if ($kind === 'status') {
             return url($path.'.'.$format);
