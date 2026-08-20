@@ -6,7 +6,7 @@
     <span class="nm-beat-tip-k">TIMESTAMP</span>
     <span>{{ $check->checked_at?->toDateTimeString() ?? 'Unknown' }}</span>
     <span class="nm-beat-tip-k">RESPONSE TIME</span>
-    <span>{{ $check->latency_ms !== null ? $check->latency_ms.'ms' : 'n/a' }}</span>
+    <span>{{ \App\Actions\FormatMilliseconds::make()->handle($check->latency_ms) ?? 'n/a' }}</span>
     @if (filled($check->message))
         <span class="nm-beat-tip-k">ERROR</span>
         <span>{{ $check->message }}</span>

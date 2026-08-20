@@ -226,7 +226,7 @@ it('shows heartbeat and latency on the monitor view', function () {
         ->assertSee('Current status')
         ->assertSee('Avg. response')
         ->assertSee('Response range')
-        ->assertSee('42–90ms')
+        ->assertSee('42ms–90ms')
         ->assertSee('Recent checks')
         ->assertSee('Response time')
         ->assertDontSee('Last 7 days by hour')
@@ -239,6 +239,34 @@ it('shows heartbeat and latency on the monitor view', function () {
         ->toContain('preserveAspectRatio="none"')
         ->toContain('TIMESTAMP')
         ->toContain('RESPONSE TIME');
+});
+
+it('shows latency in seconds when a check takes a second or more', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'success' => true,
+        'latency_ms' => 1500,
+        'checked_at' => now()->subMinutes(2),
+    ]);
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'success' => true,
+        'latency_ms' => 2500,
+        'checked_at' => now()->subMinute(),
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSee('1.5s–2.5s')
+        ->assertSee('2s')
+        ->assertDontSee('1500ms')
+        ->assertDontSee('2500ms');
 });
 
 it('shows the last 10 checks in the monitor history table', function () {
@@ -413,6 +441,20 @@ it('creates a heartbeat monitor without probes, IP family, or conditions', funct
         ->and($monitor->probes()->count())->toBe(0)
         ->and($monitor->conditions()->count())->toBe(0)
         ->and($monitor->heartbeat_token)->toHaveLength(48);
+});
+
+it('shows start, finish, and error heartbeat urls on the edit form', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'heartbeat_url' => $monitor->heartbeatUrl(),
+            'heartbeat_start_url' => $monitor->heartbeatStartUrl(),
+            'heartbeat_finish_url' => $monitor->heartbeatFinishUrl(),
+            'heartbeat_error_url' => $monitor->heartbeatErrorUrl(),
+        ]);
 });
 
 it('hides probe timeout on heartbeat monitors', function () {

@@ -40,19 +40,31 @@ it('dispatches only monitors whose next_check_at is due', function () {
     Queue::assertNotPushed(fn (RunCheckJob $job): bool => $job->monitorId === $paused->id);
 });
 
-it('dispatches heartbeat monitors on the default queue without a probe', function () {
+it('does not dispatch an in-progress heartbeat until the job overruns the interval', function () {
     Queue::fake();
     $this->freezeTime();
 
-    $monitor = Monitor::factory()->heartbeat()->create([
+    $running = Monitor::factory()->heartbeat()->create([
+        'interval_seconds' => 60,
         'next_check_at' => now()->subSecond(),
     ]);
+    $running->heartbeat_started_at = now()->subSeconds(10);
+    $running->save();
+
+    $hung = Monitor::factory()->heartbeat()->create([
+        'interval_seconds' => 60,
+        'next_check_at' => now()->subSecond(),
+    ]);
+    $hung->heartbeat_started_at = now()->subSeconds(60);
+    $hung->save();
 
     expect(DispatchDueChecks::make()->handle())->toBe(1);
 
-    Queue::assertPushed(function (RunCheckJob $job) use ($monitor): bool {
-        return $job->monitorId === $monitor->id && $job->probeId === null;
-    });
+    Queue::assertNotPushed(fn (RunCheckJob $job): bool => $job->monitorId === $running->id);
+    Queue::assertPushed(fn (RunCheckJob $job): bool => $job->monitorId === $hung->id);
+
+    expect($running->fresh()->next_check_at?->toDateTimeString())
+        ->toBe(now()->subSecond()->toDateTimeString());
 });
 
 it('pushes next_check_at forward when due checks are dispatched', function () {

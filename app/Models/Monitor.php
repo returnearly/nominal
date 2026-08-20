@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\DnsQueryType;
+use App\Enums\HeartbeatSignal;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -66,6 +67,7 @@ class Monitor extends Model
             'request_headers' => AsEncryptedArrayObject::class,
             'last_checked_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
+            'heartbeat_started_at' => 'datetime',
             'next_check_at' => 'datetime',
             'last_status_changed_at' => 'datetime',
             'interval_seconds' => 'integer',
@@ -159,13 +161,43 @@ class Monitor extends Model
         return $this;
     }
 
-    public function heartbeatUrl(): ?string
+    public function heartbeatUrl(HeartbeatSignal|string|null $signal = null): ?string
     {
         if ($this->type !== MonitorType::Heartbeat || blank($this->heartbeat_token)) {
             return null;
         }
 
-        return url('/api/heartbeat/'.$this->heartbeat_token);
+        $url = url('/api/heartbeat/'.$this->heartbeat_token);
+        $suffix = $signal instanceof HeartbeatSignal ? $signal->value : trim((string) $signal);
+
+        return $suffix === '' ? $url : $url.'/'.$suffix;
+    }
+
+    public function heartbeatStartUrl(): ?string
+    {
+        return $this->heartbeatUrl(HeartbeatSignal::Start);
+    }
+
+    public function heartbeatFinishUrl(): ?string
+    {
+        return $this->heartbeatUrl(HeartbeatSignal::Finish);
+    }
+
+    public function heartbeatErrorUrl(): ?string
+    {
+        return $this->heartbeatUrl(HeartbeatSignal::Error);
+    }
+
+    public function heartbeatIsRunning(): bool
+    {
+        return $this->heartbeat_started_at !== null
+            && $this->heartbeat_started_at->gt(now()->subSeconds($this->interval_seconds));
+    }
+
+    public function heartbeatIsHung(): bool
+    {
+        return $this->heartbeat_started_at !== null
+            && $this->heartbeat_started_at->lte(now()->subSeconds($this->interval_seconds));
     }
 
     protected static function booted(): void

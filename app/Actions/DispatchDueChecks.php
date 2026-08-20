@@ -41,6 +41,10 @@ final readonly class DispatchDueChecks implements ActionsPatternInterface
     private function queue(Monitor $monitor): int
     {
         if ($monitor->type === MonitorType::Heartbeat) {
+            if ($monitor->heartbeatIsRunning()) {
+                return 0;
+            }
+
             RunCheckJob::dispatch($monitor->id);
 
             return 1;

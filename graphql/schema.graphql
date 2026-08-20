@@ -134,6 +134,9 @@ type Monitor {
     dns_query_type: DnsQueryType
     heartbeat_token: String
     heartbeatUrl: String @method(name: "heartbeatUrl")
+    heartbeatStartUrl: String @method(name: "heartbeatStartUrl")
+    heartbeatFinishUrl: String @method(name: "heartbeatFinishUrl")
+    heartbeatErrorUrl: String @method(name: "heartbeatErrorUrl")
     follow_redirects: Boolean!
     verify_tls: Boolean!
     status: MonitorStatus!

@@ -122,6 +122,7 @@ final class MonitorResource extends Resource
                     TextInput::make('heartbeat_url')
                         ->label('Heartbeat URL')
                         ->disabled()
+                        ->copyable()
                         ->dehydrated(false)
                         ->columnSpanFull()
                         ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
@@ -130,7 +131,43 @@ final class MonitorResource extends Resource
                                 $component->state($record->heartbeatUrl());
                             }
                         })
-                        ->helperText('Send GET or POST to this URL from cron or a batch job. Generated after save.'),
+                        ->helperText('GET or POST this URL to signal success. Append /start, /finish, or /error to measure how long a job runs.'),
+                    TextInput::make('heartbeat_start_url')
+                        ->label('Start URL')
+                        ->disabled()
+                        ->copyable()
+                        ->dehydrated(false)
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                            if ($record instanceof Monitor) {
+                                $component->state($record->heartbeatStartUrl());
+                            }
+                        }),
+                    TextInput::make('heartbeat_finish_url')
+                        ->label('Finish URL')
+                        ->disabled()
+                        ->copyable()
+                        ->dehydrated(false)
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                            if ($record instanceof Monitor) {
+                                $component->state($record->heartbeatFinishUrl());
+                            }
+                        }),
+                    TextInput::make('heartbeat_error_url')
+                        ->label('Error URL')
+                        ->disabled()
+                        ->copyable()
+                        ->dehydrated(false)
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                            if ($record instanceof Monitor) {
+                                $component->state($record->heartbeatErrorUrl());
+                            }
+                        }),
                     TextInput::make('dns_query_name')
                         ->label('Query name')
                         ->maxLength(255)
@@ -159,7 +196,7 @@ final class MonitorResource extends Resource
                         ->default(60)
                         ->minValue(10)
                         ->helperText(fn (Get $get): ?string => self::type($get)?->isHeartbeat() === true
-                            ? 'How often a heartbeat is expected.'
+                            ? 'How often a heartbeat is expected. After /start, the job must finish within this interval.'
                             : null),
                     TextInput::make('timeout_seconds')
                         ->numeric()

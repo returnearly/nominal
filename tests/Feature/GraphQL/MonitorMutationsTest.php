@@ -208,6 +208,9 @@ it('creates a heartbeat monitor without probes, IP family, or conditions', funct
                 ip_family
                 heartbeat_token
                 heartbeatUrl
+                heartbeatStartUrl
+                heartbeatFinishUrl
+                heartbeatErrorUrl
                 conditions { expression }
                 probes { id }
             }
@@ -228,6 +231,9 @@ it('creates a heartbeat monitor without probes, IP family, or conditions', funct
         ->and($created['ip_family'])->toBe('Any')
         ->and($created['heartbeat_token'])->toHaveLength(48)
         ->and($created['heartbeatUrl'])->toEndWith('/api/heartbeat/'.$created['heartbeat_token'])
+        ->and($created['heartbeatStartUrl'])->toEndWith('/api/heartbeat/'.$created['heartbeat_token'].'/start')
+        ->and($created['heartbeatFinishUrl'])->toEndWith('/api/heartbeat/'.$created['heartbeat_token'].'/finish')
+        ->and($created['heartbeatErrorUrl'])->toEndWith('/api/heartbeat/'.$created['heartbeat_token'].'/error')
         ->and($created['conditions'])->toBe([])
         ->and($created['probes'])->toBe([]);
 });
