@@ -15,6 +15,7 @@ final class Checker
         private readonly TcpChecker $tcp,
         private readonly DnsChecker $dns,
         private readonly TlsChecker $tls,
+        private readonly HeartbeatChecker $heartbeat,
     ) {}
 
     public function check(Monitor $monitor): ProbeResult
@@ -27,6 +28,7 @@ final class Checker
             MonitorType::Tcp => $this->tcp->check($monitor),
             MonitorType::Dns => $this->dns->check($monitor),
             MonitorType::Tls => $this->tls->check($monitor),
+            MonitorType::Heartbeat => $this->heartbeat->check($monitor),
         };
     }
 }

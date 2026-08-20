@@ -44,7 +44,7 @@ it('does not duplicate demo monitors when seeded twice', function () {
     $this->seed(DemoMonitorSeeder::class);
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->count())->toBe(11);
+    expect(Monitor::query()->count())->toBe(12);
 });
 
 it('queues a first check for demo monitors that have never run', function () {

@@ -99,6 +99,9 @@ it('returns type-specific default conditions', function () {
         ->and(ConditionExpression::defaultExpressions(MonitorType::Tls))->toBe([
             '[CONNECTED] == true',
             '[CERTIFICATE_EXPIRATION] > 48h',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Heartbeat))->toBe([
+            '[CONNECTED] == true',
         ]);
 });
 

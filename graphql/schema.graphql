@@ -7,6 +7,7 @@ enum MonitorType {
     Tcp
     Dns
     Tls
+    Heartbeat
 }
 
 enum DnsQueryType {
@@ -129,6 +130,8 @@ type Monitor {
     request_body: String
     dns_query_name: String
     dns_query_type: DnsQueryType
+    heartbeat_token: String
+    heartbeatUrl: String @method(name: "heartbeatUrl")
     follow_redirects: Boolean!
     verify_tls: Boolean!
     status: MonitorStatus!

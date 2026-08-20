@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'name',
@@ -35,6 +36,7 @@ use Illuminate\Support\Carbon;
     'request_body',
     'dns_query_name',
     'dns_query_type',
+    'heartbeat_token',
     'follow_redirects',
     'verify_tls',
     'status',
@@ -63,6 +65,7 @@ class Monitor extends Model
             'verify_tls' => 'boolean',
             'request_headers' => AsEncryptedArrayObject::class,
             'last_checked_at' => 'datetime',
+            'last_heartbeat_at' => 'datetime',
             'next_check_at' => 'datetime',
             'last_status_changed_at' => 'datetime',
             'interval_seconds' => 'integer',
@@ -156,9 +159,26 @@ class Monitor extends Model
         return $this;
     }
 
+    public function heartbeatUrl(): ?string
+    {
+        if ($this->type !== MonitorType::Heartbeat || blank($this->heartbeat_token)) {
+            return null;
+        }
+
+        return url('/api/heartbeat/'.$this->heartbeat_token);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Monitor $monitor): void {
+            if ($monitor->type === MonitorType::Heartbeat) {
+                $monitor->heartbeat_token ??= Str::random(48);
+                $monitor->target = filled($monitor->target) ? $monitor->target : '/api/heartbeat/'.$monitor->heartbeat_token;
+                $monitor->next_check_at ??= now()->addSeconds(max(10, (int) $monitor->interval_seconds));
+
+                return;
+            }
+
             $monitor->next_check_at ??= now();
         });
     }

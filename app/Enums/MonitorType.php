@@ -13,6 +13,7 @@ enum MonitorType: string implements HasLabel
     case Tcp = 'tcp';
     case Dns = 'dns';
     case Tls = 'tls';
+    case Heartbeat = 'heartbeat';
 
     public function getLabel(): string
     {
@@ -22,6 +23,7 @@ enum MonitorType: string implements HasLabel
             self::Tcp => 'TCP',
             self::Dns => 'DNS',
             self::Tls => 'TLS',
+            self::Heartbeat => 'Heartbeat',
         };
     }
 
@@ -49,5 +51,10 @@ enum MonitorType: string implements HasLabel
     public function usesDnsQuery(): bool
     {
         return $this === self::Dns;
+    }
+
+    public function isHeartbeat(): bool
+    {
+        return $this === self::Heartbeat;
     }
 }
