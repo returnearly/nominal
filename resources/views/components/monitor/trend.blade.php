@@ -29,6 +29,7 @@
         ? $line.' L '.$last['x'].' '.$height.' L '.$first['x'].' '.$height.' Z'
         : '';
     $ticks = [1, 0.5, 0];
+    $format = \App\Actions\FormatMilliseconds::make();
 @endphp
 
 <x-monitor.history-styles />
@@ -39,7 +40,7 @@
     <div data-trend class="nm-trend">
         <div class="nm-trend-y" aria-hidden="true">
             @foreach ($ticks as $tick)
-                <span style="top: {{ (1 - $tick) * 100 }}%">{{ (int) round($max * $tick) }}ms</span>
+                <span style="top: {{ (1 - $tick) * 100 }}%">{{ $format->handle((int) round($max * $tick)) }}</span>
             @endforeach
         </div>
         <div class="nm-trend-body">
@@ -62,7 +63,7 @@
                             <span class="nm-beat-tip-k">TIMESTAMP</span>
                             <span>{{ $check->checked_at?->toDateTimeString() ?? 'Unknown' }}</span>
                             <span class="nm-beat-tip-k">RESPONSE TIME</span>
-                            <span>{{ $check->latency_ms }}ms</span>
+                            <span>{{ $format->handle($check->latency_ms) }}</span>
                             @if (filled($check->probe?->name))
                                 <span class="nm-beat-tip-k">PROBE</span>
                                 <span>{{ $check->probe->name }}</span>

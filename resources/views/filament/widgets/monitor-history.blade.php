@@ -1,7 +1,9 @@
 @php
     $group = filled($record->group) ? $record->group : 'Ungrouped';
+    $format = \App\Actions\FormatMilliseconds::make();
+    $averageLatency = $format->handle($averageLatencyMs);
     $range = $minLatencyMs !== null && $maxLatencyMs !== null
-        ? $minLatencyMs.'–'.$maxLatencyMs.'ms'
+        ? $format->handle($minLatencyMs).'–'.$format->handle($maxLatencyMs)
         : '—';
 @endphp
 
@@ -15,7 +17,7 @@
         </div>
         <div class="nm-panel nm-stat-card">
             <span class="nm-metrics-label">Avg. response</span>
-            <span class="nm-metrics-value">{{ $averageLatencyMs !== null ? $averageLatencyMs.'ms' : '—' }}</span>
+            <span class="nm-metrics-value">{{ $averageLatency ?? '—' }}</span>
         </div>
         <div class="nm-panel nm-stat-card">
             <span class="nm-metrics-label">Response range</span>
@@ -61,8 +63,8 @@
                     <span>{{ $record->target }}</span>
                 </p>
             </div>
-            @if ($averageLatencyMs !== null)
-                <span class="nm-card-latency">~{{ $averageLatencyMs }}ms</span>
+            @if ($averageLatency !== null)
+                <span class="nm-card-latency">~{{ $averageLatency }}</span>
             @endif
         </header>
         <x-monitor.heartbeat :checks="$checks" :show-range="true" />

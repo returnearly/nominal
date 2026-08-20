@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\CheckResults;
 
+use App\Actions\FormatMilliseconds;
 use App\Filament\Resources\CheckResults\Pages\ListCheckResults;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Models\CheckResult;
@@ -107,7 +108,9 @@ final class CheckResultResource extends Resource
 
         $columns[] = TextColumn::make('probe.name')->label('Probe')->placeholder('Web');
         $columns[] = TextColumn::make('http_status')->label('Status');
-        $columns[] = TextColumn::make('latency_ms')->suffix(' ms');
+        $columns[] = TextColumn::make('latency_ms')
+            ->label('Latency')
+            ->formatStateUsing(fn (?int $state): ?string => FormatMilliseconds::make()->handle($state));
         $columns[] = TextColumn::make('resolved_ip');
         $columns[] = TextColumn::make('message')->limit(60)->wrap();
 

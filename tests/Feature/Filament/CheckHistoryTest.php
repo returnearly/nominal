@@ -36,7 +36,9 @@ it('shows check history for all monitors', function () {
         ->assertOk()
         ->assertSee('Payments API')
         ->assertSee('Edge ping')
-        ->assertSee('timed out');
+        ->assertSee('timed out')
+        ->assertSee('Latency')
+        ->assertDontSee('Latency ms');
 });
 
 it('paginates history without counting rows', function () {

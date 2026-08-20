@@ -12,6 +12,7 @@ use App\Metrics\MetricsStore;
 use App\Models\CheckResult;
 use App\Models\Monitor;
 use App\Models\Probe;
+use Illuminate\Broadcasting\BroadcastException;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
@@ -65,10 +66,14 @@ final readonly class RecordCheckResult implements ActionsPatternInterface
 
         $monitor->save();
 
-        CheckCompleted::dispatch($monitor, $probe, $checkResult);
+        try {
+            CheckCompleted::dispatch($monitor, $probe, $checkResult);
 
-        if ($statusChanged) {
-            MonitorStatusUpdated::dispatch($monitor, $previousStatus);
+            if ($statusChanged) {
+                MonitorStatusUpdated::dispatch($monitor, $previousStatus);
+            }
+        } catch (BroadcastException $exception) {
+            report($exception);
         }
 
         $this->metrics->record($monitor, $probe, $result);
