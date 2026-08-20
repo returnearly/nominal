@@ -75,6 +75,7 @@ type Probe {
     name: String!
     queue: String!
     enabled: Boolean!
+    is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
 }

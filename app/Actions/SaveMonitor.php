@@ -118,7 +118,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function syncProbes(Monitor $monitor, ?array $probeIds): void
     {
         if ($probeIds === null) {
-            $probeIds = Probe::query()->where('enabled', true)->pluck('id')->all();
+            $probeIds = Probe::defaultIds();
         }
 
         $monitor->probes()->sync($probeIds);

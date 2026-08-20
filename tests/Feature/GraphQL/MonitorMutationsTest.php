@@ -14,8 +14,32 @@ it('rejects unauthenticated GraphQL requests', function () {
     expect($response->json('errors.0.message'))->toContain('Unauthenticated');
 });
 
+it('attaches default probes when probe ids are omitted', function () {
+    $default = Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Probe::factory()->create(['slug' => 'eu', 'queue' => 'checks.eu']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                probes { id is_default }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'API health',
+            'type' => 'Http',
+            'target' => 'https://example.com/health',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor.probes');
+
+    expect($created)->toHaveCount(1)
+        ->and($created[0]['id'])->toBe($default->id)
+        ->and($created[0]['is_default'])->toBeTrue();
+});
+
 it('creates, updates, and deletes a monitor', function () {
-    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
     $created = graphql('
         mutation ($input: CreateMonitorInput!) {
@@ -79,7 +103,7 @@ it('creates, updates, and deletes a monitor', function () {
 });
 
 it('creates a TCP monitor', function () {
-    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
     $created = graphql('
         mutation ($input: CreateMonitorInput!) {

@@ -19,6 +19,7 @@ use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
 use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
+use App\Models\Probe;
 use App\Support\ProxyUrl;
 use BackedEnum;
 use Filament\Forms\Components\KeyValue;
@@ -320,6 +321,7 @@ final class MonitorResource extends Resource
                         ->relationship('probes', 'name')
                         ->multiple()
                         ->preload()
+                        ->default(fn (): array => Probe::defaultIds())
                         ->required(self::usesOutboundProbe(...))
                         ->visible(self::usesOutboundProbe(...))
                         ->dehydrated(self::usesOutboundProbe(...)),
