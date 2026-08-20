@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors;
 
+use App\Conditions\ConditionExpression;
+use App\Enums\ConditionComparator;
+use App\Enums\ConditionPlaceholder;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -18,13 +21,16 @@ use App\Models\Monitor;
 use BackedEnum;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Stack;
@@ -57,7 +63,10 @@ final class MonitorResource extends Resource
                         ->options(MonitorType::class)
                         ->default(MonitorType::Http)
                         ->required()
-                        ->live(),
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                            $set('conditions', ConditionExpression::defaultFormState($state));
+                        }),
                     TextInput::make('target')
                         ->required()
                         ->maxLength(2048)
@@ -92,16 +101,53 @@ final class MonitorResource extends Resource
                         ->columnSpanFull(),
                 ]),
             Section::make('Conditions')
+                ->description('These are what determine whether an endpoint is healthy or not.')
                 ->components([
                     Repeater::make('conditions')
                         ->relationship()
-                        ->schema([
-                            TextInput::make('expression')
-                                ->required()
-                                ->placeholder('[STATUS] == 200'),
+                        ->hiddenLabel()
+                        ->table([
+                            TableColumn::make('Placeholder')->markAsRequired(),
+                            TableColumn::make('Comparator')->markAsRequired()->width('8rem'),
+                            TableColumn::make('Value')->markAsRequired(),
                         ])
+                        ->schema([
+                            Group::make([
+                                Select::make('placeholder')
+                                    ->hiddenLabel()
+                                    ->options(fn (Get $get): array => ConditionPlaceholder::options($get('placeholder')))
+                                    ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['placeholder'])
+                                    ->required()
+                                    ->native(false)
+                                    ->selectablePlaceholder(false)
+                                    ->live()
+                                    ->afterStateUpdated(self::syncComparator(...)),
+                                TextInput::make('path')
+                                    ->hiddenLabel()
+                                    ->placeholder('.status')
+                                    ->visible(self::isBody(...)),
+                            ]),
+                            Select::make('comparator')
+                                ->hiddenLabel()
+                                ->options(fn (Get $get): array => ConditionPlaceholder::comparatorOptions(
+                                    $get('placeholder'),
+                                    $get('comparator'),
+                                ))
+                                ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['comparator'])
+                                ->required()
+                                ->native(false)
+                                ->selectablePlaceholder(false),
+                            TextInput::make('value')
+                                ->hiddenLabel()
+                                ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['value'])
+                                ->required(),
+                        ])
+                        ->mutateRelationshipDataBeforeFillUsing(ConditionExpression::toForm(...))
+                        ->mutateRelationshipDataBeforeCreateUsing(ConditionExpression::toRecord(...))
+                        ->mutateRelationshipDataBeforeSaveUsing(ConditionExpression::toRecord(...))
                         ->orderColumn('sort')
-                        ->defaultItems(1)
+                        ->default(fn (Get $get): array => ConditionExpression::defaultsForType($get('type')))
+                        ->minItems(1)
                         ->addActionLabel('Add condition')
                         ->columnSpanFull(),
                 ]),
@@ -175,9 +221,42 @@ final class MonitorResource extends Resource
 
     private static function isHttp(Get $get): bool
     {
-        $type = $get('type');
+        $type = self::monitorType($get);
 
         return $type === MonitorType::Http || $type === MonitorType::Http->value;
+    }
+
+    private static function isBody(Get $get): bool
+    {
+        return $get('placeholder') === ConditionPlaceholder::Body->value;
+    }
+
+    private static function syncComparator(Set $set, Get $get, mixed $state): void
+    {
+        $options = ConditionPlaceholder::comparatorOptions($state);
+        $current = $get('comparator');
+        $current = $current instanceof BackedEnum ? (string) $current->value : trim((string) $current);
+
+        if ($current === '' || ! array_key_exists($current, $options)) {
+            $set('comparator', array_key_first($options) ?: ConditionComparator::Equal->value);
+        }
+
+        if (! blank($get('value'))) {
+            return;
+        }
+
+        $placeholder = $state instanceof ConditionPlaceholder
+            ? $state
+            : ConditionPlaceholder::tryFrom(trim((string) $state));
+
+        if ($placeholder !== null && $placeholder->defaultValue() !== '') {
+            $set('value', $placeholder->defaultValue());
+        }
+    }
+
+    private static function monitorType(Get $get): mixed
+    {
+        return $get('type') ?? $get('../../type') ?? $get('../../../type');
     }
 
     /**

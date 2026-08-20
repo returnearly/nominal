@@ -24,6 +24,11 @@ x-nominal-environment: &nominal-environment
   PHP_OPCACHE_REVALIDATE_FREQ: "0"
   PHP_SESSION_COOKIE_SECURE: "0"
 
+x-code-volumes: &code-volumes
+  - .:/var/www/html
+  - composer-vendor:/var/www/html/vendor
+  - bootstrap-cache:/var/www/html/bootstrap/cache
+
 services:
   app:
     build:
@@ -50,8 +55,7 @@ services:
     healthcheck:
       test: ["CMD", "healthcheck-octane"]
       start_period: 10s
-    volumes:
-      - .:/var/www/html
+    volumes: *code-volumes
     depends_on:
       - redis
 
@@ -71,8 +75,7 @@ services:
       REVERB_HOST: reverb
       REVERB_PORT: 8080
       REVERB_SCHEME: http
-    volumes:
-      - .:/var/www/html
+    volumes: *code-volumes
     depends_on:
       - redis
       - app
@@ -86,8 +89,7 @@ services:
     environment:
       <<: *nominal-environment
       AUTORUN_ENABLED: "false"
-    volumes:
-      - .:/var/www/html
+    volumes: *code-volumes
     depends_on:
       - redis
       - app
@@ -105,8 +107,7 @@ services:
       REVERB_SCHEME: http
       REVERB_SERVER_HOST: 0.0.0.0
       REVERB_SERVER_PORT: 8080
-    volumes:
-      - .:/var/www/html
+    volumes: *code-volumes
     ports:
       - "${CONDUCTOR_REVERB_PORT:-8080}:8080"
     depends_on:
@@ -116,3 +117,7 @@ services:
     image: redis:7-alpine
     ports:
       - "${CONDUCTOR_REDIS_PORT:-6379}:6379"
+
+volumes:
+  composer-vendor:
+  bootstrap-cache:
