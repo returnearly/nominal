@@ -54,6 +54,7 @@ final class MonitorResource extends Resource
     {
         $usesHttp = self::usesHttpRequest(...);
         $usesRequestBody = self::usesRequestBody(...);
+        $usesVerifyTls = self::usesVerifyTls(...);
 
         return $schema->components([
             Section::make('Monitor')
@@ -74,6 +75,7 @@ final class MonitorResource extends Resource
                         ->maxLength(2048)
                         ->placeholder(fn (Get $get): string => match (self::type($get)) {
                             MonitorType::Tcp => 'tcp://db.example.com:5432',
+                            MonitorType::Tls => 'tls://db.example.com:5432',
                             MonitorType::Dns => '1.1.1.1',
                             MonitorType::Ping => 'example.com',
                             default => 'https://example.com/health',
@@ -107,7 +109,7 @@ final class MonitorResource extends Resource
                         ->visible($usesHttp),
                     Toggle::make('verify_tls')
                         ->default(true)
-                        ->visible($usesHttp),
+                        ->visible($usesVerifyTls),
                 ]),
             Section::make('Request')
                 ->visible($usesRequestBody)
@@ -255,6 +257,11 @@ final class MonitorResource extends Resource
     private static function usesDnsQuery(Get $get): bool
     {
         return self::type($get)?->usesDnsQuery() ?? false;
+    }
+
+    private static function usesVerifyTls(Get $get): bool
+    {
+        return self::type($get)?->usesVerifyTls() ?? false;
     }
 
     private static function type(Get $get): ?MonitorType

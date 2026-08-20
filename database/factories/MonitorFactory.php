@@ -73,6 +73,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function tls(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::Tls,
+            'target' => 'example.com:443',
+            'method' => null,
+            'request_headers' => null,
+            'request_body' => null,
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

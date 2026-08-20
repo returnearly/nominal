@@ -91,6 +91,14 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example TLS',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Tls),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Tls,
+                    target: 'tls://1.1.1.1:443',
+                ),
+            ],
+            [
                 'name' => 'Failing HTTP status',
                 'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
@@ -139,6 +147,16 @@ class DemoMonitorSeeder extends Seeder
                     target: '1.1.1.1',
                     dnsQueryName: 'this-name-should-not-exist.invalid',
                     dnsQueryType: 'A',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing TLS',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Tls,
+                    target: '192.0.2.1:59999',
                     group: 'failing',
                     timeoutSeconds: 5,
                 ),

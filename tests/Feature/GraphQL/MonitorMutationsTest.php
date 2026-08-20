@@ -131,6 +131,32 @@ it('creates a DNS monitor', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[DNS_RCODE] == NOERROR');
 });
 
+it('creates a TLS monitor', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'DB TLS',
+            'type' => 'Tls',
+            'target' => 'tls://db.example.com:5432',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('Tls')
+        ->and($created['target'])->toBe('tls://db.example.com:5432')
+        ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true')
+        ->and($created['conditions'][1]['expression'])->toBe('[CERTIFICATE_EXPIRATION] > 48h');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

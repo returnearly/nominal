@@ -101,6 +101,20 @@ final class ConditionExpression
                     'value' => 'NOERROR',
                 ],
             ],
+            MonitorType::Tls => [
+                [
+                    'placeholder' => ConditionPlaceholder::Connected->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::Equal->value,
+                    'value' => 'true',
+                ],
+                [
+                    'placeholder' => ConditionPlaceholder::CertificateExpiration->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::GreaterThan->value,
+                    'value' => '48h',
+                ],
+            ],
             MonitorType::Ping, MonitorType::Tcp => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
