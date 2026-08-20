@@ -75,6 +75,7 @@ it('round-trips expressions through parse and compose', function (string $expres
     '[BODY].status == UP',
     '[CONNECTED] == true',
     '[CERTIFICATE_EXPIRATION] > 48h',
+    '[DOMAIN_EXPIRATION] > 720h',
     '[STATUS] == any(200, 429)',
     'len([BODY].data) < 5',
     'has([BODY].errors) == false',
@@ -155,17 +156,20 @@ it('limits condition placeholders to values the check type can produce', functio
         '[RESPONSE_TIME]',
         '[IP]',
         '[CERTIFICATE_EXPIRATION]',
+        '[DOMAIN_EXPIRATION]',
     ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Ping), 'value'))->toBe([
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Tcp), 'value'))->toBe([
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Dns), 'value'))->toBe([
             '[DNS_RCODE]',
@@ -180,6 +184,7 @@ it('limits condition placeholders to values the check type can produce', functio
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(ConditionPlaceholder::forType(MonitorType::Heartbeat))->toBe([])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Udp), 'value'))->toBe([
@@ -187,12 +192,14 @@ it('limits condition placeholders to values the check type can produce', functio
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::WebSocket), 'value'))->toBe([
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::GraphQL), 'value'))->toBe([
             '[STATUS]',
@@ -201,24 +208,28 @@ it('limits condition placeholders to values the check type can produce', functio
             '[RESPONSE_TIME]',
             '[IP]',
             '[CERTIFICATE_EXPIRATION]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Mysql), 'value'))->toBe([
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Redis), 'value'))->toBe([
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::Postgres), 'value'))->toBe([
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+            '[DOMAIN_EXPIRATION]',
         ])
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[STATUS]')
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[DNS_RCODE]')

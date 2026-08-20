@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\CheckHttp;
+use App\Checking\DomainExpirationReader;
 use App\Checking\TlsCertificateReader;
 use App\Models\Monitor;
 use GuzzleHttp\Client;
@@ -27,9 +28,27 @@ function fakeCertificates(?DateTimeImmutable $expiresAt = null): TlsCertificateR
     };
 }
 
-function checkHttp(array $responses, ?DateTimeImmutable $cert = null, array &$history = []): CheckHttp
+function fakeDomainExpiration(?DateTimeImmutable $expiresAt = null): DomainExpirationReader
+{
+    return new class($expiresAt) implements DomainExpirationReader
+    {
+        public int $calls = 0;
+
+        public function __construct(private ?DateTimeImmutable $expiresAt) {}
+
+        public function expiresAt(string $hostname, int $timeoutSeconds = 10): ?DateTimeImmutable
+        {
+            $this->calls++;
+
+            return $this->expiresAt;
+        }
+    };
+}
+
+function checkHttp(array $responses, ?DateTimeImmutable $cert = null, array &$history = [], ?DomainExpirationReader $domains = null): CheckHttp
 {
     app()->instance(TlsCertificateReader::class, fakeCertificates($cert));
+    app()->instance(DomainExpirationReader::class, $domains ?? fakeDomainExpiration());
 
     $stack = HandlerStack::create(new MockHandler($responses));
     $stack->push(Middleware::history($history));
@@ -169,4 +188,49 @@ it('falls back to HTTP_PROXY when the monitor has no proxy', function () {
         'http' => 'http://env-proxy:8080',
         'https' => 'http://env-proxy:8080',
     ]);
+});
+
+it('evaluates domain expiration on HTTP checks', function () {
+    $history = [];
+    $domains = fakeDomainExpiration(new DateTimeImmutable('+400 days'));
+    $monitor = Monitor::factory()->create([
+        'interval_seconds' => 3600,
+    ]);
+    $monitor->conditions()->create(['expression' => '[DOMAIN_EXPIRATION] > 720h', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(200, [], 'ok'),
+    ], null, $history, $domains)->handle($monitor);
+
+    expect($result->success)->toBeTrue()
+        ->and($result->domainExpiresAt)->not->toBeNull()
+        ->and($domains->calls)->toBe(1);
+});
+
+it('fails HTTP checks when the domain expires too soon', function () {
+    $history = [];
+    $monitor = Monitor::factory()->create(['interval_seconds' => 3600]);
+    $monitor->conditions()->create(['expression' => '[DOMAIN_EXPIRATION] > 720h', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(200, [], 'ok'),
+    ], null, $history, fakeDomainExpiration(new DateTimeImmutable('+2 days')))->handle($monitor);
+
+    expect($result->success)->toBeFalse()
+        ->and($result->message)->toContain('[DOMAIN_EXPIRATION]');
+});
+
+it('does not look up domain expiration unless a condition asks for it', function () {
+    $history = [];
+    $domains = fakeDomainExpiration(new DateTimeImmutable('+400 days'));
+    $monitor = Monitor::factory()->withDefaultConditions()->create();
+    $monitor->load('conditions');
+
+    checkHttp([
+        new Response(200, [], '{"status":"UP"}'),
+    ], null, $history, $domains)->handle($monitor);
+
+    expect($domains->calls)->toBe(0);
 });

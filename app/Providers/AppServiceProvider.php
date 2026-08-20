@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Checking\DnsTransport;
+use App\Checking\DomainExpirationReader;
 use App\Checking\IcmpThenTcpPingTransport;
 use App\Checking\MysqlTransport;
 use App\Checking\OpensslCertificateReader;
@@ -16,8 +17,10 @@ use App\Checking\PhpStreamTcpTransport;
 use App\Checking\PhpStreamTlsTransport;
 use App\Checking\PhpStreamUdpTransport;
 use App\Checking\PhpStreamWebSocketTransport;
+use App\Checking\PhpWhoisTransport;
 use App\Checking\PingTransport;
 use App\Checking\PostgresTransport;
+use App\Checking\RdapThenWhoisDomainExpirationReader;
 use App\Checking\RedisRespTransport;
 use App\Checking\RedisTransport;
 use App\Checking\StreamDialer;
@@ -26,6 +29,10 @@ use App\Checking\TlsCertificateReader;
 use App\Checking\TlsTransport;
 use App\Checking\UdpTransport;
 use App\Checking\WebSocketTransport;
+use App\Checking\WhoisClient;
+use App\Checking\WhoisTransport;
+use GuzzleHttp\Client;
+use GuzzleHttp\RequestOptions;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -43,6 +50,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MysqlTransport::class, PdoMysqlTransport::class);
         $this->app->bind(RedisTransport::class, RedisRespTransport::class);
         $this->app->bind(PostgresTransport::class, PdoPostgresTransport::class);
+        $this->app->bind(WhoisTransport::class, PhpWhoisTransport::class);
+        $this->app->bind(DomainExpirationReader::class, function ($app): RdapThenWhoisDomainExpirationReader {
+            return new RdapThenWhoisDomainExpirationReader(
+                $app->make(WhoisClient::class),
+                new Client([
+                    RequestOptions::HTTP_ERRORS => false,
+                    RequestOptions::ALLOW_REDIRECTS => true,
+                ]),
+            );
+        });
     }
 
     public function boot(): void

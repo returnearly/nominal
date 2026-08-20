@@ -6,6 +6,7 @@ use App\Actions\SaveMonitor;
 use App\Enums\MonitorType;
 use App\Models\Monitor;
 use App\Models\Probe;
+use Illuminate\Validation\ValidationException;
 
 it('attaches enabled default probes when none are specified', function () {
     $default = Probe::factory()->asDefault()->create();
@@ -47,4 +48,31 @@ it('uses the supplied probe ids instead of defaults', function () {
     ]);
 
     expect($monitor->probes()->pluck('id')->all())->toBe([$chosen->id]);
+});
+
+it('rejects domain expiration checks with an interval under 5 minutes', function () {
+    Probe::factory()->asDefault()->create();
+
+    expect(fn () => SaveMonitor::make()->handle([
+        'name' => 'example.com',
+        'type' => MonitorType::Http,
+        'target' => 'https://example.com',
+        'intervalSeconds' => 60,
+        'conditions' => ['[DOMAIN_EXPIRATION] > 720h'],
+    ]))->toThrow(ValidationException::class, '[DOMAIN_EXPIRATION]');
+});
+
+it('saves a domain expiration monitor when the interval is at least 5 minutes', function () {
+    Probe::factory()->asDefault()->create();
+
+    $monitor = SaveMonitor::make()->handle([
+        'name' => 'example.com',
+        'type' => MonitorType::Http,
+        'target' => 'https://example.com',
+        'intervalSeconds' => 3600,
+        'conditions' => ['[DOMAIN_EXPIRATION] > 720h'],
+    ]);
+
+    expect($monitor->interval_seconds)->toBe(3600)
+        ->and($monitor->conditions()->pluck('expression')->all())->toBe(['[DOMAIN_EXPIRATION] > 720h']);
 });

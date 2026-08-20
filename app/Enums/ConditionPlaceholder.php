@@ -14,6 +14,7 @@ enum ConditionPlaceholder: string implements HasLabel
     case ResponseTime = '[RESPONSE_TIME]';
     case Ip = '[IP]';
     case CertificateExpiration = '[CERTIFICATE_EXPIRATION]';
+    case DomainExpiration = '[DOMAIN_EXPIRATION]';
     case DnsRcode = '[DNS_RCODE]';
 
     public function getLabel(): string
@@ -39,7 +40,7 @@ enum ConditionPlaceholder: string implements HasLabel
     {
         return match ($this) {
             self::ResponseTime => ConditionComparator::LessThan,
-            self::CertificateExpiration => ConditionComparator::GreaterThan,
+            self::CertificateExpiration, self::DomainExpiration => ConditionComparator::GreaterThan,
             default => $this->comparators()[0],
         };
     }
@@ -51,6 +52,7 @@ enum ConditionPlaceholder: string implements HasLabel
             self::Connected => 'true',
             self::ResponseTime => '50',
             self::CertificateExpiration => '48h',
+            self::DomainExpiration => '720h',
             self::DnsRcode => 'NOERROR',
             self::Body, self::Ip => '',
         };
@@ -73,17 +75,20 @@ enum ConditionPlaceholder: string implements HasLabel
                 self::ResponseTime,
                 self::Ip,
                 self::CertificateExpiration,
+                self::DomainExpiration,
             ],
             MonitorType::Ping => [
                 self::Connected,
                 self::ResponseTime,
                 self::Ip,
+                self::DomainExpiration,
             ],
             MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket, MonitorType::Mysql, MonitorType::Redis, MonitorType::Postgres => [
                 self::Connected,
                 self::ResponseTime,
                 self::Ip,
                 self::Body,
+                self::DomainExpiration,
             ],
             MonitorType::Dns => [
                 self::DnsRcode,
@@ -98,6 +103,7 @@ enum ConditionPlaceholder: string implements HasLabel
                 self::ResponseTime,
                 self::Ip,
                 self::Body,
+                self::DomainExpiration,
             ],
             MonitorType::Heartbeat => [],
         };

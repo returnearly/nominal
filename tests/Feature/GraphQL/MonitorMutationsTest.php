@@ -228,6 +228,53 @@ it('creates a TLS monitor', function () {
         ->and($created['conditions'][1]['expression'])->toBe('[CERTIFICATE_EXPIRATION] > 48h');
 });
 
+it('creates a monitor with a domain expiration condition', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                interval_seconds
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'example.com domain',
+            'type' => 'Http',
+            'target' => 'https://example.com',
+            'intervalSeconds' => 3600,
+            'conditions' => ['[DOMAIN_EXPIRATION] > 720h'],
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['interval_seconds'])->toBe(3600)
+        ->and($created['conditions'][0]['expression'])->toBe('[DOMAIN_EXPIRATION] > 720h');
+});
+
+it('rejects domain expiration monitors with an interval under 5 minutes', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $response = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) { id }
+        }
+    ', [
+        'input' => [
+            'name' => 'example.com domain',
+            'type' => 'Http',
+            'target' => 'https://example.com',
+            'intervalSeconds' => 60,
+            'conditions' => ['[DOMAIN_EXPIRATION] > 720h'],
+        ],
+    ]);
+
+    expect($response->json('errors.0.message'))->toContain('[DOMAIN_EXPIRATION]')
+        ->and($response->json('data.createMonitor'))->toBeNull();
+});
+
 it('creates a heartbeat monitor without probes, IP family, or conditions', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 

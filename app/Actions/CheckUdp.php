@@ -47,7 +47,7 @@ final readonly class CheckUdp implements ActionsPatternInterface
             rawBody: $outcome->body,
         );
 
-        [$outcomes, $success, $message] = $this->conditions->handle(
+        [$outcomes, $success, $message, $domainExpiresAt] = $this->conditions->handle(
             $monitor,
             $context,
             $outcome->connected ? null : $outcome->message,
@@ -63,6 +63,7 @@ final readonly class CheckUdp implements ActionsPatternInterface
             message: $message,
             conditionResults: $outcomes,
             responseBody: $outcome->body,
+            domainExpiresAt: $domainExpiresAt,
         );
     }
 }

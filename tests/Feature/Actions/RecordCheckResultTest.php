@@ -27,12 +27,14 @@ it('records a successful check and marks the monitor up', function () {
         certificateExpiresAt: null,
         message: null,
         conditionResults: [],
+        domainExpiresAt: new DateTimeImmutable('+400 days'),
     );
 
     $stored = RecordCheckResult::make()->handle($monitor, $probe, $result);
 
     expect($stored->success)->toBeTrue()
         ->and(Str::isUuid($stored->id, 7))->toBeTrue()
+        ->and($stored->domain_expires_at)->not->toBeNull()
         ->and($monitor->fresh()->status)->toBe(MonitorStatus::Up)
         ->and($monitor->consecutive_successes)->toBe(1)
         ->and($monitor->consecutive_failures)->toBe(0);
