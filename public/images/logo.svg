@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Nominal">
+  <title>Nominal</title>
+  <defs>
+    <clipPath id="nm-face">
+      <circle cx="32" cy="32" r="20"/>
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#059669"/>
+  <g clip-path="url(#nm-face)">
+    <rect width="64" height="32" fill="#0f766e"/>
+    <rect y="32" width="64" height="32" fill="#022c22"/>
+  </g>
+  <circle cx="32" cy="32" r="20" stroke="#ecfdf5" stroke-width="2.75"/>
+  <path d="M14 32h36" stroke="#ecfdf5" stroke-width="1.75" stroke-linecap="round"/>
+  <path d="M17 32h10.5L32 25.5 36.5 32H47" stroke="#ecfdf5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 32v8.5" stroke="#ecfdf5" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M32 10.25 35.1 15.5h-6.2Z" fill="#a7f3d0"/>
+</svg>

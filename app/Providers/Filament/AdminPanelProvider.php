@@ -36,11 +36,18 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('Nominal')
+            ->brandLogo(fn () => view('filament.logo'))
+            ->brandLogoHeight('2rem')
+            ->favicon(asset('favicon.svg'))
             ->maxContentWidth(Width::Full)
             ->colors([
                 'primary' => Color::Emerald,
                 'purple' => Color::Purple,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.meta')->render(),
+            )
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): string => view('components.monitor.stats-styles')->render(),
