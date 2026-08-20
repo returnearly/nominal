@@ -34,6 +34,7 @@ class MonitorFactory extends Factory
             'request_body' => null,
             'follow_redirects' => true,
             'verify_tls' => true,
+            'proxy_url' => null,
             'status' => MonitorStatus::Pending,
             'retention_days' => 30,
         ];
@@ -115,6 +116,17 @@ class MonitorFactory extends Factory
             'method' => null,
             'request_headers' => null,
             'request_body' => 'ping',
+        ]);
+    }
+
+    public function graphql(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::GraphQL,
+            'target' => 'https://countries.trevorblades.com/',
+            'method' => HttpMethod::Post,
+            'request_headers' => [],
+            'request_body' => '{ __typename }',
         ]);
     }
 

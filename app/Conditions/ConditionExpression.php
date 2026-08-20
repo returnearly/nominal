@@ -116,6 +116,20 @@ final class ConditionExpression
                     'value' => '48h',
                 ],
             ],
+            MonitorType::Http, MonitorType::GraphQL => [
+                [
+                    'placeholder' => ConditionPlaceholder::Status->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::GreaterThanOrEqual->value,
+                    'value' => '200',
+                ],
+                [
+                    'placeholder' => ConditionPlaceholder::Status->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::LessThanOrEqual->value,
+                    'value' => '299',
+                ],
+            ],
             MonitorType::Ping, MonitorType::Tcp, MonitorType::Udp, MonitorType::WebSocket => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
@@ -128,20 +142,6 @@ final class ConditionExpression
                     'path' => '',
                     'comparator' => ConditionComparator::LessThan->value,
                     'value' => '50',
-                ],
-            ],
-            default => [
-                [
-                    'placeholder' => ConditionPlaceholder::Status->value,
-                    'path' => '',
-                    'comparator' => ConditionComparator::GreaterThanOrEqual->value,
-                    'value' => '200',
-                ],
-                [
-                    'placeholder' => ConditionPlaceholder::Status->value,
-                    'path' => '',
-                    'comparator' => ConditionComparator::LessThanOrEqual->value,
-                    'value' => '299',
                 ],
             ],
         };

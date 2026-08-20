@@ -40,7 +40,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('2rem')
             ->favicon(asset('favicon.svg'))
             ->maxContentWidth(Width::Full)
-            ->defaultThemeMode(ThemeMode::Light)
+            ->defaultThemeMode(ThemeMode::Dark)
             ->colors([
                 'primary' => '#5ADEB7',
                 'success' => '#4FCBA6',
@@ -65,6 +65,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->homeUrl(fn (): string => MonitorResource::getUrl())
             ->topNavigation()
+            ->spa()
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->middleware($this->panelMiddleware($auth))
             ->authMiddleware([

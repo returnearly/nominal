@@ -38,6 +38,7 @@ it('creates failing monitors for local testing', function () {
     expect(Monitor::query()->tagged('synthetic')->orderBy('name')->pluck('name')->all())
         ->toBe([
             'Failing DNS',
+            'Failing GraphQL',
             'Failing HTTP status',
             'Failing HTTP unreachable',
             'Failing Ping',
@@ -59,7 +60,7 @@ it('does not duplicate demo monitors when seeded twice', function () {
     $this->seed(DemoMonitorSeeder::class);
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->count())->toBe(16);
+    expect(Monitor::query()->count())->toBe(18);
 });
 
 it('queues a first check for demo monitors that have never run', function () {
@@ -67,5 +68,5 @@ it('queues a first check for demo monitors that have never run', function () {
 
     $this->seed(DemoMonitorSeeder::class);
 
-    Queue::assertPushed(RunCheckJob::class, 15);
+    Queue::assertPushed(RunCheckJob::class, 17);
 });

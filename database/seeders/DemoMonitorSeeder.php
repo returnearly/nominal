@@ -23,6 +23,7 @@ class DemoMonitorSeeder extends Seeder
                 'name' => 'Local',
                 'queue' => 'checks.local',
                 'enabled' => true,
+                'is_default' => true,
             ],
         );
 
@@ -65,6 +66,16 @@ class DemoMonitorSeeder extends Seeder
                     target: 'https://example.com',
                     method: HttpMethod::Get,
                     description: 'Public example.com homepage. If this fails, example.com itself is down — nothing to page for.',
+                ),
+            ],
+            [
+                'name' => 'Example GraphQL',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::GraphQL),
+                'attributes' => $this->attributes(
+                    type: MonitorType::GraphQL,
+                    target: 'https://countries.trevorblades.com/',
+                    method: HttpMethod::Post,
+                    requestBody: '{ __typename }',
                 ),
             ],
             [
@@ -133,6 +144,17 @@ class DemoMonitorSeeder extends Seeder
                     target: 'https://example.com',
                     method: HttpMethod::Get,
                     tags: ['synthetic'],
+                ),
+            ],
+            [
+                'name' => 'Failing GraphQL',
+                'conditions' => ['[STATUS] == 500'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::GraphQL,
+                    target: 'https://countries.trevorblades.com/',
+                    method: HttpMethod::Post,
+                    tags: ['synthetic'],
+                    requestBody: '{ __typename }',
                 ),
             ],
             [
@@ -224,6 +246,7 @@ class DemoMonitorSeeder extends Seeder
         ?string $dnsQueryType = null,
         array $tags = ['example'],
         ?string $description = null,
+        ?string $requestBody = null,
     ): array {
         return [
             'description' => $description ?? (in_array('synthetic', $tags, true)
@@ -233,6 +256,7 @@ class DemoMonitorSeeder extends Seeder
             'type' => $type,
             'target' => $target,
             'method' => $method,
+            'request_body' => $requestBody,
             'enabled' => true,
             'interval_seconds' => 60,
             'timeout_seconds' => $timeoutSeconds,

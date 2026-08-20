@@ -15,8 +15,32 @@ it('rejects unauthenticated GraphQL requests', function () {
     expect($response->json('errors.0.message'))->toContain('Unauthenticated');
 });
 
+it('attaches default probes when probe ids are omitted', function () {
+    $default = Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Probe::factory()->create(['slug' => 'eu', 'queue' => 'checks.eu']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                probes { id is_default }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'API health',
+            'type' => 'Http',
+            'target' => 'https://example.com/health',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor.probes');
+
+    expect($created)->toHaveCount(1)
+        ->and($created[0]['id'])->toBe($default->id)
+        ->and($created[0]['is_default'])->toBeTrue();
+});
+
 it('creates, updates, and deletes a monitor', function () {
-    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
     $created = graphql('
         mutation ($input: CreateMonitorInput!) {
@@ -27,6 +51,7 @@ it('creates, updates, and deletes a monitor', function () {
                 target
                 method
                 requestHeaders { key value }
+                proxy_url
                 conditions { expression }
             }
         }
@@ -39,6 +64,7 @@ it('creates, updates, and deletes a monitor', function () {
             'requestHeaders' => [
                 ['key' => 'X-Token', 'value' => 'abc'],
             ],
+            'proxyUrl' => 'socks5h://127.0.0.1:1080',
             'conditions' => ['[STATUS] == 200'],
         ],
     ])->assertSuccessful()
@@ -47,6 +73,7 @@ it('creates, updates, and deletes a monitor', function () {
     expect($created['name'])->toBe('API health')
         ->and($created['type'])->toBe('Http')
         ->and($created['requestHeaders'][0]['key'])->toBe('X-Token')
+        ->and($created['proxy_url'])->toBe('socks5h://127.0.0.1:1080')
         ->and($created['conditions'][0]['expression'])->toBe('[STATUS] == 200');
 
     $updated = graphql('
@@ -77,7 +104,7 @@ it('creates, updates, and deletes a monitor', function () {
 });
 
 it('creates a TCP monitor', function () {
-    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
     $created = graphql('
         mutation ($input: CreateMonitorInput!) {
@@ -114,6 +141,7 @@ it('ignores HTTP-only fields on ping monitors', function () {
                 request_body
                 follow_redirects
                 verify_tls
+                proxy_url
                 conditions { expression }
             }
         }
@@ -129,6 +157,7 @@ it('ignores HTTP-only fields on ping monitors', function () {
             ],
             'followRedirects' => false,
             'verifyTls' => false,
+            'proxyUrl' => 'http://proxy.example:8080',
         ],
     ])->assertSuccessful()
         ->json('data.createMonitor');
@@ -139,6 +168,7 @@ it('ignores HTTP-only fields on ping monitors', function () {
         ->and($created['request_body'])->toBeNull()
         ->and($created['follow_redirects'])->toBeTrue()
         ->and($created['verify_tls'])->toBeTrue()
+        ->and($created['proxy_url'])->toBeNull()
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
@@ -288,6 +318,37 @@ it('creates a WebSocket monitor', function () {
     expect($created['type'])->toBe('WebSocket')
         ->and($created['target'])->toBe('wss://example.com/socket')
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
+});
+
+it('creates a GraphQL monitor and defaults to POST', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                method
+                request_body
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Countries API',
+            'type' => 'GraphQL',
+            'target' => 'https://countries.trevorblades.com/',
+            'requestBody' => '{ __typename }',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('GraphQL')
+        ->and($created['target'])->toBe('https://countries.trevorblades.com/')
+        ->and($created['method'])->toBe('Post')
+        ->and($created['request_body'])->toBe('{ __typename }')
+        ->and($created['conditions'][0]['expression'])->toBe('[STATUS] >= 200')
+        ->and($created['conditions'][1]['expression'])->toBe('[STATUS] <= 299');
 });
 
 it('manages notification channels and syncs them to a monitor', function () {

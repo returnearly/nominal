@@ -49,7 +49,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
                 : IpFamily::Any,
             'target' => $input['target'] ?? $monitor->target,
             'method' => $type->usesHttpRequest()
-                ? $this->method($input['method'] ?? $monitor->method ?? HttpMethod::Get)
+                ? $this->method($input['method'] ?? $monitor->method ?? ($type->wrapsGraphQLBody() ? HttpMethod::Post : HttpMethod::Get))
                 : null,
             'request_headers' => $type->usesRequestHeaders()
                 ? ($input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [])
@@ -72,6 +72,9 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             'verify_tls' => $type->usesVerifyTls()
                 ? ($input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true)
                 : true,
+            'proxy_url' => $type->usesProxy()
+                ? $this->nullableString($input['proxyUrl'] ?? $input['proxy_url'] ?? $monitor->proxy_url)
+                : null,
             'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,
             'status' => $monitor->status ?? MonitorStatus::Pending,
         ]);
@@ -121,7 +124,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function syncProbes(Monitor $monitor, ?array $probeIds): void
     {
         if ($probeIds === null) {
-            $probeIds = Probe::query()->where('enabled', true)->pluck('id')->all();
+            $probeIds = Probe::defaultIds();
         }
 
         $monitor->probes()->sync($probeIds);
@@ -153,12 +156,21 @@ final readonly class SaveMonitor implements ActionsPatternInterface
 
     private function description(mixed $description): ?string
     {
-        if (! is_string($description)) {
+        return $this->nullableString($description);
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null) {
             return null;
         }
 
-        $description = trim($description);
+        if (! is_string($value)) {
+            return null;
+        }
 
-        return $description === '' ? null : $description;
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

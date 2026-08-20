@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\ComputeMonitorUptime;
 use App\Enums\DnsQueryType;
 use App\Enums\HeartbeatSignal;
 use App\Enums\HttpMethod;
@@ -11,6 +12,7 @@ use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
 use App\Support\MonitorTags;
+use App\Uptime\MonitorUptime;
 use Database\Factories\MonitorFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -44,6 +46,7 @@ use Illuminate\Support\Str;
     'heartbeat_token',
     'follow_redirects',
     'verify_tls',
+    'proxy_url',
     'status',
     'last_checked_at',
     'next_check_at',
@@ -57,6 +60,8 @@ class Monitor extends Model
     /** @use HasFactory<MonitorFactory> */
     use HasFactory, HasUuids, SoftDeletes;
 
+    private ?MonitorUptime $computedUptime = null;
+
     protected function casts(): array
     {
         return [
@@ -68,6 +73,7 @@ class Monitor extends Model
             'enabled' => 'boolean',
             'follow_redirects' => 'boolean',
             'verify_tls' => 'boolean',
+            'proxy_url' => 'encrypted',
             'request_headers' => AsEncryptedArrayObject::class,
             'last_checked_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
@@ -167,6 +173,17 @@ class Monitor extends Model
         return $headers;
     }
 
+    public function outboundProxyUrl(): ?string
+    {
+        if (! $this->type->usesProxy()) {
+            return null;
+        }
+
+        $url = $this->proxy_url;
+
+        return is_string($url) && $url !== '' ? $url : null;
+    }
+
     /**
      * @return array<string, string>
      */
@@ -226,6 +243,66 @@ class Monitor extends Model
         return $this->heartbeatUrl(HeartbeatSignal::Error);
     }
 
+    public function badgeUrl(string $kind, string $format = 'svg', ?string $period = null): string
+    {
+        $path = '/embed/badges/'.$this->id.'/'.$kind;
+
+        if ($kind === 'status') {
+            return url($path.'.'.$format);
+        }
+
+        if ($period !== null) {
+            $path .= '/'.$period;
+        }
+
+        return $format === 'svg'
+            ? url($path.'/badge.svg')
+            : url($path);
+    }
+
+    public function statusBadgeSvgUrl(): string
+    {
+        return $this->badgeUrl('status');
+    }
+
+    public function statusBadgeJsonUrl(): string
+    {
+        return $this->badgeUrl('status', 'json');
+    }
+
+    public function uptimeBadgeSvgUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('uptime', 'svg', $period);
+    }
+
+    public function uptimeBadgeJsonUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('uptime', 'json', $period);
+    }
+
+    public function latencyBadgeSvgUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('latency', 'svg', $period);
+    }
+
+    public function latencyBadgeJsonUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('latency', 'json', $period);
+    }
+
+    public function badgeMarkdown(): string
+    {
+        return sprintf(
+            '![%s](%s) ![%s](%s) ![%s](%s)',
+            $this->name.' status',
+            $this->statusBadgeSvgUrl(),
+            $this->name.' uptime',
+            $this->uptimeBadgeSvgUrl(),
+            $this->name.' latency',
+            $this->latencyBadgeSvgUrl(),
+        );
+    }
+
     public function heartbeatIsRunning(): bool
     {
         return $this->heartbeat_started_at !== null
@@ -236,6 +313,28 @@ class Monitor extends Model
     {
         return $this->heartbeat_started_at !== null
             && $this->heartbeat_started_at->lte(now()->subSeconds($this->interval_seconds));
+    }
+
+    public function setComputedUptime(MonitorUptime $uptime): static
+    {
+        $this->computedUptime = $uptime;
+
+        return $this;
+    }
+
+    public function uptime(): MonitorUptime
+    {
+        return $this->computedUptime ??= ComputeMonitorUptime::make()
+            ->handle([$this->id])
+            ->get($this->id, MonitorUptime::empty());
+    }
+
+    /**
+     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float}
+     */
+    public function graphqlUptime(): array
+    {
+        return $this->uptime()->toGraphQL();
     }
 
     protected static function booted(): void

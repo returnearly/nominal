@@ -9,6 +9,7 @@ use Filament\Support\Contracts\HasLabel;
 enum MonitorType: string implements HasLabel
 {
     case Http = 'http';
+    case GraphQL = 'graphql';
     case Ping = 'ping';
     case Tcp = 'tcp';
     case Dns = 'dns';
@@ -21,6 +22,7 @@ enum MonitorType: string implements HasLabel
     {
         return match ($this) {
             self::Http => 'HTTP',
+            self::GraphQL => 'GraphQL',
             self::Ping => 'Ping',
             self::Tcp => 'TCP',
             self::Dns => 'DNS',
@@ -33,13 +35,21 @@ enum MonitorType: string implements HasLabel
 
     public function usesHttpRequest(): bool
     {
-        return $this === self::Http;
+        return match ($this) {
+            self::Http, self::GraphQL => true,
+            default => false,
+        };
+    }
+
+    public function wrapsGraphQLBody(): bool
+    {
+        return $this === self::GraphQL;
     }
 
     public function usesRequestBody(): bool
     {
         return match ($this) {
-            self::Http, self::Tcp, self::Tls, self::Udp, self::WebSocket => true,
+            self::Http, self::GraphQL, self::Tcp, self::Tls, self::Udp, self::WebSocket => true,
             default => false,
         };
     }
@@ -47,7 +57,15 @@ enum MonitorType: string implements HasLabel
     public function usesVerifyTls(): bool
     {
         return match ($this) {
-            self::Http, self::Tls, self::WebSocket => true,
+            self::Http, self::GraphQL, self::Tls, self::WebSocket => true,
+            default => false,
+        };
+    }
+
+    public function usesProxy(): bool
+    {
+        return match ($this) {
+            self::Http, self::GraphQL, self::Tcp, self::Tls, self::WebSocket => true,
             default => false,
         };
     }
@@ -55,7 +73,7 @@ enum MonitorType: string implements HasLabel
     public function usesRequestHeaders(): bool
     {
         return match ($this) {
-            self::Http, self::WebSocket => true,
+            self::Http, self::GraphQL, self::WebSocket => true,
             default => false,
         };
     }

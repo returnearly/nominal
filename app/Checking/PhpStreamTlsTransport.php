@@ -10,6 +10,8 @@ use Throwable;
 
 final class PhpStreamTlsTransport implements TlsTransport
 {
+    public function __construct(private StreamDialer $dialer) {}
+
     public function connect(
         string $host,
         int $port,
@@ -17,26 +19,17 @@ final class PhpStreamTlsTransport implements TlsTransport
         IpFamily $family,
         bool $verifyTls,
         ?string $body = null,
+        ?string $proxyUrl = null,
     ): SocketOutcome {
-        $address = new SocketAddress($host, $port);
         $started = hrtime(true);
 
         try {
-            $client = @stream_socket_client(
-                $address->remote('ssl'),
-                $errorCode,
-                $errorMessage,
-                $timeoutSeconds,
-                STREAM_CLIENT_CONNECT,
-                StreamSocket::context($family, [
-                    'ssl' => [
-                        'capture_peer_cert' => true,
-                        'verify_peer' => $verifyTls,
-                        'verify_peer_name' => $verifyTls,
-                        'peer_name' => $host,
-                    ],
-                ]),
-            );
+            $client = $this->dialer->connect($host, $port, $timeoutSeconds, $family, $proxyUrl, [
+                'capture_peer_cert' => true,
+                'verify_peer' => $verifyTls,
+                'verify_peer_name' => $verifyTls,
+                'peer_name' => $host,
+            ]);
         } catch (Throwable $exception) {
             return SocketOutcome::failed(
                 (int) ((hrtime(true) - $started) / 1_000_000),
@@ -45,11 +38,6 @@ final class PhpStreamTlsTransport implements TlsTransport
         }
 
         $latencyMs = (int) ((hrtime(true) - $started) / 1_000_000);
-
-        if ($client === false) {
-            return SocketOutcome::failed($latencyMs, $errorMessage !== '' ? $errorMessage : 'TLS connection failed');
-        }
-
         $ip = StreamSocket::peerIp($client);
         $expiresAt = self::certificateExpiry($client);
         $response = null;

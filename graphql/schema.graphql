@@ -3,6 +3,7 @@ scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Date
 
 enum MonitorType {
     Http
+    GraphQL
     Ping
     Tcp
     Dns
@@ -75,6 +76,7 @@ type Probe {
     name: String!
     queue: String!
     enabled: Boolean!
+    is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
 }
@@ -108,6 +110,13 @@ type CheckAggregate {
     avg_latency_ms: Int
 }
 
+type MonitorUptime {
+    oneHour: Float
+    twentyFourHours: Float
+    sevenDays: Float
+    thirtyDays: Float
+}
+
 type NotificationChannel {
     id: ID!
     name: String!
@@ -138,8 +147,16 @@ type Monitor {
     heartbeatStartUrl: String @method(name: "heartbeatStartUrl")
     heartbeatFinishUrl: String @method(name: "heartbeatFinishUrl")
     heartbeatErrorUrl: String @method(name: "heartbeatErrorUrl")
+    statusBadgeUrl: String @method(name: "statusBadgeSvgUrl")
+    statusBadgeJsonUrl: String @method(name: "statusBadgeJsonUrl")
+    uptimeBadgeUrl: String @method(name: "uptimeBadgeSvgUrl")
+    uptimeBadgeJsonUrl: String @method(name: "uptimeBadgeJsonUrl")
+    latencyBadgeUrl: String @method(name: "latencyBadgeSvgUrl")
+    latencyBadgeJsonUrl: String @method(name: "latencyBadgeJsonUrl")
+    badgeMarkdown: String @method(name: "badgeMarkdown")
     follow_redirects: Boolean!
     verify_tls: Boolean!
+    proxy_url: String
     status: MonitorStatus!
     last_checked_at: DateTime
     next_check_at: DateTime
@@ -149,6 +166,7 @@ type Monitor {
     retention_days: Int!
     created_at: DateTime
     updated_at: DateTime
+    uptime: MonitorUptime! @method(name: "graphqlUptime")
     conditions: [MonitorCondition!]! @hasMany
     probes: [Probe!]! @belongsToMany
     notificationChannels: [NotificationChannel!]! @belongsToMany
@@ -173,6 +191,7 @@ input CreateMonitorInput {
     dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
+    proxyUrl: String
     retentionDays: Int
     conditions: [String!]
     probeIds: [ID!]
@@ -195,6 +214,7 @@ input UpdateMonitorInput {
     dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
+    proxyUrl: String
     retentionDays: Int
     conditions: [String!]
     probeIds: [ID!]

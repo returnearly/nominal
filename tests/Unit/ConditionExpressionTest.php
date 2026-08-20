@@ -108,6 +108,10 @@ it('returns type-specific default conditions', function () {
         ->and(ConditionExpression::defaultExpressions(MonitorType::WebSocket))->toBe([
             '[CONNECTED] == true',
             '[RESPONSE_TIME] < 50',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::GraphQL))->toBe([
+            '[STATUS] >= 200',
+            '[STATUS] <= 299',
         ]);
 });
 
@@ -177,6 +181,14 @@ it('limits condition placeholders to values the check type can produce', functio
             '[RESPONSE_TIME]',
             '[IP]',
             '[BODY]',
+        ])
+        ->and(array_column(ConditionPlaceholder::forType(MonitorType::GraphQL), 'value'))->toBe([
+            '[STATUS]',
+            '[BODY]',
+            '[CONNECTED]',
+            '[RESPONSE_TIME]',
+            '[IP]',
+            '[CERTIFICATE_EXPIRATION]',
         ])
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[STATUS]')
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[DNS_RCODE]')

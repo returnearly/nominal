@@ -19,7 +19,9 @@ use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
 use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
+use App\Models\Probe;
 use App\Support\MonitorTags;
+use App\Support\ProxyUrl;
 use BackedEnum;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
@@ -41,6 +43,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use InvalidArgumentException;
 
 final class MonitorResource extends Resource
 {
@@ -58,6 +61,7 @@ final class MonitorResource extends Resource
         $usesRequestBody = self::usesRequestBody(...);
         $usesRequestHeaders = self::usesRequestHeaders(...);
         $usesVerifyTls = self::usesVerifyTls(...);
+        $usesProxy = self::usesProxy(...);
 
         return $schema->components([
             Section::make('Monitor')
@@ -95,7 +99,9 @@ final class MonitorResource extends Resource
                                 $set('ip_family', IpFamily::Any);
                             }
 
-                            if (! $type->usesHttpRequest()) {
+                            if ($type->wrapsGraphQLBody()) {
+                                $set('method', HttpMethod::Post);
+                            } elseif (! $type->usesHttpRequest()) {
                                 $set('method', null);
                                 $set('follow_redirects', true);
                             }
@@ -110,6 +116,10 @@ final class MonitorResource extends Resource
 
                             if (! $type->usesVerifyTls()) {
                                 $set('verify_tls', true);
+                            }
+
+                            if (! $type->usesProxy()) {
+                                $set('proxy_url', null);
                             }
 
                             if (! $type->usesDnsQuery()) {
@@ -128,6 +138,7 @@ final class MonitorResource extends Resource
                             MonitorType::Ping => 'example.com',
                             MonitorType::Heartbeat => 'backup-job',
                             MonitorType::WebSocket => 'wss://example.com/socket',
+                            MonitorType::GraphQL => 'https://countries.trevorblades.com/',
                             default => 'https://example.com/health',
                         }),
                     TextInput::make('heartbeat_url')
@@ -193,7 +204,9 @@ final class MonitorResource extends Resource
                         ->visible(self::usesDnsQuery(...)),
                     Select::make('method')
                         ->options(HttpMethod::class)
-                        ->default(HttpMethod::Get)
+                        ->default(fn (Get $get): HttpMethod => self::type($get)?->wrapsGraphQLBody() === true
+                            ? HttpMethod::Post
+                            : HttpMethod::Get)
                         ->visible($usesHttp),
                     Select::make('ip_family')
                         ->options(IpFamily::class)
@@ -224,6 +237,27 @@ final class MonitorResource extends Resource
                     Toggle::make('verify_tls')
                         ->default(true)
                         ->visible($usesVerifyTls),
+                    TextInput::make('proxy_url')
+                        ->label('Proxy URL')
+                        ->maxLength(2048)
+                        ->placeholder('socks5h://127.0.0.1:1080')
+                        ->helperText('HTTP (`http://proxy:8080`) or SOCKS (`socks5://`, `socks5h://`). Leave blank to use HTTP_PROXY / ALL_PROXY for HTTP checks.')
+                        ->dehydrateStateUsing(fn (mixed $state): ?string => filled($state) ? (string) $state : null)
+                        ->rule(function (): \Closure {
+                            return function (string $attribute, mixed $value, \Closure $fail): void {
+                                if (! filled($value)) {
+                                    return;
+                                }
+
+                                try {
+                                    ProxyUrl::parse((string) $value);
+                                } catch (InvalidArgumentException $exception) {
+                                    $fail($exception->getMessage());
+                                }
+                            };
+                        })
+                        ->visible($usesProxy)
+                        ->columnSpanFull(),
                 ]),
             Section::make('Request')
                 ->visible(fn (Get $get): bool => $usesRequestBody($get) || $usesRequestHeaders($get))
@@ -235,9 +269,11 @@ final class MonitorResource extends Resource
                     Textarea::make('request_body')
                         ->rows(6)
                         ->columnSpanFull()
-                        ->helperText(fn (Get $get): ?string => self::usesHttpRequest($get)
-                            ? null
-                            : 'Optional payload written after the connection is established.'),
+                        ->helperText(fn (Get $get): ?string => match (self::type($get)) {
+                            MonitorType::GraphQL => 'Sent as {"query": "..."} with Content-Type application/json.',
+                            MonitorType::Http => null,
+                            default => 'Optional payload written after the connection is established.',
+                        }),
                 ]),
             Section::make('Conditions')
                 ->description('These are what determine whether an endpoint is healthy or not.')
@@ -303,6 +339,7 @@ final class MonitorResource extends Resource
                         ->relationship('probes', 'name')
                         ->multiple()
                         ->preload()
+                        ->default(fn (): array => Probe::defaultIds())
                         ->required(self::usesOutboundProbe(...))
                         ->visible(self::usesOutboundProbe(...))
                         ->dehydrated(self::usesOutboundProbe(...)),
@@ -310,6 +347,26 @@ final class MonitorResource extends Resource
                         ->relationship('notificationChannels', 'name')
                         ->multiple()
                         ->preload(),
+                ]),
+            Section::make('Badges')
+                ->description('Public SVG and JSON badges for READMEs, Shields.io, and status pages.')
+                ->visible(fn (?Monitor $record): bool => $record instanceof Monitor)
+                ->components([
+                    self::badgeUrlInput('status_badge_url', 'Status SVG', fn (Monitor $monitor): string => $monitor->statusBadgeSvgUrl()),
+                    self::badgeUrlInput('status_badge_json_url', 'Status JSON', fn (Monitor $monitor): string => $monitor->statusBadgeJsonUrl()),
+                    self::badgeUrlInput('uptime_badge_url', 'Uptime 24h SVG', fn (Monitor $monitor): string => $monitor->uptimeBadgeSvgUrl()),
+                    self::badgeUrlInput('latency_badge_url', 'Latency 24h SVG', fn (Monitor $monitor): string => $monitor->latencyBadgeSvgUrl()),
+                    TextInput::make('badge_markdown')
+                        ->label('Markdown')
+                        ->disabled()
+                        ->copyable()
+                        ->dehydrated(false)
+                        ->columnSpanFull()
+                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                            if ($record instanceof Monitor) {
+                                $component->state($record->badgeMarkdown());
+                            }
+                        }),
                 ]),
         ]);
     }
@@ -402,6 +459,11 @@ final class MonitorResource extends Resource
         return self::type($get)?->usesVerifyTls() ?? false;
     }
 
+    private static function usesProxy(Get $get): bool
+    {
+        return self::type($get)?->usesProxy() ?? false;
+    }
+
     private static function usesRequestHeaders(Get $get): bool
     {
         return self::type($get)?->usesRequestHeaders() ?? false;
@@ -449,6 +511,23 @@ final class MonitorResource extends Resource
     private static function monitorType(Get $get): mixed
     {
         return $get('type') ?? $get('../../type') ?? $get('../../../type');
+    }
+
+    /**
+     * @param  callable(Monitor): string  $url
+     */
+    private static function badgeUrlInput(string $name, string $label, callable $url): TextInput
+    {
+        return TextInput::make($name)
+            ->label($label)
+            ->disabled()
+            ->copyable()
+            ->dehydrated(false)
+            ->afterStateHydrated(function (TextInput $component, mixed $record) use ($url): void {
+                if ($record instanceof Monitor) {
+                    $component->state($url($record));
+                }
+            });
     }
 
     /**
