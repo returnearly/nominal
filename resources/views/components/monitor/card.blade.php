@@ -19,8 +19,11 @@
                 <span class="nm-card-dot">•</span>
                 <span>{{ $monitor->target }}</span>
             </p>
+            @if ($window = $monitor->activeMaintenanceWindow())
+                <p class="nm-card-maintenance">{{ $window->message ?: $window->title }}</p>
+            @endif
         </div>
-        <x-monitor.status-badge :status="$monitor->status" :enabled="$monitor->enabled" />
+        <x-monitor.status-badge :status="$monitor->effectiveStatus()" :enabled="$monitor->enabled" />
     </header>
 
     <div class="nm-card-chart">

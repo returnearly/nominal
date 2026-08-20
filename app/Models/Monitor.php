@@ -13,6 +13,7 @@ use App\Enums\MonitorType;
 use Database\Factories\MonitorFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -110,6 +111,75 @@ class Monitor extends Model
                 'triggered',
                 'last_notified_at',
             ]);
+    }
+
+    public function maintenanceWindows(): BelongsToMany
+    {
+        return $this->belongsToMany(MaintenanceWindow::class);
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeUnderMaintenance(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->whereHas('maintenanceWindows', fn (Builder $windows) => $windows->active())
+                ->orWhereExists(function ($sub): void {
+                    $sub->from('maintenance_windows')
+                        ->where('applies_to_all', true)
+                        ->whereNull('cancelled_at')
+                        ->where('starts_at', '<=', now())
+                        ->where(function ($inner): void {
+                            $inner->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                        });
+                });
+        });
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeNotUnderMaintenance(Builder $query): Builder
+    {
+        return $query->whereNot(fn (Builder $query) => $query->underMaintenance());
+    }
+
+    public function activeMaintenanceWindow(): ?MaintenanceWindow
+    {
+        if ($this->relationLoaded('activeMaintenanceWindow')) {
+            return $this->getRelation('activeMaintenanceWindow');
+        }
+
+        $window = MaintenanceWindow::query()->covering($this)->first();
+        $this->setRelation('activeMaintenanceWindow', $window);
+
+        return $window;
+    }
+
+    public function isUnderMaintenance(): bool
+    {
+        return $this->activeMaintenanceWindow() !== null;
+    }
+
+    public function hasDirectMaintenance(): bool
+    {
+        return MaintenanceWindow::query()
+            ->active()
+            ->where('applies_to_all', false)
+            ->whereHas('monitors', fn (Builder $query) => $query->whereKey($this->id))
+            ->exists();
+    }
+
+    public function effectiveStatus(): MonitorStatus
+    {
+        if ($this->isUnderMaintenance()) {
+            return MonitorStatus::Maintenance;
+        }
+
+        return $this->status;
     }
 
     /**

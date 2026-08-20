@@ -17,7 +17,7 @@ final class MonitorStatsWidget extends StatsOverviewWidget
 
     protected static bool $isLazy = false;
 
-    protected int|array|null $columns = 4;
+    protected int|array|null $columns = 5;
 
     protected ?string $pollingInterval = '10s';
 
@@ -37,14 +37,18 @@ final class MonitorStatsWidget extends StatsOverviewWidget
      */
     protected function getStats(): array
     {
+        $maintenanceCount = Monitor::query()->underMaintenance()->count();
         $counts = Monitor::query()
+            ->notUnderMaintenance()
             ->selectRaw('status, count(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status');
+        $counts['maintenance'] = $maintenanceCount;
 
         return [
             $this->stat(MonitorStatus::Up, $counts),
             $this->stat(MonitorStatus::Down, $counts),
+            $this->stat(MonitorStatus::Maintenance, $counts),
             $this->stat(MonitorStatus::Pending, $counts),
             $this->stat(MonitorStatus::Paused, $counts),
         ];

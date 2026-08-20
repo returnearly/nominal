@@ -14,6 +14,9 @@
         <div class="nm-panel nm-stat-card">
             <span class="nm-metrics-label">Current status</span>
             <span class="nm-metrics-value">{{ $statusLabel }}</span>
+            @if ($window = $record->activeMaintenanceWindow())
+                <p class="nm-card-maintenance">{{ $window->message ?: $window->title }}</p>
+            @endif
         </div>
         <div class="nm-panel nm-stat-card">
             <span class="nm-metrics-label">Avg. response</span>
