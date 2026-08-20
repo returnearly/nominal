@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\LoadRecentCheckResults;
+use App\Enums\MonitorStatus;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorStatsWidget;
 use App\Models\Monitor;
+use App\Support\DownMonitorFavicon;
 use Filament\Actions\CreateAction;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\On;
 
@@ -21,6 +24,8 @@ final class ListMonitors extends ListRecords
     use ExposesTableToWidgets;
 
     protected static string $resource = MonitorResource::class;
+
+    public string $faviconHref = '';
 
     protected function getHeaderActions(): array
     {
@@ -42,6 +47,17 @@ final class ListMonitors extends ListRecords
     public function getHeaderWidgetsColumns(): int|array
     {
         return 1;
+    }
+
+    public function booted(): void
+    {
+        $downCount = Monitor::query()->where('status', MonitorStatus::Down)->count();
+        $this->faviconHref = DownMonitorFavicon::href($downCount) ?? asset('favicon.svg');
+    }
+
+    public function getFooter(): ?View
+    {
+        return view('filament.monitors.favicon');
     }
 
     #[On('filter-monitors-by-status')]
