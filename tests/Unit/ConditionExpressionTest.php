@@ -95,6 +95,10 @@ it('returns type-specific default conditions', function () {
         ])
         ->and(ConditionExpression::defaultExpressions(MonitorType::Dns))->toBe([
             '[DNS_RCODE] == NOERROR',
+        ])
+        ->and(ConditionExpression::defaultExpressions(MonitorType::Tls))->toBe([
+            '[CONNECTED] == true',
+            '[CERTIFICATE_EXPIRATION] > 48h',
         ]);
 });
 

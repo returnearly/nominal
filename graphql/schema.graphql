@@ -6,6 +6,7 @@ enum MonitorType {
     Ping
     Tcp
     Dns
+    Tls
 }
 
 enum DnsQueryType {
