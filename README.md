@@ -10,7 +10,7 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 
 - PHP 8.5, Laravel 13, Filament 5, Lighthouse GraphQL, Sanctum, Reverb
 - Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
-- Monitors: HTTP/HTTPS, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, and WebSocket
+- Monitors: HTTP/HTTPS, GraphQL, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, and WebSocket
 - Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
@@ -72,6 +72,20 @@ mutation {
     type: Http
     target: "https://example.com/health"
     conditions: ["[STATUS] == 200"]
+  }) { id }
+}
+```
+
+GraphQL monitors wrap `requestBody` as `{"query": "..."}` and default to POST:
+
+```graphql
+mutation {
+  createMonitor(input: {
+    name: "Countries"
+    type: GraphQL
+    target: "https://countries.trevorblades.com/"
+    requestBody: "{ __typename }"
+    conditions: ["[STATUS] == 200", "has([BODY].errors) == false"]
   }) { id }
 }
 ```

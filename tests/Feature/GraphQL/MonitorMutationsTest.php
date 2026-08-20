@@ -289,6 +289,37 @@ it('creates a WebSocket monitor', function () {
         ->and($created['conditions'][0]['expression'])->toBe('[CONNECTED] == true');
 });
 
+it('creates a GraphQL monitor and defaults to POST', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                type
+                target
+                method
+                request_body
+                conditions { expression }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Countries API',
+            'type' => 'GraphQL',
+            'target' => 'https://countries.trevorblades.com/',
+            'requestBody' => '{ __typename }',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['type'])->toBe('GraphQL')
+        ->and($created['target'])->toBe('https://countries.trevorblades.com/')
+        ->and($created['method'])->toBe('Post')
+        ->and($created['request_body'])->toBe('{ __typename }')
+        ->and($created['conditions'][0]['expression'])->toBe('[STATUS] >= 200')
+        ->and($created['conditions'][1]['expression'])->toBe('[STATUS] <= 299');
+});
+
 it('manages notification channels and syncs them to a monitor', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

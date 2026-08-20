@@ -117,6 +117,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function graphql(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::GraphQL,
+            'target' => 'https://countries.trevorblades.com/',
+            'method' => HttpMethod::Post,
+            'request_headers' => [],
+            'request_body' => '{ __typename }',
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {

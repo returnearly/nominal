@@ -30,7 +30,7 @@ final readonly class CheckMonitor implements ActionsPatternInterface
         $monitor->loadMissing('conditions');
 
         return match ($monitor->type) {
-            MonitorType::Http => $this->http->handle($monitor),
+            MonitorType::Http, MonitorType::GraphQL => $this->http->handle($monitor),
             MonitorType::Ping => $this->ping->handle($monitor),
             MonitorType::Tcp => $this->tcp->handle($monitor),
             MonitorType::Dns => $this->dns->handle($monitor),

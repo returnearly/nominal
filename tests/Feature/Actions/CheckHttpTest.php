@@ -9,6 +9,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 
@@ -25,18 +26,22 @@ function fakeCertificates(?DateTimeImmutable $expiresAt = null): TlsCertificateR
     };
 }
 
-function checkHttp(array $responses, ?DateTimeImmutable $cert = null): CheckHttp
+function checkHttp(array $responses, ?DateTimeImmutable $cert = null, array &$history = []): CheckHttp
 {
     app()->instance(TlsCertificateReader::class, fakeCertificates($cert));
 
+    $stack = HandlerStack::create(new MockHandler($responses));
+    $stack->push(Middleware::history($history));
+
     app()->instance(Client::class, new Client([
-        'handler' => HandlerStack::create(new MockHandler($responses)),
+        'handler' => $stack,
     ]));
 
     return CheckHttp::make();
 }
 
 it('passes HTTP checks when conditions match', function () {
+    $history = [];
     $monitor = Monitor::factory()->withDefaultConditions()->create([
         'target' => 'https://example.com/health',
         'request_headers' => ['X-Token' => 'secret'],
@@ -47,11 +52,12 @@ it('passes HTTP checks when conditions match', function () {
 
     $result = checkHttp([
         new Response(200, [], '{"status":"UP"}'),
-    ], new DateTimeImmutable('+60 days'))->handle($monitor);
+    ], new DateTimeImmutable('+60 days'), $history)->handle($monitor);
 
     expect($result->success)->toBeTrue()
         ->and($result->httpStatus)->toBe(200)
-        ->and($result->connected)->toBeTrue();
+        ->and($result->connected)->toBeTrue()
+        ->and((string) $history[0]['request']->getBody())->toBe('{"ping":true}');
 });
 
 it('fails HTTP checks when a condition fails', function () {
@@ -81,4 +87,38 @@ it('sends a custom method and treats connection errors as failed conditions', fu
 
     expect($result->success)->toBeFalse()
         ->and($result->connected)->toBeFalse();
+});
+
+it('wraps GraphQL query bodies as JSON', function () {
+    $history = [];
+    $monitor = Monitor::factory()->graphql()->withDefaultConditions()->create([
+        'request_body' => '{ user { id } }',
+    ]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(200, [], '{"data":{"user":{"id":"1"}}}'),
+    ], null, $history)->handle($monitor);
+
+    $request = $history[0]['request'];
+
+    expect($result->success)->toBeTrue()
+        ->and($request->getMethod())->toBe('POST')
+        ->and((string) $request->getBody())->toBe('{"query":"{ user { id } }"}')
+        ->and($request->getHeaderLine('Content-Type'))->toBe('application/json');
+});
+
+it('does not override an existing GraphQL Content-Type header', function () {
+    $history = [];
+    $monitor = Monitor::factory()->graphql()->withDefaultConditions()->create([
+        'request_headers' => ['Content-Type' => 'application/graphql'],
+        'request_body' => '{ __typename }',
+    ]);
+    $monitor->load('conditions');
+
+    checkHttp([
+        new Response(200, [], '{"data":{"__typename":"Query"}}'),
+    ], null, $history)->handle($monitor);
+
+    expect($history[0]['request']->getHeaderLine('Content-Type'))->toBe('application/graphql');
 });
