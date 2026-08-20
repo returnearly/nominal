@@ -330,6 +330,26 @@ final class MonitorResource extends Resource
                         ->multiple()
                         ->preload(),
                 ]),
+            Section::make('Badges')
+                ->description('Public SVG and JSON badges for READMEs, Shields.io, and status pages.')
+                ->visible(fn (?Monitor $record): bool => $record instanceof Monitor)
+                ->components([
+                    self::badgeUrlInput('status_badge_url', 'Status SVG', fn (Monitor $monitor): string => $monitor->statusBadgeSvgUrl()),
+                    self::badgeUrlInput('status_badge_json_url', 'Status JSON', fn (Monitor $monitor): string => $monitor->statusBadgeJsonUrl()),
+                    self::badgeUrlInput('uptime_badge_url', 'Uptime 24h SVG', fn (Monitor $monitor): string => $monitor->uptimeBadgeSvgUrl()),
+                    self::badgeUrlInput('latency_badge_url', 'Latency 24h SVG', fn (Monitor $monitor): string => $monitor->latencyBadgeSvgUrl()),
+                    TextInput::make('badge_markdown')
+                        ->label('Markdown')
+                        ->disabled()
+                        ->copyable()
+                        ->dehydrated(false)
+                        ->columnSpanFull()
+                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                            if ($record instanceof Monitor) {
+                                $component->state($record->badgeMarkdown());
+                            }
+                        }),
+                ]),
         ]);
     }
 
@@ -462,6 +482,23 @@ final class MonitorResource extends Resource
     private static function monitorType(Get $get): mixed
     {
         return $get('type') ?? $get('../../type') ?? $get('../../../type');
+    }
+
+    /**
+     * @param  callable(Monitor): string  $url
+     */
+    private static function badgeUrlInput(string $name, string $label, callable $url): TextInput
+    {
+        return TextInput::make($name)
+            ->label($label)
+            ->disabled()
+            ->copyable()
+            ->dehydrated(false)
+            ->afterStateHydrated(function (TextInput $component, mixed $record) use ($url): void {
+                if ($record instanceof Monitor) {
+                    $component->state($url($record));
+                }
+            });
     }
 
     /**

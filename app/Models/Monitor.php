@@ -205,6 +205,66 @@ class Monitor extends Model
         return $this->heartbeatUrl(HeartbeatSignal::Error);
     }
 
+    public function badgeUrl(string $kind, string $format = 'svg', ?string $period = null): string
+    {
+        $path = '/embed/badges/'.$this->id.'/'.$kind;
+
+        if ($kind === 'status') {
+            return url($path.'.'.$format);
+        }
+
+        if ($period !== null) {
+            $path .= '/'.$period;
+        }
+
+        return $format === 'svg'
+            ? url($path.'/badge.svg')
+            : url($path);
+    }
+
+    public function statusBadgeSvgUrl(): string
+    {
+        return $this->badgeUrl('status');
+    }
+
+    public function statusBadgeJsonUrl(): string
+    {
+        return $this->badgeUrl('status', 'json');
+    }
+
+    public function uptimeBadgeSvgUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('uptime', 'svg', $period);
+    }
+
+    public function uptimeBadgeJsonUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('uptime', 'json', $period);
+    }
+
+    public function latencyBadgeSvgUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('latency', 'svg', $period);
+    }
+
+    public function latencyBadgeJsonUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('latency', 'json', $period);
+    }
+
+    public function badgeMarkdown(): string
+    {
+        return sprintf(
+            '![%s](%s) ![%s](%s) ![%s](%s)',
+            $this->name.' status',
+            $this->statusBadgeSvgUrl(),
+            $this->name.' uptime',
+            $this->uptimeBadgeSvgUrl(),
+            $this->name.' latency',
+            $this->latencyBadgeSvgUrl(),
+        );
+    }
+
     public function heartbeatIsRunning(): bool
     {
         return $this->heartbeat_started_at !== null

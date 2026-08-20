@@ -366,6 +366,18 @@ it('hides check now and shows the heartbeat url on the monitor view', function (
         ->assertSee($monitor->heartbeatUrl());
 });
 
+it('shows embeddable badge urls on the monitor view', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSee($monitor->statusBadgeSvgUrl())
+        ->assertSee($monitor->uptimeBadgeSvgUrl())
+        ->assertSee($monitor->latencyBadgeSvgUrl())
+        ->assertSee($monitor->badgeMarkdown());
+});
+
 it('saves monitor conditions from the placeholder picker', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
