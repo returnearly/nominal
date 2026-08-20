@@ -112,3 +112,9 @@ docker compose up --build
 ```
 
 App is on [http://localhost:8000](http://localhost:8000) (container port 8080). Queue, scheduler, and Reverb are the same image with `command:` overrides. Extra regional workers copy `worker` and change `PROBE_REGION` / `--queue`.
+
+## License
+
+Copyright © 2026 Return Early.
+
+Nominal is licensed under the [Elastic License 2.0](LICENSE) (source-available, not OSI open source). You may self-host it and run it for your own business, including for-profit internal use. You may not offer Nominal to third parties as a hosted or managed service.
