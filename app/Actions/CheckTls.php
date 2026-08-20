@@ -36,6 +36,7 @@ final readonly class CheckTls implements ActionsPatternInterface
                 $monitor->ip_family,
                 $monitor->verify_tls,
                 $monitor->request_body,
+                $monitor->outboundProxyUrl(),
             );
         } catch (InvalidArgumentException|Throwable $exception) {
             $outcome = SocketOutcome::failed(null, $exception->getMessage());

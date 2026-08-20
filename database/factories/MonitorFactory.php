@@ -21,7 +21,8 @@ class MonitorFactory extends Factory
     {
         return [
             'name' => fake()->unique()->words(3, true),
-            'group' => 'core',
+            'description' => null,
+            'tags' => [],
             'type' => MonitorType::Http,
             'enabled' => true,
             'interval_seconds' => 60,
@@ -33,6 +34,7 @@ class MonitorFactory extends Factory
             'request_body' => null,
             'follow_redirects' => true,
             'verify_tls' => true,
+            'proxy_url' => null,
             'status' => MonitorStatus::Pending,
             'retention_days' => 30,
         ];
@@ -117,6 +119,17 @@ class MonitorFactory extends Factory
         ]);
     }
 
+    public function graphql(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => MonitorType::GraphQL,
+            'target' => 'https://countries.trevorblades.com/',
+            'method' => HttpMethod::Post,
+            'request_headers' => [],
+            'request_body' => '{ __typename }',
+        ]);
+    }
+
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {
@@ -133,6 +146,16 @@ class MonitorFactory extends Factory
     {
         return $this->state(fn (): array => [
             'enabled' => false,
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $tags
+     */
+    public function tagged(array $tags): static
+    {
+        return $this->state(fn (): array => [
+            'tags' => $tags,
         ]);
     }
 }

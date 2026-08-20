@@ -111,6 +111,35 @@ class MaintenanceWindow extends Model
 
     /**
      * @param  Collection<int, Monitor>  $monitors
+     * @return Collection<int, static>
+     */
+    public static function coveringAny(Collection $monitors): Collection
+    {
+        if ($monitors->isEmpty()) {
+            return new Collection;
+        }
+
+        $ids = $monitors->pluck('id')->filter()->all();
+
+        return static::query()
+            ->whereNull('cancelled_at')
+            ->where(function (Builder $query) use ($ids): void {
+                $query->where('applies_to_all', true);
+
+                if ($ids !== []) {
+                    $query->orWhereHas('monitors', fn (Builder $related) => $related->whereIn('monitors.id', $ids));
+                }
+            })
+            ->where(function (Builder $query): void {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->with('monitors:id')
+            ->orderBy('starts_at')
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, Monitor>  $monitors
      */
     public static function primeMonitors(Collection $monitors): void
     {

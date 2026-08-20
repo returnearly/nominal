@@ -3,6 +3,7 @@ scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Date
 
 enum MonitorType {
     Http
+    GraphQL
     Ping
     Tcp
     Dns
@@ -76,6 +77,7 @@ type Probe {
     name: String!
     queue: String!
     enabled: Boolean!
+    is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
 }
@@ -109,6 +111,13 @@ type CheckAggregate {
     avg_latency_ms: Int
 }
 
+type MonitorUptime {
+    oneHour: Float
+    twentyFourHours: Float
+    sevenDays: Float
+    thirtyDays: Float
+}
+
 type NotificationChannel {
     id: ID!
     name: String!
@@ -121,7 +130,8 @@ type NotificationChannel {
 type Monitor {
     id: ID!
     name: String!
-    group: String
+    description: String
+    tags: [String!]! @method(name: "graphqlTags")
     type: MonitorType!
     enabled: Boolean!
     interval_seconds: Int!
@@ -138,8 +148,16 @@ type Monitor {
     heartbeatStartUrl: String @method(name: "heartbeatStartUrl")
     heartbeatFinishUrl: String @method(name: "heartbeatFinishUrl")
     heartbeatErrorUrl: String @method(name: "heartbeatErrorUrl")
+    statusBadgeUrl: String @method(name: "statusBadgeSvgUrl")
+    statusBadgeJsonUrl: String @method(name: "statusBadgeJsonUrl")
+    uptimeBadgeUrl: String @method(name: "uptimeBadgeSvgUrl")
+    uptimeBadgeJsonUrl: String @method(name: "uptimeBadgeJsonUrl")
+    latencyBadgeUrl: String @method(name: "latencyBadgeSvgUrl")
+    latencyBadgeJsonUrl: String @method(name: "latencyBadgeJsonUrl")
+    badgeMarkdown: String @method(name: "badgeMarkdown")
     follow_redirects: Boolean!
     verify_tls: Boolean!
+    proxy_url: String
     status: MonitorStatus! @method(name: "effectiveStatus")
     last_checked_at: DateTime
     next_check_at: DateTime
@@ -149,6 +167,7 @@ type Monitor {
     retention_days: Int!
     created_at: DateTime
     updated_at: DateTime
+    uptime: MonitorUptime! @method(name: "graphqlUptime")
     conditions: [MonitorCondition!]! @hasMany
     probes: [Probe!]! @belongsToMany
     notificationChannels: [NotificationChannel!]! @belongsToMany
@@ -159,7 +178,8 @@ type Monitor {
 
 input CreateMonitorInput {
     name: String!
-    group: String
+    description: String
+    tags: [String!]
     type: MonitorType!
     enabled: Boolean = true
     intervalSeconds: Int
@@ -173,6 +193,7 @@ input CreateMonitorInput {
     dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
+    proxyUrl: String
     retentionDays: Int
     conditions: [String!]
     probeIds: [ID!]
@@ -180,7 +201,8 @@ input CreateMonitorInput {
 
 input UpdateMonitorInput {
     name: String
-    group: String
+    description: String
+    tags: [String!]
     type: MonitorType
     enabled: Boolean
     intervalSeconds: Int
@@ -194,6 +216,7 @@ input UpdateMonitorInput {
     dnsQueryType: DnsQueryType
     followRedirects: Boolean
     verifyTls: Boolean
+    proxyUrl: String
     retentionDays: Int
     conditions: [String!]
     probeIds: [ID!]
@@ -245,12 +268,166 @@ input UpdateMaintenanceWindowInput {
 
 type Query @guard(with: ["sanctum"]) {
     monitor(id: ID! @eq): Monitor @find
-    monitors: [Monitor!]! @all
+    monitors(tag: String @whereJsonContains(key: "tags")): [Monitor!]! @all
     notificationChannel(id: ID! @eq): NotificationChannel @find
     notificationChannels: [NotificationChannel!]! @all
     probes: [Probe!]! @all
     maintenanceWindow(id: ID! @eq): MaintenanceWindow @find
     maintenanceWindows: [MaintenanceWindow!]! @all
+    statusPage(id: ID! @eq): StatusPage @find
+    statusPages: [StatusPage!]! @all
+    incident(id: ID! @eq): Incident @find
+}
+
+enum StatusPageTheme {
+    Dark
+    Light
+}
+
+enum StatusPageHealth {
+    Operational
+    Degraded
+    PartialOutage
+    MajorOutage
+    Maintenance
+}
+
+enum IncidentStatus {
+    Investigating
+    Identified
+    Monitoring
+    Resolved
+    Scheduled
+}
+
+enum IncidentImpact {
+    None
+    Minor
+    Major
+    Critical
+}
+
+type StatusPageListing @model(class: "App\\Models\\StatusPageMonitor") {
+    id: ID!
+    public_name: String
+    sort: Int!
+    monitor: Monitor @belongsTo
+}
+
+type IncidentUpdate {
+    id: ID!
+    status: IncidentStatus!
+    message: String!
+    posted_at: DateTime
+}
+
+type Incident {
+    id: ID!
+    title: String!
+    status: IncidentStatus!
+    impact: IncidentImpact!
+    started_at: DateTime
+    resolved_at: DateTime
+    created_at: DateTime
+    updated_at: DateTime
+    statusPage: StatusPage @belongsTo
+    updates: [IncidentUpdate!]! @hasMany
+    monitors: [Monitor!]! @belongsToMany
+}
+
+type StatusPage {
+    id: ID!
+    name: String!
+    slug: String!
+    custom_domain: String
+    headline: String
+    description: String
+    logo_url: String
+    favicon_url: String
+    footer_text: String
+    custom_css: String
+    theme: StatusPageTheme!
+    published: Boolean!
+    show_targets: Boolean!
+    passwordProtected: Boolean! @method(name: "isPasswordProtected")
+    refresh_seconds: Int!
+    pathUrl: String! @method(name: "pathUrl")
+    publicUrl: String! @method(name: "publicUrl")
+    health: StatusPageHealth! @method(name: "health")
+    created_at: DateTime
+    updated_at: DateTime
+    listings: [StatusPageListing!]! @hasMany
+    monitors: [Monitor!]! @belongsToMany
+    incidents: [Incident!]! @hasMany
+}
+
+input StatusPageMonitorInput {
+    monitorId: ID!
+    publicName: String
+}
+
+input CreateStatusPageInput {
+    name: String!
+    slug: String!
+    customDomain: String
+    headline: String
+    description: String
+    logoUrl: String
+    faviconUrl: String
+    footerText: String
+    customCss: String
+    theme: StatusPageTheme = Dark
+    published: Boolean = false
+    showTargets: Boolean = false
+    password: String
+    refreshSeconds: Int
+    monitorIds: [ID!]
+    monitors: [StatusPageMonitorInput!]
+}
+
+input UpdateStatusPageInput {
+    name: String
+    slug: String
+    customDomain: String
+    headline: String
+    description: String
+    logoUrl: String
+    faviconUrl: String
+    footerText: String
+    customCss: String
+    theme: StatusPageTheme
+    published: Boolean
+    showTargets: Boolean
+    password: String
+    refreshSeconds: Int
+    monitorIds: [ID!]
+    monitors: [StatusPageMonitorInput!]
+}
+
+input CreateIncidentInput {
+    statusPageId: ID!
+    title: String!
+    status: IncidentStatus = Investigating
+    impact: IncidentImpact = Minor
+    message: String
+    startedAt: DateTime
+    resolvedAt: DateTime
+    monitorIds: [ID!]
+}
+
+input UpdateIncidentInput {
+    title: String
+    status: IncidentStatus
+    impact: IncidentImpact
+    startedAt: DateTime
+    resolvedAt: DateTime
+    monitorIds: [ID!]
+}
+
+input AddIncidentUpdateInput {
+    status: IncidentStatus
+    message: String!
+    postedAt: DateTime
 }
 
 type Mutation @guard(with: ["sanctum"]) {
@@ -267,4 +444,11 @@ type Mutation @guard(with: ["sanctum"]) {
     deleteMaintenanceWindow(id: ID!): Boolean!
     startMonitorMaintenance(monitorId: ID!, title: String, message: String, endsAt: DateTime): MaintenanceWindow!
     endMonitorMaintenance(monitorId: ID!): Monitor!
+    createStatusPage(input: CreateStatusPageInput!): StatusPage!
+    updateStatusPage(id: ID!, input: UpdateStatusPageInput!): StatusPage!
+    deleteStatusPage(id: ID!): Boolean!
+    createIncident(input: CreateIncidentInput!): Incident!
+    updateIncident(id: ID!, input: UpdateIncidentInput!): Incident!
+    deleteIncident(id: ID!): Boolean!
+    addIncidentUpdate(incidentId: ID!, input: AddIncidentUpdateInput!): Incident!
 }

@@ -1,5 +1,5 @@
 @php
-    $group = filled($record->group) ? $record->group : 'Ungrouped';
+    $tags = $record->tags;
     $format = \App\Actions\FormatMilliseconds::make();
     $averageLatency = $format->handle($averageLatencyMs);
     $range = $minLatencyMs !== null && $maxLatencyMs !== null
@@ -32,6 +32,13 @@
         </div>
     </div>
 
+    @if (filled($record->description))
+        <section class="nm-panel">
+            <span class="nm-metrics-label">Monitor Description</span>
+            <p class="nm-runbook">{{ $record->description }}</p>
+        </section>
+    @endif
+
     @if ($heartbeatUrl = $record->heartbeatUrl())
         <section class="nm-panel">
             <span class="nm-metrics-label">Heartbeat URL</span>
@@ -57,14 +64,46 @@
     @endif
 
     <section class="nm-panel">
+        <span class="nm-metrics-label">Badges</span>
+        <div class="nm-badges">
+            <img src="{{ $record->statusBadgeSvgUrl() }}" alt="Status badge">
+            <img src="{{ $record->uptimeBadgeSvgUrl() }}" alt="Uptime badge">
+            <img src="{{ $record->latencyBadgeSvgUrl() }}" alt="Latency badge">
+        </div>
+        <div
+            class="nm-copy-url"
+            x-data="{ copied: false }"
+        >
+            <code class="nm-copy-url-value">{{ $record->badgeMarkdown() }}</code>
+            <button
+                type="button"
+                class="nm-copy-url-button"
+                x-on:click="
+                    navigator.clipboard.writeText({{ \Illuminate\Support\Js::from($record->badgeMarkdown()) }});
+                    copied = true;
+                    setTimeout(() => copied = false, 1500)
+                "
+            >
+                <span x-show="! copied">Copy markdown</span>
+                <span x-show="copied" x-cloak>Copied</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="nm-panel">
         <header class="nm-section-head">
             <div>
                 <h3 class="nm-section-title">Recent checks</h3>
                 <p class="nm-card-meta">
-                    <span>{{ $group }}</span>
-                    <span class="nm-card-dot">·</span>
                     <span>{{ $record->target }}</span>
                 </p>
+                @if ($tags !== [])
+                    <ul class="nm-card-tags">
+                        @foreach ($tags as $tag)
+                            <li class="nm-tag">{{ $tag }}</li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
             @if ($averageLatency !== null)
                 <span class="nm-card-latency">~{{ $averageLatency }}</span>
@@ -76,6 +115,11 @@
 
     <section class="nm-panel">
         <h3 class="nm-section-title">Response time</h3>
-        <x-monitor.trend :checks="$checks" />
+        <x-monitor.trend :checks="$latencyChecks" />
+    </section>
+
+    <section class="nm-panel">
+        <h3 class="nm-section-title">Uptime</h3>
+        <x-monitor.uptime class="nm-uptime-detail" :uptime="$uptime" />
     </section>
 </div>

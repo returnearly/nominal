@@ -9,6 +9,7 @@ use App\Checking\TlsCertificateReader;
 use App\Conditions\CheckContext;
 use App\Enums\IpFamily;
 use App\Models\Monitor;
+use App\Support\ProxyUrl;
 use DateTimeImmutable;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -117,17 +118,82 @@ final readonly class CheckHttp implements ActionsPatternInterface
             },
         ];
 
-        $headers = $monitor->requestHeadersArray();
+        $headers = $this->requestHeaders($monitor);
+        $body = $this->requestBody($monitor);
 
         if ($headers !== []) {
             $options[RequestOptions::HEADERS] = $headers;
         }
 
-        if ($monitor->request_body !== null && $monitor->request_body !== '') {
-            $options[RequestOptions::BODY] = $monitor->request_body;
+        if ($body !== null) {
+            $options[RequestOptions::BODY] = $body;
+        }
+
+        $proxy = $this->proxy($monitor);
+
+        if ($proxy !== null) {
+            $options[RequestOptions::PROXY] = $proxy;
         }
 
         return $options;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function requestHeaders(Monitor $monitor): array
+    {
+        $headers = $monitor->requestHeadersArray();
+
+        if ($monitor->type->wrapsGraphQLBody() && ! $this->hasHeader($headers, 'Content-Type')) {
+            $headers['Content-Type'] = 'application/json';
+        }
+
+        return $headers;
+    }
+
+    private function requestBody(Monitor $monitor): ?string
+    {
+        if ($monitor->type->wrapsGraphQLBody()) {
+            return json_encode(
+                ['query' => (string) $monitor->request_body],
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            );
+        }
+
+        if ($monitor->request_body === null || $monitor->request_body === '') {
+            return null;
+        }
+
+        return $monitor->request_body;
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function hasHeader(array $headers, string $name): bool
+    {
+        foreach (array_keys($headers) as $key) {
+            if (strcasecmp((string) $key, $name) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return string|array<string, mixed>|null
+     */
+    private function proxy(Monitor $monitor): string|array|null
+    {
+        $configured = $monitor->outboundProxyUrl();
+
+        if ($configured !== null) {
+            return $configured;
+        }
+
+        return ProxyUrl::guzzleFromConfig();
     }
 
     private function decodeBody(?string $rawBody): mixed
@@ -159,6 +225,6 @@ final readonly class CheckHttp implements ActionsPatternInterface
 
         $port = (int) ($parts['port'] ?? 443);
 
-        return $this->certificates->expiresAt($host, $port, $monitor->timeout_seconds);
+        return $this->certificates->expiresAt($host, $port, $monitor->timeout_seconds, $monitor->outboundProxyUrl());
     }
 }

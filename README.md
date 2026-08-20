@@ -10,9 +10,11 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 
 - PHP 8.5, Laravel 13, Filament 5, Lighthouse GraphQL, Sanctum, Reverb
 - Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
-- Monitors: HTTP/HTTPS, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, and WebSocket
+- Monitors: HTTP/HTTPS, GraphQL, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, and WebSocket
+- Proxies: per-monitor HTTP/SOCKS URL for HTTP, GraphQL, TCP, TLS, and WebSocket; `HTTP_PROXY` / `ALL_PROXY` for HTTP checks and notification webhooks
 - Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
+- Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
 
 ## Quick start
@@ -76,7 +78,36 @@ mutation {
 }
 ```
 
+GraphQL monitors wrap `requestBody` as `{"query": "..."}` and default to POST:
+
+```graphql
+mutation {
+  createMonitor(input: {
+    name: "Countries"
+    type: GraphQL
+    target: "https://countries.trevorblades.com/"
+    requestBody: "{ __typename }"
+    conditions: ["[STATUS] == 200", "has([BODY].errors) == false"]
+  }) { id }
+}
+```
+
 Unauthenticated clients receive GraphQL `errors[]`. HTTP status is still 200 — Terraform maps those errors as failed applies.
+
+## Status pages
+
+Nominal’s Filament UI is admin-only. Publish one or more public status pages (Uptime Kuma-style) instead of using the dashboard as the status page (Gatus-style).
+
+Each page can:
+
+- List a subset of monitors, with optional public names (targets hidden by default)
+- Use a custom domain, logo, favicon, theme, footer, and CSS
+- Optionally require a password
+- Show incidents and scheduled maintenance with a public timeline
+
+Path URL: `/status/{slug}`. Custom domain: CNAME the hostname to Nominal; the page is served at `/` on that host.
+
+GraphQL: `createStatusPage`, `createIncident`, `addIncidentUpdate`.
 
 ## Reverb
 
@@ -91,7 +122,28 @@ Reverb through Cloudflare needs extra setup; GraphQL HTTP does not.
 
 ## Prometheus
 
-`GET /metrics` — Redis/cache-backed counters and gauges, prefix `nominal_`. Labels: `monitor`, `group`, `type`, `success`, `region`.
+`GET /metrics` — Redis/cache-backed counters and gauges, prefix `nominal_`. Labels: `monitor`, `type`, `success`, `region`.
+
+## Badges
+
+Public SVG and JSON badges for each monitor — the same first-class integration Gatus, Healthchecks, and Uptime Kuma expose. Served from `/embed` so they can be allowlisted independently of `/api` (e.g. through a firewall).
+
+```
+GET /embed/badges/{id}/status.svg
+GET /embed/badges/{id}/status.json
+GET /embed/badges/{id}/uptime/{period}/badge.svg
+GET /embed/badges/{id}/uptime/{period}
+GET /embed/badges/{id}/latency/{period}/badge.svg
+GET /embed/badges/{id}/latency/{period}
+```
+
+Periods: `1h`, `24h`, `7d`, `30d` (any `{n}h` / `{n}d` up to 90 days). Omit the period to default to `24h`. JSON is [Shields.io endpoint](https://shields.io/badges/endpoint-badge) compatible (`schemaVersion`, `label`, `message`, `color`).
+
+```md
+![status](https://nominal.example/embed/badges/{id}/status.svg)
+```
+
+Copy URLs and markdown from the monitor page.
 
 ## Multi-region workers
 
@@ -112,6 +164,14 @@ docker compose up --build
 ```
 
 App is on [http://localhost:8000](http://localhost:8000) (container port 8080). Queue, scheduler, and Reverb are the same image with `command:` overrides. Extra regional workers copy `worker` and change `PROBE_REGION` / `--queue`.
+
+Production images (`linux/amd64` and `linux/arm64`) are published to the GitHub Container Registry on every push to `master` (`latest`) and on version tags:
+
+```bash
+docker pull ghcr.io/returnearly/nominal:latest
+```
+
+The package is public. If the first publish lands as private, set visibility to **Public** once under the repo's Packages settings.
 
 ## License
 

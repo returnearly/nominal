@@ -13,6 +13,7 @@ use App\Enums\MonitorType;
 use App\Models\Monitor;
 use App\Models\Probe;
 use App\Support\EnumValue;
+use App\Support\MonitorTags;
 use Illuminate\Support\Str;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
@@ -31,7 +32,12 @@ final readonly class SaveMonitor implements ActionsPatternInterface
 
         $monitor->fill([
             'name' => $input['name'] ?? $monitor->name,
-            'group' => $input['group'] ?? $monitor->group,
+            'description' => array_key_exists('description', $input)
+                ? $this->description($input['description'])
+                : $monitor->description,
+            'tags' => array_key_exists('tags', $input)
+                ? MonitorTags::normalize($input['tags'])
+                : $monitor->tags,
             'type' => $type,
             'enabled' => $input['enabled'] ?? $monitor->enabled ?? true,
             'interval_seconds' => $input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60,
@@ -43,7 +49,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
                 : IpFamily::Any,
             'target' => $input['target'] ?? $monitor->target,
             'method' => $type->usesHttpRequest()
-                ? $this->method($input['method'] ?? $monitor->method ?? HttpMethod::Get)
+                ? $this->method($input['method'] ?? $monitor->method ?? ($type->wrapsGraphQLBody() ? HttpMethod::Post : HttpMethod::Get))
                 : null,
             'request_headers' => $type->usesRequestHeaders()
                 ? ($input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [])
@@ -66,6 +72,9 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             'verify_tls' => $type->usesVerifyTls()
                 ? ($input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true)
                 : true,
+            'proxy_url' => $type->usesProxy()
+                ? $this->nullableString($input['proxyUrl'] ?? $input['proxy_url'] ?? $monitor->proxy_url)
+                : null,
             'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,
             'status' => $monitor->status ?? MonitorStatus::Pending,
         ]);
@@ -115,7 +124,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function syncProbes(Monitor $monitor, ?array $probeIds): void
     {
         if ($probeIds === null) {
-            $probeIds = Probe::query()->where('enabled', true)->pluck('id')->all();
+            $probeIds = Probe::defaultIds();
         }
 
         $monitor->probes()->sync($probeIds);
@@ -143,5 +152,25 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function dnsQueryType(mixed $type): DnsQueryType
     {
         return $type instanceof DnsQueryType ? $type : EnumValue::parse(DnsQueryType::class, $type);
+    }
+
+    private function description(mixed $description): ?string
+    {
+        return $this->nullableString($description);
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

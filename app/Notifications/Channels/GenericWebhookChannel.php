@@ -6,8 +6,8 @@ namespace App\Notifications\Channels;
 
 use App\Models\NotificationChannel;
 use App\Notifications\MonitorAlert;
+use App\Support\OutboundHttp;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Http;
 
 final class GenericWebhookChannel
 {
@@ -23,6 +23,6 @@ final class GenericWebhookChannel
             return;
         }
 
-        Http::acceptJson()->asJson()->post($url, $notification->toWebhook())->throw();
+        OutboundHttp::json()->post($url, $notification->toWebhook())->throw();
     }
 }

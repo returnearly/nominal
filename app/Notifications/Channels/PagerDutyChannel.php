@@ -7,8 +7,8 @@ namespace App\Notifications\Channels;
 use App\Enums\AlertKind;
 use App\Models\NotificationChannel;
 use App\Notifications\MonitorAlert;
+use App\Support\OutboundHttp;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Http;
 
 final class PagerDutyChannel
 {
@@ -26,7 +26,7 @@ final class PagerDutyChannel
             return;
         }
 
-        Http::acceptJson()->asJson()->post('https://events.pagerduty.com/v2/enqueue', [
+        OutboundHttp::json()->post('https://events.pagerduty.com/v2/enqueue', [
             'routing_key' => $routingKey,
             'event_action' => $notification->kind === AlertKind::Recovered ? 'resolve' : 'trigger',
             'dedup_key' => $notification->monitor->id,
@@ -35,7 +35,6 @@ final class PagerDutyChannel
                 'source' => 'nominal',
                 'severity' => $notification->kind === AlertKind::Recovered ? 'info' : 'error',
                 'component' => $notification->monitor->target,
-                'group' => $notification->monitor->group,
                 'class' => $notification->monitor->type->value,
             ],
         ])->throw();

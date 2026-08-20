@@ -14,7 +14,7 @@ it('creates a demo monitor for each type', function () {
     $this->seed(DemoMonitorSeeder::class);
 
     foreach (MonitorType::cases() as $type) {
-        $monitor = Monitor::query()->where('type', $type)->where('group', 'demo')->first();
+        $monitor = Monitor::query()->where('type', $type)->tagged('example')->first();
 
         expect($monitor)->not->toBeNull();
 
@@ -35,9 +35,10 @@ it('creates failing monitors for local testing', function () {
 
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->where('group', 'failing')->orderBy('name')->pluck('name')->all())
+    expect(Monitor::query()->tagged('synthetic')->orderBy('name')->pluck('name')->all())
         ->toBe([
             'Failing DNS',
+            'Failing GraphQL',
             'Failing HTTP status',
             'Failing HTTP unreachable',
             'Failing Ping',
@@ -46,6 +47,11 @@ it('creates failing monitors for local testing', function () {
             'Failing UDP',
             'Failing WebSocket',
         ]);
+
+    $failing = Monitor::query()->tagged('synthetic')->first();
+
+    expect($failing?->tags)->toBe(['synthetic'])
+        ->and($failing?->description)->toContain('Intentionally broken');
 });
 
 it('does not duplicate demo monitors when seeded twice', function () {
@@ -54,7 +60,7 @@ it('does not duplicate demo monitors when seeded twice', function () {
     $this->seed(DemoMonitorSeeder::class);
     $this->seed(DemoMonitorSeeder::class);
 
-    expect(Monitor::query()->count())->toBe(16);
+    expect(Monitor::query()->count())->toBe(18);
 });
 
 it('queues a first check for demo monitors that have never run', function () {
@@ -62,5 +68,5 @@ it('queues a first check for demo monitors that have never run', function () {
 
     $this->seed(DemoMonitorSeeder::class);
 
-    Queue::assertPushed(RunCheckJob::class, 15);
+    Queue::assertPushed(RunCheckJob::class, 17);
 });

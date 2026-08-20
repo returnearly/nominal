@@ -34,6 +34,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: development
     image: returnearly/nominal:local
     restart: always
     ports:

@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Local',
                 'queue' => 'checks.local',
                 'enabled' => true,
+                'is_default' => true,
             ],
         );
 
@@ -44,9 +45,7 @@ class DatabaseSeeder extends Seeder
         $this->call(DemoMonitorSeeder::class);
 
         $channel->monitors()->syncWithoutDetaching(
-            Monitor::query()
-                ->whereIn('group', ['demo', 'failing'])
-                ->pluck('id'),
+            Monitor::query()->pluck('id'),
         );
     }
 }
