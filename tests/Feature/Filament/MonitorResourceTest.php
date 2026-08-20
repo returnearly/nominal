@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\MonitorStatus;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
+use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
 use App\Filament\Widgets\MonitorHistoryWidget;
 use App\Filament\Widgets\MonitorStatsWidget;
 use App\Jobs\RunCheckJob;
@@ -48,7 +49,7 @@ it('paginates monitors at 50, 100, or 250 rows', function () {
         ->and($table->getDefaultPaginationPageOption())->toBe(50);
 });
 
-it('groups the monitors table by group', function () {
+it('shows the monitor group on each card', function () {
     $user = User::factory()->create();
     Monitor::factory()->create(['name' => 'Checkout', 'group' => 'payments']);
     Monitor::factory()->create(['name' => 'Status page', 'group' => 'public']);
@@ -60,7 +61,7 @@ it('groups the monitors table by group', function () {
         ->assertSee('payments')
         ->assertSee('public');
 
-    expect($livewire->instance()->getTable()->getDefaultGroup()?->getColumn())->toBe('group');
+    expect($livewire->instance()->getTable()->getDefaultGroup())->toBeNull();
 });
 
 it('shows status totals at the top of the monitors list', function () {
@@ -118,17 +119,70 @@ it('filters the monitors table when a status stat is clicked', function () {
         ->assertCanSeeTableRecords([$up, $down]);
 });
 
-it('shows a heartbeat of the latest 20 checks on the monitors list', function () {
+it('renders monitors as status cards instead of a table', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'group' => 'core',
+        'target' => 'https://pay.example/health',
+        'status' => MonitorStatus::Up,
+    ]);
+
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'success' => true,
+        'latency_ms' => 42,
+        'checked_at' => now()->subMinutes(8),
+        'condition_results' => [
+            ['expression' => '[STATUS] == 200', 'passed' => true, 'actual' => '200'],
+        ],
+    ]);
+
+    $table = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->instance()
+        ->getTable();
+
+    expect($table->hasColumnsLayout())->toBeTrue()
+        ->and($table->getContentGrid())->toBe([
+            'md' => 2,
+            'xl' => 4,
+        ]);
+
+    $html = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->assertSee('Payments API')
+        ->assertSee('core')
+        ->assertSee('https://pay.example/health')
+        ->assertSee('Healthy')
+        ->html();
+
+    expect($html)
+        ->toContain('fi-ta-content-grid')
+        ->toContain('nm-card')
+        ->toContain('nm-card-chart')
+        ->toContain('data-heartbeat')
+        ->toContain('nm-status-badge')
+        ->toContain('TIMESTAMP')
+        ->toContain('[STATUS] == 200')
+        ->not->toContain('data-latency')
+        ->not->toContain('fi-ta-table')
+        ->not->toContain('fi-ta-record-checkbox');
+});
+
+it('shows a heartbeat of recent checks on the monitors list', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
     $monitor = Monitor::factory()->create(['name' => 'Checkout API']);
 
-    foreach (range(1, 21) as $i) {
+    foreach (range(1, 41) as $i) {
         CheckResult::factory()->create([
             'monitor_id' => $monitor->id,
             'probe_id' => $probe->id,
-            'success' => $i !== 21,
-            'checked_at' => now()->subMinutes(21 - $i),
+            'success' => $i !== 41,
+            'checked_at' => now()->subMinutes(41 - $i),
         ]);
     }
 
@@ -137,11 +191,11 @@ it('shows a heartbeat of the latest 20 checks on the monitors list', function ()
         ->assertSee('Checkout API')
         ->html();
 
-    expect(substr_count($html, 'data-check="up"'))->toBe(19)
+    expect(substr_count($html, 'data-check="up"'))->toBe(39)
         ->and(substr_count($html, 'data-check="down"'))->toBe(1);
 });
 
-it('shows heartbeat, latency, and heatmap on the monitor view', function () {
+it('shows heartbeat and latency on the monitor view', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
     $monitor = Monitor::factory()->create();
@@ -161,11 +215,51 @@ it('shows heartbeat, latency, and heatmap on the monitor view', function () {
         'checked_at' => now()->subMinute(),
     ]);
 
-    Livewire::actingAs($user)
+    $html = Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
         ->assertSeeLivewire(MonitorHistoryWidget::class)
-        ->assertSee('data-latency', false)
-        ->assertSee('data-heatmap', false);
+        ->assertSee('Current status')
+        ->assertSee('Avg. response')
+        ->assertSee('Response range')
+        ->assertSee('42–90ms')
+        ->assertSee('Recent checks')
+        ->assertSee('Response time')
+        ->assertDontSee('Last 7 days by hour')
+        ->assertDontSee('data-heatmap')
+        ->html();
+
+    expect($html)
+        ->toContain('data-trend')
+        ->toContain('nm-trend-hit')
+        ->toContain('preserveAspectRatio="none"')
+        ->toContain('TIMESTAMP')
+        ->toContain('RESPONSE TIME');
+});
+
+it('shows the last 10 checks in the monitor history table', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    $results = collect(range(1, 12))->map(fn (int $i) => CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'checked_at' => now()->subMinutes(12 - $i),
+        'latency_ms' => $i * 10,
+    ]));
+
+    $livewire = Livewire::actingAs($user)
+        ->test(CheckResultsRelationManager::class, [
+            'ownerRecord' => $monitor,
+            'pageClass' => ViewMonitor::class,
+        ]);
+
+    expect($livewire->instance()->getTable()->getPaginationPageOptions())->toBe([10])
+        ->and($livewire->instance()->getTable()->getDefaultPaginationPageOption())->toBe(10);
+
+    $livewire
+        ->assertCanSeeTableRecords($results->slice(-10)->values()->all())
+        ->assertCanNotSeeTableRecords([$results->first()]);
 });
 
 it('queues a check immediately from the monitor view page', function () {

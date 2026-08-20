@@ -22,4 +22,14 @@ enum MonitorStatus: string implements HasColor
             self::Paused => 'purple',
         };
     }
+
+    public function badgeLabel(): string
+    {
+        return match ($this) {
+            self::Up => 'Healthy',
+            self::Down => 'Unhealthy',
+            self::Pending => 'Pending',
+            self::Paused => 'Paused',
+        };
+    }
 }

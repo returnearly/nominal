@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
-use App\Actions\BuildUptimeHeatmap;
 use App\Actions\LoadRecentCheckResults;
 use App\Models\CheckResult;
 use App\Models\Monitor;
@@ -30,9 +29,19 @@ final class MonitorHistoryWidget extends Widget
      */
     protected function getViewData(): array
     {
+        $checks = $this->recentChecks();
+        $averageLatency = $checks->avg('latency_ms');
+        $minLatency = $checks->min('latency_ms');
+        $maxLatency = $checks->max('latency_ms');
+
         return [
-            'checks' => $this->recentChecks(),
-            'cells' => BuildUptimeHeatmap::make()->handle($this->record),
+            'checks' => $checks,
+            'statusLabel' => $this->record->enabled
+                ? $this->record->status->badgeLabel()
+                : 'Disabled',
+            'averageLatencyMs' => $averageLatency === null ? null : (int) round((float) $averageLatency),
+            'minLatencyMs' => $minLatency === null ? null : (int) $minLatency,
+            'maxLatencyMs' => $maxLatency === null ? null : (int) $maxLatency,
         ];
     }
 

@@ -13,11 +13,13 @@ final readonly class LoadRecentCheckResults implements ActionsPatternInterface
 {
     use ActionsPattern;
 
+    public const LIMIT = 40;
+
     /**
      * @param  iterable<int, string>  $monitorIds
      * @return Collection<string, Collection<int, CheckResult>>
      */
-    public function handle(iterable $monitorIds, int $limit = 20): Collection
+    public function handle(iterable $monitorIds, int $limit = self::LIMIT): Collection
     {
         $ids = collect($monitorIds)->filter()->unique()->values();
 
