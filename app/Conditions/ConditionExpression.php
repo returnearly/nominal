@@ -92,8 +92,8 @@ final class ConditionExpression
      */
     public static function defaultsForType(mixed $type): array
     {
-        if (self::type($type) === MonitorType::Ping) {
-            return [
+        return match (self::type($type)) {
+            MonitorType::Ping, MonitorType::Tcp => [
                 [
                     'placeholder' => ConditionPlaceholder::Connected->value,
                     'path' => '',
@@ -106,23 +106,22 @@ final class ConditionExpression
                     'comparator' => ConditionComparator::LessThan->value,
                     'value' => '50',
                 ],
-            ];
-        }
-
-        return [
-            [
-                'placeholder' => ConditionPlaceholder::Status->value,
-                'path' => '',
-                'comparator' => ConditionComparator::GreaterThanOrEqual->value,
-                'value' => '200',
             ],
-            [
-                'placeholder' => ConditionPlaceholder::Status->value,
-                'path' => '',
-                'comparator' => ConditionComparator::LessThanOrEqual->value,
-                'value' => '299',
+            default => [
+                [
+                    'placeholder' => ConditionPlaceholder::Status->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::GreaterThanOrEqual->value,
+                    'value' => '200',
+                ],
+                [
+                    'placeholder' => ConditionPlaceholder::Status->value,
+                    'path' => '',
+                    'comparator' => ConditionComparator::LessThanOrEqual->value,
+                    'value' => '299',
+                ],
             ],
-        ];
+        };
     }
 
     /**

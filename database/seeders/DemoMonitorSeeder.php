@@ -73,6 +73,14 @@ class DemoMonitorSeeder extends Seeder
                 ),
             ],
             [
+                'name' => 'Example TCP',
+                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Tcp),
+                'attributes' => $this->attributes(
+                    type: MonitorType::Tcp,
+                    target: 'tcp://1.1.1.1:443',
+                ),
+            ],
+            [
                 'name' => 'Failing HTTP status',
                 'conditions' => ['[STATUS] == 500'],
                 'attributes' => $this->attributes(
@@ -99,6 +107,16 @@ class DemoMonitorSeeder extends Seeder
                 'attributes' => $this->attributes(
                     type: MonitorType::Ping,
                     target: '192.0.2.1',
+                    group: 'failing',
+                    timeoutSeconds: 5,
+                ),
+            ],
+            [
+                'name' => 'Failing TCP',
+                'conditions' => ['[CONNECTED] == true'],
+                'attributes' => $this->attributes(
+                    type: MonitorType::Tcp,
+                    target: '192.0.2.1:59999',
                     group: 'failing',
                     timeoutSeconds: 5,
                 ),
