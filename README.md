@@ -4,6 +4,8 @@
 
 Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, GraphQL mutations, Prometheus metrics, Reverb live events.
 
+**[Documentation](https://staynominal.com/docs)**
+
 ![Nominal — Modern self-hosted monitoring](public/images/og.jpg)
 
 ## Stack
