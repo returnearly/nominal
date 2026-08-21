@@ -124,12 +124,16 @@ GraphQL: `createStatusPage`, `createIncident`, `addIncidentUpdate`.
 
 ## Reverb
 
-Filament polls every 10s as a fallback. Live events are broadcast on:
+The Filament admin subscribes to live events over Reverb and refreshes when a check finishes. Tables and widgets still poll every 10s if the WebSocket is down.
+
+Live events are broadcast on:
 
 - `private-monitors`
 - `private-monitors.{uuid}`
 
 Payloads: `MonitorStatusUpdated`, `CheckCompleted`. Authenticate `/broadcasting/auth` with the same Sanctum session or bearer token used for GraphQL.
+
+Public status pages keep a meta refresh (`refresh_seconds`) — they are unauthenticated, so they do not use the private monitor channels.
 
 Reverb through Cloudflare needs extra setup; GraphQL HTTP does not.
 

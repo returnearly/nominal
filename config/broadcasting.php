@@ -19,6 +19,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Browser WebSocket target
+    |--------------------------------------------------------------------------
+    |
+    | PHP publishes to REVERB_HOST (the Reverb server). The admin JS connects
+    | from the browser, which is a different hostname in Docker. Leave these
+    | empty to fall back to REVERB_* or, for Docker service names, the current
+    | request host.
+    |
+    */
+
+    'client' => [
+        'host' => env('REVERB_CLIENT_HOST', env('VITE_REVERB_HOST')),
+        'port' => env('REVERB_CLIENT_PORT', env('VITE_REVERB_PORT')),
+        'scheme' => env('REVERB_CLIENT_SCHEME', env('VITE_REVERB_SCHEME')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Broadcast Connections
     |--------------------------------------------------------------------------
     |

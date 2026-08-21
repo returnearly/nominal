@@ -21,6 +21,11 @@ final class MonitorStatusUpdated implements ShouldBroadcastNow
         public MonitorStatus $previous,
     ) {}
 
+    public function broadcastAs(): string
+    {
+        return 'MonitorStatusUpdated';
+    }
+
     /**
      * @return array<int, PrivateChannel>
      */

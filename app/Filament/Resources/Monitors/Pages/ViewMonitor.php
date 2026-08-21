@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Monitors\Pages;
 use App\Actions\DispatchMonitorCheck;
 use App\Actions\EndMonitorMaintenance;
 use App\Actions\StartMonitorMaintenance;
+use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorHistoryWidget;
 use App\Models\Monitor;
@@ -22,6 +23,8 @@ use Filament\Support\Icons\Heroicon;
 
 final class ViewMonitor extends ViewRecord
 {
+    use RefreshesOnMonitorBroadcasts;
+
     protected static string $resource = MonitorResource::class;
 
     protected function getHeaderActions(): array
@@ -120,6 +123,11 @@ final class ViewMonitor extends ViewRecord
         return [
             'record' => $this->getRecord(),
         ];
+    }
+
+    protected function onMonitorBroadcast(): void
+    {
+        $this->refreshRecord();
     }
 
     private function monitor(): Monitor

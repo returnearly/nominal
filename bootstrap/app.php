@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateAnonymousOperator;
+use App\Http\Middleware\AuthenticateBroadcastSubscriber;
 use App\Http\Middleware\LoginCloudflareInterfaceUser;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -25,7 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withBroadcasting(
         __DIR__.'/../routes/channels.php',
-        ['middleware' => ['web', 'auth:sanctum']],
+        ['middleware' => ['web', AuthenticateBroadcastSubscriber::class, 'auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(function (Request $request): ?string {
@@ -41,7 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware
             ->prependToPriorityList(AuthenticatesRequests::class, AuthenticateCloudflareAccess::class)
             ->prependToPriorityList(AuthenticatesRequests::class, LoginCloudflareInterfaceUser::class)
-            ->prependToPriorityList(AuthenticatesRequests::class, AuthenticateAnonymousOperator::class);
+            ->prependToPriorityList(AuthenticatesRequests::class, AuthenticateAnonymousOperator::class)
+            ->prependToPriorityList(AuthenticatesRequests::class, AuthenticateBroadcastSubscriber::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

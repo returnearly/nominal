@@ -41,6 +41,24 @@ it('shows check history for all monitors', function () {
         ->assertDontSee('Latency ms');
 });
 
+it('refreshes history when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['name' => 'Payments API']);
+
+    $livewire = Livewire::actingAs($user)
+        ->test(ListCheckResults::class)
+        ->assertDontSee('timeout from probe');
+
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'message' => 'timeout from probe',
+    ]);
+
+    $livewire
+        ->dispatch('monitors-updated')
+        ->assertSee('timeout from probe');
+});
+
 it('paginates history without counting rows', function () {
     $user = User::factory()->create();
     CheckResult::factory()->create();

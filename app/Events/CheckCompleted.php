@@ -23,6 +23,11 @@ final class CheckCompleted implements ShouldBroadcastNow
         public CheckResult $result,
     ) {}
 
+    public function broadcastAs(): string
+    {
+        return 'CheckCompleted';
+    }
+
     /**
      * @return array<int, PrivateChannel>
      */

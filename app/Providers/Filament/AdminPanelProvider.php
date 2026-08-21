@@ -61,6 +61,10 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::HEAD_END,
                 fn (): string => view('components.monitor.stats-styles')->render(),
             )
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): string => view('filament.echo')->render(),
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->homeUrl(fn (): string => MonitorResource::getUrl())

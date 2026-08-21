@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Widgets;
 
 use App\Enums\MonitorStatus;
+use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Models\Monitor;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -13,6 +14,8 @@ use Livewire\Attributes\Reactive;
 
 final class MonitorStatsWidget extends StatsOverviewWidget
 {
+    use RefreshesOnMonitorBroadcasts;
+
     protected static bool $isDiscovered = false;
 
     protected static bool $isLazy = false;

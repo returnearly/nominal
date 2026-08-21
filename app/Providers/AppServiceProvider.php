@@ -31,6 +31,7 @@ use App\Checking\UdpTransport;
 use App\Checking\WebSocketTransport;
 use App\Checking\WhoisClient;
 use App\Checking\WhoisTransport;
+use App\Support\ReverbBrowser;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Support\ServiceProvider;
@@ -64,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        $echo = ReverbBrowser::filamentEcho();
+
+        if ($echo !== null) {
+            config(['filament.broadcasting.echo' => $echo]);
+        }
     }
 }
