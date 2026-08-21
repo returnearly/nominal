@@ -6,6 +6,7 @@ namespace App\Filament\Widgets;
 
 use App\Actions\LoadLatencyTrend;
 use App\Actions\LoadRecentCheckResults;
+use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Models\CheckResult;
 use App\Models\Monitor;
 use Filament\Widgets\Widget;
@@ -13,6 +14,8 @@ use Illuminate\Support\Collection;
 
 final class MonitorHistoryWidget extends Widget
 {
+    use RefreshesOnMonitorBroadcasts;
+
     protected static bool $isDiscovered = false;
 
     protected static bool $isLazy = false;
@@ -24,6 +27,11 @@ final class MonitorHistoryWidget extends Widget
     protected ?string $pollingInterval = '10s';
 
     public Monitor $record;
+
+    protected function onMonitorBroadcast(): void
+    {
+        $this->record = $this->record->fresh() ?? $this->record;
+    }
 
     /**
      * @return array<string, mixed>

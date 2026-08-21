@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\LoadRecentCheckResults;
 use App\Enums\MonitorStatus;
+use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorStatsWidget;
 use App\Models\MaintenanceWindow;
@@ -23,6 +24,7 @@ use Livewire\Attributes\On;
 final class ListMonitors extends ListRecords
 {
     use ExposesTableToWidgets;
+    use RefreshesOnMonitorBroadcasts;
 
     protected static string $resource = MonitorResource::class;
 

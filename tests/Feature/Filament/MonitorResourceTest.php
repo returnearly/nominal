@@ -22,6 +22,7 @@ use App\Models\Monitor;
 use App\Models\Probe;
 use App\Models\User;
 use App\Support\DownMonitorFavicon;
+use App\Support\ReverbBrowser;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
@@ -186,6 +187,81 @@ it('keeps the default favicon on the monitors page when none are down', function
         ->test(ListMonitors::class)
         ->assertSet('downCount', 0)
         ->assertSet('faviconHref', asset('favicon.svg'));
+});
+
+it('refreshes monitor cards when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'status' => MonitorStatus::Up,
+    ]);
+
+    $livewire = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->assertSee('Payments API')
+        ->assertSet('downCount', 0);
+
+    $monitor->update([
+        'name' => 'Billing API',
+        'status' => MonitorStatus::Down,
+    ]);
+
+    $livewire
+        ->dispatch('monitors-updated')
+        ->assertSee('Billing API')
+        ->assertDontSee('Payments API')
+        ->assertSet('downCount', 1);
+});
+
+it('refreshes status totals when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    $widget = Livewire::actingAs($user)
+        ->test(MonitorStatsWidget::class);
+
+    Monitor::factory()->count(2)->create(['status' => MonitorStatus::Down]);
+
+    $widget
+        ->dispatch('monitors-updated')
+        ->assertSee('2');
+});
+
+it('refreshes the monitor view when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    $widget = Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee('Healthy');
+
+    $monitor->update(['status' => MonitorStatus::Down]);
+
+    $widget
+        ->dispatch('monitors-updated')
+        ->assertSee('Unhealthy');
+});
+
+it('loads the reverb client on the admin panel', function () {
+    config([
+        'broadcasting.default' => 'reverb',
+        'broadcasting.connections.reverb.key' => 'key',
+        'broadcasting.client.host' => 'localhost',
+        'broadcasting.client.port' => 8080,
+        'broadcasting.client.scheme' => 'http',
+    ]);
+    config(['filament.broadcasting.echo' => ReverbBrowser::filamentEcho()]);
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('window.Echo = new window.EchoFactory', escape: false)
+        ->assertSee('NominalMonitorsEcho', escape: false)
+        ->assertSee('.CheckCompleted', escape: false)
+        ->assertSee('.MonitorStatusUpdated', escape: false)
+        ->assertSee('App.Models.User.'.$user->id, escape: false);
 });
 
 it('filters the monitors table when a status stat is clicked', function () {
