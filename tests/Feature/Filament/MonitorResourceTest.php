@@ -47,6 +47,16 @@ it('puts admin navigation in the top bar', function () {
     expect(filament()->getDefaultPanel()->hasTopNavigation())->toBeTrue();
 });
 
+it('links to documentation from the admin user menu', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('https://staynominal.com/docs')
+        ->assertSee('Documentation');
+});
+
 it('paginates monitors at 50, 100, or 250 rows', function () {
     $user = User::factory()->create();
 
