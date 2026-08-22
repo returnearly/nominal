@@ -10,6 +10,7 @@ use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Models\CheckResult;
 use App\Models\Monitor;
 use Filament\Widgets\Widget;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 
 final class MonitorHistoryWidget extends Widget
@@ -18,8 +19,6 @@ final class MonitorHistoryWidget extends Widget
 
     protected static bool $isDiscovered = false;
 
-    protected static bool $isLazy = false;
-
     protected string $view = 'filament.widgets.monitor-history';
 
     protected int|string|array $columnSpan = 'full';
@@ -27,6 +26,11 @@ final class MonitorHistoryWidget extends Widget
     protected ?string $pollingInterval = '10s';
 
     public Monitor $record;
+
+    public function placeholder(): View
+    {
+        return view('filament.widgets.monitor-history-placeholder');
+    }
 
     protected function onMonitorBroadcast(): void
     {

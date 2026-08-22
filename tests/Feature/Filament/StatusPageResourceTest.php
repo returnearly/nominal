@@ -17,7 +17,11 @@ it('shows status pages in the admin panel', function () {
 
     $this->actingAs($user)
         ->get('/admin/status-pages')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListStatusPages::class)
+        ->loadTable()
         ->assertSee('Acme Status');
 });
 
@@ -78,5 +82,6 @@ it('lists status pages in the Filament table', function () {
 
     Livewire::actingAs($user)
         ->test(ListStatusPages::class)
+        ->loadTable()
         ->assertCanSeeTableRecords([$page]);
 });

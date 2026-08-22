@@ -33,7 +33,11 @@ it('shows check history for all monitors', function () {
 
     $this->actingAs($user)
         ->get('/admin/history')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListCheckResults::class)
+        ->loadTable()
         ->assertSee('Payments API')
         ->assertSee('Edge ping')
         ->assertSee('timed out')
@@ -47,6 +51,7 @@ it('refreshes history when a reverb event arrives', function () {
 
     $livewire = Livewire::actingAs($user)
         ->test(ListCheckResults::class)
+        ->loadTable()
         ->assertDontSee('timeout from probe');
 
     CheckResult::factory()->create([
@@ -63,7 +68,7 @@ it('paginates history without counting rows', function () {
     $user = User::factory()->create();
     CheckResult::factory()->create();
 
-    $livewire = Livewire::actingAs($user)->test(ListCheckResults::class);
+    $livewire = Livewire::actingAs($user)->test(ListCheckResults::class)->loadTable();
     $table = $livewire->instance()->getTable();
     $records = $livewire->instance()->getTableRecords();
 

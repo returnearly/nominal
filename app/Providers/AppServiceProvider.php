@@ -32,6 +32,7 @@ use App\Checking\WebSocketTransport;
 use App\Checking\WhoisClient;
 use App\Checking\WhoisTransport;
 use App\Support\ReverbBrowser;
+use Filament\Tables\Table;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Support\ServiceProvider;
@@ -65,6 +66,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Table::configureUsing(function (Table $table): void {
+            $table->deferLoading();
+        });
+
         $echo = ReverbBrowser::filamentEcho();
 
         if ($echo !== null) {
