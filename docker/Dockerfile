@@ -4,19 +4,18 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS assets
 
 WORKDIR /app
 
-COPY package.json .npmrc ./
-RUN npm install
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci
 
 COPY vite.config.js ./
 COPY resources ./resources
-COPY public ./public
 
-RUN npm run build
+RUN mkdir -p public && npm run build
 
 FROM serversideup/php:8.5-frankenphp AS php-base
 
 USER root
-RUN install-php-extensions intl pdo_mysql pdo_pgsql \
+RUN install-php-extensions intl \
     && apt-get update \
     && apt-get install -y --no-install-recommends iputils-ping \
     && apt-get clean \
@@ -35,9 +34,12 @@ EXPOSE 8080 8443
 
 FROM php-base AS app
 
+COPY --chown=www-data:www-data composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
+
 COPY --chown=www-data:www-data . /var/www/html
 
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
+RUN composer dump-autoload --optimize --no-dev \
     && mkdir -p bootstrap/cache \
         storage/framework/cache \
         storage/framework/sessions \

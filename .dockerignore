@@ -5,6 +5,11 @@
 /.env
 /.env.*
 !/.env.example
+/.editorconfig
+/.gitattributes
+/README.md
+/docker
+/docker-compose.yml
 /node_modules
 /vendor
 /tests
