@@ -64,33 +64,6 @@
     @endif
 
     <section class="nm-panel">
-        <span class="nm-metrics-label">Badges</span>
-        <div class="nm-badges">
-            <img src="{{ $record->statusBadgeSvgUrl() }}" alt="Status badge">
-            <img src="{{ $record->uptimeBadgeSvgUrl() }}" alt="Uptime badge">
-            <img src="{{ $record->latencyBadgeSvgUrl() }}" alt="Latency badge">
-        </div>
-        <div
-            class="nm-copy-url"
-            x-data="{ copied: false }"
-        >
-            <code class="nm-copy-url-value">{{ $record->badgeMarkdown() }}</code>
-            <button
-                type="button"
-                class="nm-copy-url-button"
-                x-on:click="
-                    navigator.clipboard.writeText({{ \Illuminate\Support\Js::from($record->badgeMarkdown()) }});
-                    copied = true;
-                    setTimeout(() => copied = false, 1500)
-                "
-            >
-                <span x-show="! copied">Copy markdown</span>
-                <span x-show="copied" x-cloak>Copied</span>
-            </button>
-        </div>
-    </section>
-
-    <section class="nm-panel">
         <header class="nm-section-head">
             <div>
                 <h3 class="nm-section-title">Recent checks</h3>
@@ -121,5 +94,27 @@
     <section class="nm-panel">
         <h3 class="nm-section-title">Uptime</h3>
         <x-monitor.uptime class="nm-uptime-detail" :uptime="$uptime" />
+    </section>
+
+    <section class="nm-panel">
+        <span class="nm-metrics-label">Badges</span>
+        <div class="nm-badges">
+            <img src="{{ $record->statusBadgeSvgUrl() }}" alt="Status badge">
+            <img src="{{ $record->uptimeBadgeSvgUrl() }}" alt="Uptime badge">
+            <img src="{{ $record->latencyBadgeSvgUrl() }}" alt="Latency badge">
+            <button
+                type="button"
+                class="nm-copy-url-button"
+                x-data="{ copied: false }"
+                x-on:click="
+                    navigator.clipboard.writeText({{ \Illuminate\Support\Js::from($record->badgeMarkdown()) }});
+                    copied = true;
+                    setTimeout(() => copied = false, 1500)
+                "
+            >
+                <span x-show="! copied">Copy markdown</span>
+                <span x-show="copied" x-cloak>Copied</span>
+            </button>
+        </div>
     </section>
 </div>
