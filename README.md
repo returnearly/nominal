@@ -14,7 +14,7 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 - Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
 - Monitors: HTTP/HTTPS, GraphQL, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, WebSocket, MySQL, Redis, and PostgreSQL
 - Proxies: per-monitor HTTP/SOCKS URL for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis; `HTTP_PROXY` / `ALL_PROXY` for HTTP checks and notification webhooks
-- Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DOMAIN_EXPIRATION]`, `[DNS_RCODE]`
+- Conditions: `[STATUS]`, `[BODY]`, `[REDIRECT]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DOMAIN_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
 - Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
@@ -76,6 +76,20 @@ mutation {
     type: Http
     target: "https://example.com/health"
     conditions: ["[STATUS] == 200"]
+  }) { id }
+}
+```
+
+`[BODY] == pat(*healthy*)` matches a substring in the raw response. `[REDIRECT]` is the `Location` header when follow redirects is off, or the final URL when it is on:
+
+```graphql
+mutation {
+  createMonitor(input: {
+    name: "Login redirect"
+    type: Http
+    target: "https://example.com/login"
+    followRedirects: false
+    conditions: ["[STATUS] == 302", "[REDIRECT] == pat(https://example.com/app/*)"]
   }) { id }
 }
 ```

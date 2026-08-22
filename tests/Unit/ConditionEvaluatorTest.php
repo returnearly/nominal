@@ -24,6 +24,7 @@ function httpContext(array $overrides = []): CheckContext
         domainExpirationSeconds: $overrides['domainExpirationSeconds'] ?? 86400 * 400,
         body: $body,
         rawBody: is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR),
+        redirectUrl: $overrides['redirectUrl'] ?? null,
     );
 }
 
@@ -63,6 +64,26 @@ it('evaluates JSON body paths, len, has, and pat', function () {
         ->and(evaluate('has([BODY].user) == true', $context))->toBeTrue()
         ->and(evaluate('[BODY].user.name == pat(john*)', $context))->toBeTrue()
         ->and(evaluate('[BODY].data[0].id == any(1, 2)', $context))->toBeTrue();
+});
+
+it('matches a substring in the raw HTTP body', function () {
+    $html = httpContext(['body' => '<h1>Welcome home</h1>']);
+    $json = httpContext(['body' => ['status' => 'UP', 'message' => 'healthy']]);
+
+    expect(evaluate('[BODY] == pat(*Welcome*)', $html))->toBeTrue()
+        ->and(evaluate('[BODY] == pat(*goodbye*)', $html))->toBeFalse()
+        ->and(evaluate('[BODY] == pat(*"status":"UP"*)', $json))->toBeTrue()
+        ->and(evaluate('[BODY] == pat(*missing*)', $json))->toBeFalse();
+});
+
+it('evaluates redirect URLs and wildcard prefixes', function () {
+    $context = httpContext(['redirectUrl' => 'https://example.com/app/home']);
+
+    expect(evaluate('[REDIRECT] == https://example.com/app/home', $context))->toBeTrue()
+        ->and(evaluate('[REDIRECT] == pat(https://example.com/app/*)', $context))->toBeTrue()
+        ->and(evaluate('[REDIRECT] == pat(https://other.example.com/*)', $context))->toBeFalse()
+        ->and(evaluate('[REDIRECT] == https://example.com/login', $context))->toBeFalse()
+        ->and(evaluate('[REDIRECT] == https://example.com/app/home', httpContext()))->toBeFalse();
 });
 
 it('evaluates certificate expiration durations', function () {

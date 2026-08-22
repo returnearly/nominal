@@ -65,6 +65,7 @@ final readonly class EvaluateCheckConditions implements ActionsPatternInterface
             rawBody: $context->rawBody,
             bodyPathExisted: $context->bodyPathExisted,
             dnsRcode: $context->dnsRcode,
+            redirectUrl: $context->redirectUrl,
         );
     }
 }

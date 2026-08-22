@@ -17,5 +17,6 @@ final readonly class CheckContext
         public ?string $rawBody = null,
         public bool $bodyPathExisted = true,
         public ?string $dnsRcode = null,
+        public ?string $redirectUrl = null,
     ) {}
 }

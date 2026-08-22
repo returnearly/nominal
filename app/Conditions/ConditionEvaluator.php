@@ -153,6 +153,7 @@ final class ConditionEvaluator
             'DOMAIN_EXPIRATION' => $context->domainExpirationSeconds,
             'DNS_RCODE' => $context->dnsRcode,
             'BODY' => $this->resolveBody($path, $context),
+            'REDIRECT' => $context->redirectUrl,
             default => throw new InvalidConditionException("Unknown placeholder [{$name}]."),
         };
     }
@@ -160,7 +161,7 @@ final class ConditionEvaluator
     private function resolveBody(string $path, CheckContext $context): mixed
     {
         if ($path === '') {
-            return $context->body ?? $context->rawBody;
+            return $context->rawBody ?? $context->body;
         }
 
         if (! str_starts_with($path, '.')) {
