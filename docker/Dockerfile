@@ -26,7 +26,9 @@ WORKDIR /var/www/html
 
 ENV PHP_OPCACHE_ENABLE=1 \
     OCTANE_SERVER=frankenphp \
-    HEALTHCHECK_PATH=/up
+    HEALTHCHECK_PATH=/up \
+    COMPOSER_IPRESOLVE=4 \
+    COMPOSER_MAX_PARALLEL_HTTP=6
 
 CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8080", "--admin-port=2019"]
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD ["healthcheck-octane"]
@@ -35,7 +37,13 @@ EXPOSE 8080 8443
 FROM php-base AS app
 
 COPY --chown=www-data:www-data composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
+RUN --mount=type=secret,id=github_token,required=false,mode=0444 \
+    if [ -f /run/secrets/github_token ]; then \
+      export COMPOSER_AUTH="{\"github-oauth\":{\"github.com\":\"$(cat /run/secrets/github_token)\"}}"; \
+    fi \
+    && composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader \
+    || composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader \
+    || composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
 
 COPY --chown=www-data:www-data . /var/www/html
 
