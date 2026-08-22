@@ -75,6 +75,7 @@ final class ViewMonitor extends ViewRecord
                         ->title('Maintenance ended')
                         ->send();
                 }),
+            MonitorResource::duplicateAction(),
             EditAction::make(),
         ];
     }

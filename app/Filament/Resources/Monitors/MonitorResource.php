@@ -24,6 +24,7 @@ use App\Models\Probe;
 use App\Support\MonitorTags;
 use App\Support\ProxyUrl;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
@@ -473,6 +474,16 @@ final class MonitorResource extends Resource
             'view' => ViewMonitor::route('/{record}'),
             'edit' => EditMonitor::route('/{record}/edit'),
         ];
+    }
+
+    public static function duplicateAction(): Action
+    {
+        return Action::make('duplicate')
+            ->label('Duplicate')
+            ->icon(Heroicon::OutlinedSquare2Stack)
+            ->url(fn (Monitor $record): string => self::getUrl('create', [
+                'replicate' => $record->getRouteKey(),
+            ]));
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

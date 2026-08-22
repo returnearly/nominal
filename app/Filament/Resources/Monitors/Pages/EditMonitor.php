@@ -21,6 +21,7 @@ final class EditMonitor extends EditRecord
     {
         return [
             ViewAction::make(),
+            MonitorResource::duplicateAction(),
             DeleteAction::make(),
         ];
     }

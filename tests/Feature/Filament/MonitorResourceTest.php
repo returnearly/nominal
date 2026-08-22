@@ -8,6 +8,8 @@ use App\Enums\ConditionPlaceholder;
 use App\Enums\HttpMethod;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
+use App\Filament\Resources\Monitors\MonitorFormState;
+use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Resources\Monitors\Pages\CreateMonitor;
 use App\Filament\Resources\Monitors\Pages\EditMonitor;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
@@ -19,6 +21,7 @@ use App\Jobs\RunCheckJob;
 use App\Models\CheckAggregate;
 use App\Models\CheckResult;
 use App\Models\Monitor;
+use App\Models\NotificationChannel;
 use App\Models\Probe;
 use App\Models\User;
 use App\Support\DownMonitorFavicon;
@@ -803,4 +806,134 @@ it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis mo
         ->assertFormFieldIsHidden('proxy_url')
         ->set('data.type', MonitorType::Ping->value)
         ->assertFormFieldIsHidden('proxy_url');
+});
+
+it('duplicates a monitor from the view page into the create form', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $channel = NotificationChannel::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'description' => 'Owned by payments.',
+        'tags' => ['prod', 'critical'],
+        'type' => MonitorType::Http,
+        'target' => 'https://pay.example/health',
+        'method' => HttpMethod::Post,
+        'request_headers' => ['X-Token' => 'abc'],
+        'request_body' => '{"ok":true}',
+        'proxy_url' => 'socks5h://127.0.0.1:1080',
+        'interval_seconds' => 120,
+        'timeout_seconds' => 8,
+        'retention_days' => 14,
+        'follow_redirects' => false,
+        'verify_tls' => false,
+        'status' => MonitorStatus::Up,
+    ]);
+    $monitor->probes()->attach($probe);
+    $monitor->notificationChannels()->attach($channel);
+    $monitor->conditions()->create([
+        'expression' => '[BODY].status == UP',
+        'sort' => 0,
+    ]);
+
+    $duplicateUrl = MonitorResource::getUrl('create', ['replicate' => $monitor->getRouteKey()]);
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertActionExists('duplicate')
+        ->assertActionHasUrl('duplicate', $duplicateUrl);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertActionExists('duplicate')
+        ->assertActionHasUrl('duplicate', $duplicateUrl);
+
+    $livewire = Livewire::actingAs($user)
+        ->test(CreateMonitor::class, ['replicate' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'name' => 'Payments API (copy)',
+            'description' => 'Owned by payments.',
+            'tags' => ['prod', 'critical'],
+            'type' => MonitorType::Http,
+            'target' => 'https://pay.example/health',
+            'method' => HttpMethod::Post,
+            'request_headers' => ['X-Token' => 'abc'],
+            'request_body' => '{"ok":true}',
+            'proxy_url' => 'socks5h://127.0.0.1:1080',
+            'interval_seconds' => 120,
+            'timeout_seconds' => 8,
+            'retention_days' => 14,
+            'follow_redirects' => false,
+            'verify_tls' => false,
+            'probes' => [$probe->id],
+            'notificationChannels' => [$channel->id],
+        ])
+        ->assertFormSet(function (array $state): array {
+            $item = array_values($state['conditions'] ?? [])[0] ?? [];
+
+            expect($item)
+                ->toHaveKey('placeholder', ConditionPlaceholder::Body->value)
+                ->toHaveKey('path', '.status')
+                ->toHaveKey('comparator', ConditionComparator::Equal->value)
+                ->toHaveKey('value', 'UP');
+
+            return [];
+        })
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $copy = Monitor::query()->where('name', 'Payments API (copy)')->first();
+
+    expect($copy)->not->toBeNull()
+        ->and($copy->id)->not->toBe($monitor->id)
+        ->and($copy->status)->toBe(MonitorStatus::Pending)
+        ->and($copy->target)->toBe('https://pay.example/health')
+        ->and($copy->method)->toBe(HttpMethod::Post)
+        ->and($copy->requestHeadersArray())->toBe(['X-Token' => 'abc'])
+        ->and($copy->request_body)->toBe('{"ok":true}')
+        ->and($copy->proxy_url)->toBe('socks5h://127.0.0.1:1080')
+        ->and($copy->description)->toBe('Owned by payments.')
+        ->and($copy->tags)->toBe(['prod', 'critical'])
+        ->and($copy->interval_seconds)->toBe(120)
+        ->and($copy->conditions()->pluck('expression')->all())->toBe(['[BODY].status == UP'])
+        ->and($copy->probes()->pluck('id')->all())->toBe([$probe->id])
+        ->and($copy->notificationChannels()->pluck('notification_channels.id')->all())->toBe([$channel->id]);
+
+    expect($monitor->fresh()->name)->toBe('Payments API')
+        ->and(Monitor::query()->count())->toBe(2);
+});
+
+it('issues a new heartbeat token when duplicating a heartbeat monitor', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'name' => 'Nightly backup',
+        'target' => 'backup-job',
+    ]);
+    $originalToken = $monitor->heartbeat_token;
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class, ['replicate' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'name' => 'Nightly backup (copy)',
+            'type' => MonitorType::Heartbeat,
+            'target' => 'backup-job',
+            'conditions' => [],
+            'probes' => [],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $copy = Monitor::query()->where('name', 'Nightly backup (copy)')->first();
+
+    expect($copy)->not->toBeNull()
+        ->and($copy->heartbeat_token)->not->toBe($originalToken)
+        ->and($copy->heartbeat_token)->toHaveLength(48)
+        ->and($monitor->fresh()->heartbeat_token)->toBe($originalToken);
+});
+
+it('truncates a long name when labelling a duplicate', function () {
+    expect(mb_strlen(MonitorFormState::copyName(str_repeat('a', 255))))
+        ->toBe(255)
+        ->and(MonitorFormState::copyName('API'))
+        ->toBe('API (copy)');
 });
