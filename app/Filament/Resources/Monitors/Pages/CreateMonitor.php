@@ -7,12 +7,36 @@ namespace App\Filament\Resources\Monitors\Pages;
 use App\Conditions\ConditionExpression;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
+use App\Filament\Resources\Monitors\MonitorFormState;
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Models\Monitor;
 use Filament\Resources\Pages\CreateRecord;
+use Livewire\Attributes\Url;
 
 final class CreateMonitor extends CreateRecord
 {
     protected static string $resource = MonitorResource::class;
+
+    #[Url]
+    public ?string $replicate = null;
+
+    protected function afterFill(): void
+    {
+        $source = $this->sourceMonitor();
+
+        if (! $source instanceof Monitor) {
+            return;
+        }
+
+        $state = MonitorFormState::from($source);
+        $conditions = $state['conditions'];
+        unset($state['conditions']);
+
+        $this->form->fill($state);
+
+        // Relationship repeaters ignore fill() until a record exists.
+        $this->data['conditions'] = $conditions;
+    }
 
     /**
      * @param  array<string, mixed>  $data
@@ -54,5 +78,22 @@ final class CreateMonitor extends CreateRecord
                 ]);
             }
         }
+    }
+
+    private function sourceMonitor(): ?Monitor
+    {
+        $id = $this->replicate;
+
+        if (! is_string($id) || $id === '') {
+            $id = request()->query('replicate');
+        }
+
+        if (! is_string($id) || $id === '') {
+            return null;
+        }
+
+        return Monitor::query()
+            ->with(['conditions', 'probes', 'notificationChannels'])
+            ->find($id);
     }
 }
