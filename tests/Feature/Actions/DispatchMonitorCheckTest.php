@@ -48,3 +48,31 @@ it('queues heartbeat checks without a probe', function () {
         return $job->monitorId === $monitor->id && $job->probeId === null;
     });
 });
+
+it('queues a check after saving an enabled outbound monitor', function () {
+    Queue::fake();
+
+    $monitor = Monitor::factory()->create();
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
+    $monitor->probes()->attach($probe);
+
+    expect(DispatchMonitorCheck::make()->forSaved($monitor))->toBe(1);
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
+});
+
+it('does not queue a check after saving a heartbeat or disabled monitor', function () {
+    Queue::fake();
+
+    $heartbeat = Monitor::factory()->heartbeat()->create();
+    $disabled = Monitor::factory()->disabled()->create();
+    $probe = Probe::factory()->create();
+    $disabled->probes()->attach($probe);
+
+    expect(DispatchMonitorCheck::make()->forSaved($heartbeat))->toBe(0)
+        ->and(DispatchMonitorCheck::make()->forSaved($disabled))->toBe(0);
+
+    Queue::assertNothingPushed();
+});

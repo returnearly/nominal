@@ -15,6 +15,15 @@ final readonly class DispatchMonitorCheck implements ActionsPatternInterface
 {
     use ActionsPattern;
 
+    public function forSaved(Monitor $monitor): int
+    {
+        if (! $monitor->enabled || ! $monitor->type->usesOutboundProbe()) {
+            return 0;
+        }
+
+        return $this->handle($monitor);
+    }
+
     public function handle(Monitor $monitor): int
     {
         if ($monitor->type === MonitorType::Heartbeat) {

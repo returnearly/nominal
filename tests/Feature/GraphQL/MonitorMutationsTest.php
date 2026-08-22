@@ -2,9 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Jobs\RunCheckJob;
 use App\Models\Monitor;
 use App\Models\Probe;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
+
+beforeEach(function () {
+    Queue::fake();
+});
 
 it('rejects unauthenticated GraphQL requests', function () {
     $response = test()->postJson('/graphql', [
@@ -522,6 +528,44 @@ it('saves tags and a description on a monitor', function () {
 
     expect($updated['description'])->toBeNull()
         ->and($updated['tags'])->toBe(['critical']);
+});
+
+it('queues a check when a monitor is created or updated', function () {
+    $probe = Probe::factory()->asDefault()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) { id }
+        }
+    ', [
+        'input' => [
+            'name' => 'API health',
+            'type' => 'Http',
+            'target' => 'https://example.com/health',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($created, $probe): bool {
+        return $job->monitorId === $created['id'] && $job->probeId === $probe->id;
+    });
+
+    Queue::fake();
+
+    graphql('
+        mutation ($id: ID!, $input: UpdateMonitorInput!) {
+            updateMonitor(id: $id, input: $input) { id }
+        }
+    ', [
+        'id' => $created['id'],
+        'input' => [
+            'target' => 'https://example.com/v2',
+        ],
+    ])->assertSuccessful();
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($created, $probe): bool {
+        return $job->monitorId === $created['id'] && $job->probeId === $probe->id;
+    });
 });
 
 it('filters monitors by tag', function () {

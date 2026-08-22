@@ -102,7 +102,11 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             }
         }
 
-        return $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
+        $monitor = $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
+
+        DispatchMonitorCheck::make()->forSaved($monitor);
+
+        return $monitor;
     }
 
     /**

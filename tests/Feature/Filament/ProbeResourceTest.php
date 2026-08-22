@@ -10,6 +10,7 @@ use App\Filament\Resources\Probes\Pages\ListProbes;
 use App\Models\Monitor;
 use App\Models\Probe;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 it('lists probes in the admin panel', function () {
@@ -102,6 +103,8 @@ it('preselects default probes when creating a monitor', function () {
 });
 
 it('attaches default probes when creating a monitor without choosing probes', function () {
+    Queue::fake();
+
     $user = User::factory()->create();
     $default = Probe::factory()->asDefault()->create();
     Probe::factory()->create(['is_default' => false]);
