@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\NotificationChannelType;
+use App\Support\NotificationChannelConfig;
 use Database\Factories\NotificationChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -43,11 +45,22 @@ class NotificationChannel extends Model
     }
 
     /**
+     * @return Attribute<string|null, never>
+     */
+    protected function destination(): Attribute
+    {
+        return Attribute::get(fn (): ?string => NotificationChannelConfig::destination(
+            $this->type,
+            $this->configArray(),
+        ));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function configArray(): array
     {
-        return (array) ($this->config ?? []);
+        return NotificationChannelConfig::from($this->config);
     }
 
     /**
