@@ -579,6 +579,44 @@ it('saves monitor conditions from the placeholder picker', function () {
         ]);
 });
 
+it('saves body contains and redirect conditions from the picker', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Login')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com/login')
+        ->set('data.follow_redirects', false)
+        ->set('data.probes', [$probe->id])
+        ->set('data.conditions', [
+            'body' => [
+                'placeholder' => ConditionPlaceholder::Body->value,
+                'path' => '',
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => 'pat(*Welcome*)',
+            ],
+            'redirect' => [
+                'placeholder' => ConditionPlaceholder::Redirect->value,
+                'path' => '',
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => 'pat(https://example.com/app/*)',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Login')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->follow_redirects)->toBeFalse()
+        ->and($monitor->conditions()->orderBy('sort')->pluck('expression')->all())->toBe([
+            '[BODY] == pat(*Welcome*)',
+            '[REDIRECT] == pat(https://example.com/app/*)',
+        ]);
+});
+
 it('saves a domain expiration condition', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

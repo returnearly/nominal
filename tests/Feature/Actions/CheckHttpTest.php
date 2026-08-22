@@ -234,3 +234,94 @@ it('does not look up domain expiration unless a condition asks for it', function
 
     expect($domains->calls)->toBe(0);
 });
+
+it('passes when the raw HTTP body contains a string', function () {
+    $monitor = Monitor::factory()->create();
+    $monitor->conditions()->create(['expression' => '[BODY] == pat(*Welcome*)', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(200, [], '<html><h1>Welcome home</h1></html>'),
+    ])->handle($monitor);
+
+    expect($result->success)->toBeTrue();
+});
+
+it('passes when a JSON body contains a string', function () {
+    $monitor = Monitor::factory()->create();
+    $monitor->conditions()->create(['expression' => '[BODY] == pat(*"status":"UP"*)', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(200, [], '{"status":"UP","ok":true}'),
+    ])->handle($monitor);
+
+    expect($result->success)->toBeTrue();
+});
+
+it('asserts the Location header when redirects are not followed', function () {
+    $monitor = Monitor::factory()->create([
+        'target' => 'https://example.com/login',
+        'follow_redirects' => false,
+    ]);
+    $monitor->conditions()->createMany([
+        ['expression' => '[STATUS] == 302', 'sort' => 0],
+        ['expression' => '[REDIRECT] == https://example.com/app/home', 'sort' => 1],
+    ]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(302, ['Location' => 'https://example.com/app/home'], ''),
+    ])->handle($monitor);
+
+    expect($result->success)->toBeTrue()
+        ->and($result->httpStatus)->toBe(302);
+});
+
+it('resolves a relative Location against the request URL', function () {
+    $monitor = Monitor::factory()->create([
+        'target' => 'https://example.com/login',
+        'follow_redirects' => false,
+    ]);
+    $monitor->conditions()->create(['expression' => '[REDIRECT] == https://example.com/app/home', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(302, ['Location' => '/app/home'], ''),
+    ])->handle($monitor);
+
+    expect($result->success)->toBeTrue();
+});
+
+it('asserts the final URL after following redirects', function () {
+    $monitor = Monitor::factory()->create([
+        'target' => 'https://example.com/login',
+        'follow_redirects' => true,
+    ]);
+    $monitor->conditions()->create(['expression' => '[REDIRECT] == pat(https://example.com/app/*)', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(302, ['Location' => 'https://example.com/app/home'], ''),
+        new Response(200, [], 'Welcome'),
+    ])->handle($monitor);
+
+    expect($result->success)->toBeTrue()
+        ->and($result->httpStatus)->toBe(200);
+});
+
+it('fails when the redirect URL does not match', function () {
+    $monitor = Monitor::factory()->create([
+        'target' => 'https://example.com/login',
+        'follow_redirects' => false,
+    ]);
+    $monitor->conditions()->create(['expression' => '[REDIRECT] == pat(https://example.com/app/*)', 'sort' => 0]);
+    $monitor->load('conditions');
+
+    $result = checkHttp([
+        new Response(302, ['Location' => 'https://other.example.com/home'], ''),
+    ])->handle($monitor);
+
+    expect($result->success)->toBeFalse()
+        ->and($result->message)->toContain('[REDIRECT]');
+});

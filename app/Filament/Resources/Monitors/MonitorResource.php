@@ -262,6 +262,7 @@ final class MonitorResource extends Resource
                     Toggle::make('enabled')->default(true),
                     Toggle::make('follow_redirects')
                         ->default(true)
+                        ->helperText('When off, [REDIRECT] is the Location header. When on, it is the final URL.')
                         ->visible($usesHttp),
                     Toggle::make('verify_tls')
                         ->default(true)
@@ -307,7 +308,7 @@ final class MonitorResource extends Resource
                         }),
                 ]),
             Section::make('Conditions')
-                ->description('These are what determine whether an endpoint is healthy or not.')
+                ->description('These are what determine whether an endpoint is healthy or not. Use pat(*text*) to match a substring in [BODY], or pat(https://example.com/*) to assert a [REDIRECT] prefix.')
                 ->visible(self::usesOutboundProbe(...))
                 ->dehydrated(self::usesOutboundProbe(...))
                 ->components([

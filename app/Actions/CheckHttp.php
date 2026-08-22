@@ -13,8 +13,12 @@ use App\Support\ProxyUrl;
 use DateTimeImmutable;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\UriResolver;
 use GuzzleHttp\RequestOptions;
 use GuzzleHttp\TransferStats;
+use InvalidArgumentException;
+use Psr\Http\Message\ResponseInterface;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 use Throwable;
@@ -32,9 +36,11 @@ final readonly class CheckHttp implements ActionsPatternInterface
     public function handle(Monitor $monitor): ProbeResult
     {
         $ip = null;
+        $effectiveUri = null;
         $status = null;
         $body = null;
         $rawBody = null;
+        $redirectUrl = null;
         $connected = false;
         $latencyMs = null;
         $error = null;
@@ -44,12 +50,13 @@ final readonly class CheckHttp implements ActionsPatternInterface
             $response = $this->client->request(
                 $monitor->method?->value ?? 'GET',
                 $monitor->target,
-                $this->options($monitor, $ip),
+                $this->options($monitor, $ip, $effectiveUri),
             );
             $connected = true;
             $status = $response->getStatusCode();
             $rawBody = (string) $response->getBody();
             $body = $this->decodeBody($rawBody);
+            $redirectUrl = $this->redirectUrl($response, $effectiveUri ?? $monitor->target);
         } catch (GuzzleException $exception) {
             $error = $exception->getMessage();
             $latencyMs = (int) ((hrtime(true) - $started) / 1_000_000);
@@ -73,6 +80,7 @@ final readonly class CheckHttp implements ActionsPatternInterface
             certificateExpirationSeconds: $certificateSeconds,
             body: $body,
             rawBody: $rawBody,
+            redirectUrl: $redirectUrl,
         );
 
         [$outcomes, $success, $message, $domainExpiresAt] = $this->conditions->handle($monitor, $context, $error);
@@ -94,7 +102,7 @@ final readonly class CheckHttp implements ActionsPatternInterface
     /**
      * @return array<string, mixed>
      */
-    private function options(Monitor $monitor, ?string &$ip): array
+    private function options(Monitor $monitor, ?string &$ip, ?string &$effectiveUri): array
     {
         $curlResolve = match ($monitor->ip_family) {
             IpFamily::Ipv4 => CURL_IPRESOLVE_V4,
@@ -111,11 +119,13 @@ final readonly class CheckHttp implements ActionsPatternInterface
             RequestOptions::CURL => [
                 CURLOPT_IPRESOLVE => $curlResolve,
             ],
-            RequestOptions::ON_STATS => function (TransferStats $stats) use (&$ip): void {
+            RequestOptions::ON_STATS => function (TransferStats $stats) use (&$ip, &$effectiveUri): void {
                 $primaryIp = $stats->getHandlerStat('primary_ip');
                 if (is_string($primaryIp) && $primaryIp !== '') {
                     $ip = $primaryIp;
                 }
+
+                $effectiveUri = (string) $stats->getEffectiveUri();
             },
         ];
 
@@ -195,6 +205,26 @@ final readonly class CheckHttp implements ActionsPatternInterface
         }
 
         return ProxyUrl::guzzleFromConfig();
+    }
+
+    private function redirectUrl(ResponseInterface $response, string $baseUrl): string
+    {
+        $location = $response->getHeaderLine('Location');
+
+        if ($location !== '') {
+            return $this->absoluteUrl($location, $baseUrl);
+        }
+
+        return $baseUrl;
+    }
+
+    private function absoluteUrl(string $location, string $baseUrl): string
+    {
+        try {
+            return (string) UriResolver::resolve(new Uri($baseUrl), new Uri($location));
+        } catch (InvalidArgumentException) {
+            return $location;
+        }
     }
 
     private function decodeBody(?string $rawBody): mixed

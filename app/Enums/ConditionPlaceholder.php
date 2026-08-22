@@ -10,6 +10,7 @@ enum ConditionPlaceholder: string implements HasLabel
 {
     case Status = '[STATUS]';
     case Body = '[BODY]';
+    case Redirect = '[REDIRECT]';
     case Connected = '[CONNECTED]';
     case ResponseTime = '[RESPONSE_TIME]';
     case Ip = '[IP]';
@@ -28,7 +29,7 @@ enum ConditionPlaceholder: string implements HasLabel
     public function comparators(): array
     {
         return match ($this) {
-            self::Connected, self::Ip, self::DnsRcode => [
+            self::Connected, self::Ip, self::DnsRcode, self::Redirect => [
                 ConditionComparator::Equal,
                 ConditionComparator::NotEqual,
             ],
@@ -54,7 +55,7 @@ enum ConditionPlaceholder: string implements HasLabel
             self::CertificateExpiration => '48h',
             self::DomainExpiration => '720h',
             self::DnsRcode => 'NOERROR',
-            self::Body, self::Ip => '',
+            self::Body, self::Ip, self::Redirect => '',
         };
     }
 
@@ -71,6 +72,7 @@ enum ConditionPlaceholder: string implements HasLabel
             MonitorType::Http, MonitorType::GraphQL => [
                 self::Status,
                 self::Body,
+                self::Redirect,
                 self::Connected,
                 self::ResponseTime,
                 self::Ip,

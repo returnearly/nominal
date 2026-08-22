@@ -79,6 +79,8 @@ it('round-trips expressions through parse and compose', function (string $expres
     '[STATUS] == any(200, 429)',
     'len([BODY].data) < 5',
     'has([BODY].errors) == false',
+    '[BODY] == pat(*healthy*)',
+    '[REDIRECT] == pat(https://example.com/*)',
 ]);
 
 it('returns type-specific default conditions', function () {
@@ -141,6 +143,10 @@ it('limits ordering comparators to numeric placeholders', function () {
             ConditionComparator::Equal,
             ConditionComparator::NotEqual,
         ])
+        ->and(ConditionPlaceholder::Redirect->comparators())->toBe([
+            ConditionComparator::Equal,
+            ConditionComparator::NotEqual,
+        ])
         ->and(ConditionPlaceholder::Status->comparators())->toBe(ConditionComparator::cases())
         ->and(ConditionPlaceholder::ResponseTime->comparators())->toBe(ConditionComparator::cases())
         ->and(ConditionPlaceholder::comparatorOptions(ConditionPlaceholder::Ip))->not->toHaveKey('>')
@@ -152,6 +158,7 @@ it('limits condition placeholders to values the check type can produce', functio
     expect(array_column(ConditionPlaceholder::forType(MonitorType::Http), 'value'))->toBe([
         '[STATUS]',
         '[BODY]',
+        '[REDIRECT]',
         '[CONNECTED]',
         '[RESPONSE_TIME]',
         '[IP]',
@@ -204,6 +211,7 @@ it('limits condition placeholders to values the check type can produce', functio
         ->and(array_column(ConditionPlaceholder::forType(MonitorType::GraphQL), 'value'))->toBe([
             '[STATUS]',
             '[BODY]',
+            '[REDIRECT]',
             '[CONNECTED]',
             '[RESPONSE_TIME]',
             '[IP]',
@@ -233,5 +241,6 @@ it('limits condition placeholders to values the check type can produce', functio
         ])
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[STATUS]')
         ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[DNS_RCODE]')
+        ->and(ConditionPlaceholder::options(null, MonitorType::Ping))->not->toHaveKey('[REDIRECT]')
         ->and(ConditionPlaceholder::options('[STATUS]', MonitorType::Ping))->toHaveKey('[STATUS]');
 });
