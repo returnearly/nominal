@@ -4,9 +4,63 @@ declare(strict_types=1);
 
 use App\Actions\SaveMonitor;
 use App\Enums\MonitorType;
+use App\Jobs\RunCheckJob;
 use App\Models\Monitor;
 use App\Models\Probe;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
+
+beforeEach(function () {
+    Queue::fake();
+});
+
+it('queues a check when a monitor is created', function () {
+    $probe = Probe::factory()->asDefault()->create(['queue' => 'checks.local']);
+
+    $monitor = SaveMonitor::make()->handle([
+        'name' => 'API',
+        'type' => MonitorType::Http,
+        'target' => 'https://example.com/health',
+    ]);
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
+});
+
+it('queues a check when a monitor is updated', function () {
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
+    $monitor = Monitor::factory()->create();
+    $monitor->probes()->attach($probe);
+
+    SaveMonitor::make()->handle([
+        'name' => 'API renamed',
+        'target' => 'https://example.com/v2',
+    ], $monitor);
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
+});
+
+it('does not queue a check for heartbeat or disabled monitors', function () {
+    Probe::factory()->asDefault()->create();
+
+    SaveMonitor::make()->handle([
+        'name' => 'Nightly backup',
+        'type' => MonitorType::Heartbeat,
+        'target' => 'backup-job',
+    ]);
+
+    SaveMonitor::make()->handle([
+        'name' => 'Paused API',
+        'type' => MonitorType::Http,
+        'target' => 'https://example.com/health',
+        'enabled' => false,
+    ]);
+
+    Queue::assertNothingPushed();
+});
 
 it('attaches enabled default probes when none are specified', function () {
     $default = Probe::factory()->asDefault()->create();

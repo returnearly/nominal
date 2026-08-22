@@ -27,6 +27,10 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 
+beforeEach(function () {
+    Queue::fake();
+});
+
 it('shows monitors in the admin panel', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
@@ -504,9 +508,47 @@ it('shows the last 10 checks in the monitor history table', function () {
         ->assertCanNotSeeTableRecords([$results->first()]);
 });
 
-it('queues a check immediately from the monitor view page', function () {
-    Queue::fake();
+it('queues a check when a monitor is created', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
 
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Health API')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com/health')
+        ->set('data.probes', [$probe->id])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Health API')->first();
+
+    expect($monitor)->not->toBeNull();
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
+});
+
+it('queues a check when a monitor is edited', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
+    $monitor = Monitor::factory()->withDefaultConditions()->create(['name' => 'Health API']);
+    $monitor->probes()->attach($probe);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->set('data.name', 'Health API prod')
+        ->set('data.target', 'https://example.com/v2')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
+});
+
+it('queues a check immediately from the monitor view page', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create(['queue' => 'checks.local']);
     $monitor = Monitor::factory()->create();

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors\Pages;
 
+use App\Actions\DispatchMonitorCheck;
 use App\Conditions\ConditionExpression;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Models\Monitor;
 use Filament\Resources\Pages\CreateRecord;
 
 final class CreateMonitor extends CreateRecord
@@ -54,5 +56,15 @@ final class CreateMonitor extends CreateRecord
                 ]);
             }
         }
+
+        $this->queueCheck();
+    }
+
+    private function queueCheck(): void
+    {
+        /** @var Monitor $record */
+        $record = $this->record;
+
+        DispatchMonitorCheck::make()->forSaved($record);
     }
 }

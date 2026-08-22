@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors\Pages;
 
+use App\Actions\DispatchMonitorCheck;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Models\Monitor;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
@@ -43,11 +45,21 @@ final class EditMonitor extends EditRecord
 
     protected function afterSave(): void
     {
-        if (! $this->record->type->isHeartbeat()) {
+        if ($this->record->type->isHeartbeat()) {
+            $this->record->conditions()->delete();
+            $this->record->probes()->sync([]);
+
             return;
         }
 
-        $this->record->conditions()->delete();
-        $this->record->probes()->sync([]);
+        $this->queueCheck();
+    }
+
+    private function queueCheck(): void
+    {
+        /** @var Monitor $record */
+        $record = $this->record;
+
+        DispatchMonitorCheck::make()->forSaved($record);
     }
 }
