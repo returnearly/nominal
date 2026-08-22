@@ -65,6 +65,8 @@ jobs:
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
           provenance: false
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
 
       - name: Export digest
         run: |
