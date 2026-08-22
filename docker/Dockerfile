@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS assets
+FROM --platform=$BUILDPLATFORM node:26-alpine AS assets
 
 WORKDIR /app
 
