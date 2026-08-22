@@ -683,7 +683,7 @@
             flex-wrap: wrap;
             gap: 0.5rem;
             align-items: center;
-            margin: 0.35rem 0 0.75rem;
+            margin: 0.35rem 0 0;
         }
 
         .nm-badges img {

@@ -541,7 +541,7 @@ it('shows embeddable badge urls on the monitor view', function () {
         ->assertSee($monitor->statusBadgeSvgUrl())
         ->assertSee($monitor->uptimeBadgeSvgUrl())
         ->assertSee($monitor->latencyBadgeSvgUrl())
-        ->assertSee($monitor->badgeMarkdown());
+        ->assertSee('Copy markdown');
 });
 
 it('saves monitor conditions from the placeholder picker', function () {
