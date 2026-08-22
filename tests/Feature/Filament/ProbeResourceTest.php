@@ -19,7 +19,11 @@ it('lists probes in the admin panel', function () {
 
     $this->actingAs($user)
         ->get('/admin/probes')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListProbes::class)
+        ->loadTable()
         ->assertSee('US East');
 });
 

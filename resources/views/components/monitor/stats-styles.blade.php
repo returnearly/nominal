@@ -67,5 +67,78 @@
             width: 100%;
             padding: 0;
         }
+
+        .nm-skeleton {
+            position: relative;
+            overflow: hidden;
+            background: color-mix(in oklab, var(--nm-sage, #e0eadd) 72%, #fff);
+        }
+
+        .nm-skeleton::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, color-mix(in oklab, #fff 55%, transparent), transparent);
+            animation: nm-skeleton 1.15s ease-in-out infinite;
+        }
+
+        .dark .nm-skeleton {
+            background: color-mix(in oklab, #5adeb7 10%, #0c1613);
+        }
+
+        .dark .nm-skeleton::after {
+            background: linear-gradient(90deg, transparent, color-mix(in oklab, #5adeb7 12%, transparent), transparent);
+        }
+
+        @keyframes nm-skeleton {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .nm-stats-placeholder {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .nm-stats-placeholder {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
+
+        .nm-stats-placeholder-stat {
+            min-height: 4.4rem;
+            border-radius: 0.9rem;
+        }
+
+        .nm-history-placeholder-label,
+        .nm-history-placeholder-heading {
+            display: block;
+            width: 6.5rem;
+            height: 0.7rem;
+            border-radius: 999px;
+        }
+
+        .nm-history-placeholder-heading {
+            width: 8.5rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .nm-history-placeholder-value {
+            display: block;
+            width: 3.25rem;
+            height: 1.35rem;
+            border-radius: 0.4rem;
+        }
+
+        .nm-history-placeholder-chart {
+            height: 2.25rem;
+            border-radius: 0.45rem;
+        }
+
+        .nm-history-placeholder-chart-tall {
+            height: 4.5rem;
+        }
     </style>
 @endonce

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\MonitorStatus;
 use App\Filament\Resources\MaintenanceWindows\Pages\CreateMaintenanceWindow;
+use App\Filament\Resources\MaintenanceWindows\Pages\ListMaintenanceWindows;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Widgets\MonitorStatsWidget;
@@ -18,7 +19,11 @@ it('lists maintenance windows in the admin panel', function () {
 
     $this->actingAs($user)
         ->get('/admin/maintenance')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListMaintenanceWindows::class)
+        ->loadTable()
         ->assertSee('Database upgrade');
 });
 
@@ -52,21 +57,24 @@ it('shows maintenance on monitor cards and in status totals', function () {
 
     $html = Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Payments API')
         ->assertSee('Upgrading Postgres.')
         ->assertSee('Maintenance')
         ->html();
 
-    expect($html)
-        ->toContain('data-status="maintenance"')
-        ->toContain('nm-card-maintenance');
+    expect($html)->toContain('nm-card-maintenance');
 
     Livewire::actingAs($user)
         ->test(MonitorStatsWidget::class)
         ->assertSee('1');
 
+    expect(Livewire::actingAs($user)->test(MonitorStatsWidget::class)->html())
+        ->toContain('data-status="maintenance"');
+
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->dispatch('filter-monitors-by-status', status: MonitorStatus::Maintenance->value)
         ->assertCanSeeTableRecords([$maintained])
         ->assertCanNotSeeTableRecords([$up]);

@@ -42,7 +42,11 @@ it('shows monitors in the admin panel', function () {
 
     $this->actingAs($user)
         ->get('/admin/monitors')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Payments API');
 });
 
@@ -77,6 +81,20 @@ it('paginates monitors at 50, 100, or 250 rows', function () {
         ->and($table->getDefaultGroup())->toBeNull();
 });
 
+it('lazy-loads widgets and defers table records', function () {
+    $user = User::factory()->create();
+
+    expect(MonitorStatsWidget::isLazy())->toBeTrue()
+        ->and(MonitorHistoryWidget::isLazy())->toBeTrue();
+
+    $table = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->instance()
+        ->getTable();
+
+    expect($table->isLoadingDeferred())->toBeTrue();
+});
+
 it('shows tags on monitor cards and filters by tag', function () {
     $user = User::factory()->create();
     $prod = Monitor::factory()->create([
@@ -90,6 +108,7 @@ it('shows tags on monitor cards and filters by tag', function () {
 
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Checkout API')
         ->assertSee('Checkout staging')
         ->assertSee('prod')
@@ -132,6 +151,10 @@ it('shows the description on the monitor view', function () {
 
     Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSeeLivewire(MonitorHistoryWidget::class);
+
+    Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
         ->assertSee('Monitor Description')
         ->assertSee('Owned by payments. Restart the worker pool if this fails.')
         ->assertSee('prod');
@@ -147,30 +170,30 @@ it('shows status totals at the top of the monitors list', function () {
 
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
-        ->assertSeeLivewire(MonitorStatsWidget::class)
+        ->assertSeeLivewire(MonitorStatsWidget::class);
+
+    expect(Livewire::actingAs($user)->test(ListMonitors::class)->html())
+        ->toContain('nm-stats-placeholder');
+
+    $widgetHtml = Livewire::actingAs($user)
+        ->test(MonitorStatsWidget::class)
         ->assertSee('Healthy')
         ->assertSee('Unhealthy')
         ->assertSee('Pending')
-        ->assertSee('Paused');
-
-    $listHtml = Livewire::actingAs($user)
-        ->test(ListMonitors::class)
+        ->assertSee('Paused')
+        ->assertSee('2')
+        ->assertSee('3')
+        ->assertSee('4')
+        ->assertSee('5')
         ->html();
 
-    expect($listHtml)
+    expect($widgetHtml)
         ->toContain('fi-wi-stats-overview')
         ->toContain('data-status="up"')
         ->toContain('data-status="down"')
         ->toContain('data-status="pending"')
         ->toContain('data-status="paused"')
         ->toContain('data-status="maintenance"');
-
-    Livewire::actingAs($user)
-        ->test(MonitorStatsWidget::class)
-        ->assertSee('2')
-        ->assertSee('3')
-        ->assertSee('4')
-        ->assertSee('5');
 });
 
 it('shows a red favicon with the down count on the monitors page', function () {
@@ -215,6 +238,7 @@ it('refreshes monitor cards when a reverb event arrives', function () {
 
     $livewire = Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Payments API')
         ->assertSet('downCount', 0);
 
@@ -293,6 +317,7 @@ it('filters the monitors table when a status stat is clicked', function () {
 
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertCanSeeTableRecords([$up, $down])
         ->dispatch('filter-monitors-by-status', status: MonitorStatus::Down->value)
         ->assertCanSeeTableRecords([$down])
@@ -334,6 +359,7 @@ it('renders monitors as status cards instead of a table', function () {
 
     $html = Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Payments API')
         ->assertSee('https://pay.example/health')
         ->assertSee('Healthy')
@@ -370,6 +396,7 @@ it('shows a heartbeat of recent checks on the monitors list', function () {
 
     $html = Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Checkout API')
         ->html();
 
@@ -397,9 +424,12 @@ it('shows heartbeat and latency on the monitor view', function () {
         'checked_at' => now()->subMinute(),
     ]);
 
-    $html = Livewire::actingAs($user)
+    Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
-        ->assertSeeLivewire(MonitorHistoryWidget::class)
+        ->assertSeeLivewire(MonitorHistoryWidget::class);
+
+    $html = Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
         ->assertSee('Current status')
         ->assertSee('Avg. response')
         ->assertSee('Response range')
@@ -447,7 +477,7 @@ it('shows latency in seconds when a check takes a second or more', function () {
     ]);
 
     Livewire::actingAs($user)
-        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
         ->assertSee('1.5s–2.5s')
         ->assertSee('2s')
         ->assertDontSee('1500ms')
@@ -480,7 +510,7 @@ it('plots 24h hourly latency from rollups on the monitor view', function () {
     ]);
 
     Livewire::actingAs($user)
-        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
         ->assertSee('80ms–120ms')
         ->assertSee('100ms');
 });
@@ -501,7 +531,8 @@ it('shows the last 10 checks in the monitor history table', function () {
         ->test(CheckResultsRelationManager::class, [
             'ownerRecord' => $monitor,
             'pageClass' => ViewMonitor::class,
-        ]);
+        ])
+        ->loadTable();
 
     expect($livewire->instance()->getTable()->getPaginationPageOptions())->toBe([10])
         ->and($livewire->instance()->getTable()->getDefaultPaginationPageOption())->toBe(10);
@@ -582,7 +613,7 @@ it('shows embeddable badge urls on the monitor view', function () {
     $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
 
     Livewire::actingAs($user)
-        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
         ->assertSee($monitor->statusBadgeSvgUrl())
         ->assertSee($monitor->uptimeBadgeSvgUrl())
         ->assertSee($monitor->latencyBadgeSvgUrl())

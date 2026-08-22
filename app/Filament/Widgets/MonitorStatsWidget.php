@@ -9,6 +9,7 @@ use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Models\Monitor;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Reactive;
 
@@ -17,8 +18,6 @@ final class MonitorStatsWidget extends StatsOverviewWidget
     use RefreshesOnMonitorBroadcasts;
 
     protected static bool $isDiscovered = false;
-
-    protected static bool $isLazy = false;
 
     protected int|array|null $columns = 5;
 
@@ -29,6 +28,11 @@ final class MonitorStatsWidget extends StatsOverviewWidget
      */
     #[Reactive]
     public ?array $tableFilters = null;
+
+    public function placeholder(): View
+    {
+        return view('filament.widgets.monitor-stats-placeholder');
+    }
 
     public function filterByStatus(string $status): void
     {
