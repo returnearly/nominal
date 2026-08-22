@@ -23,4 +23,20 @@ class NotificationChannelFactory extends Factory
             ],
         ];
     }
+
+    public function mail(string $to = 'ops@example.com'): static
+    {
+        return $this->state([
+            'type' => NotificationChannelType::Mail,
+            'config' => ['to' => $to],
+        ]);
+    }
+
+    public function slack(string $url = 'https://hooks.slack.com/services/T/B/xxx'): static
+    {
+        return $this->state([
+            'type' => NotificationChannelType::Slack,
+            'config' => ['webhook_url' => $url],
+        ]);
+    }
 }
