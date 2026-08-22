@@ -19,7 +19,11 @@ it('shows notification channels and a redacted destination', function () {
 
     $this->actingAs($user)
         ->get('/admin/notification-channels')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListNotificationChannels::class)
+        ->loadTable()
         ->assertSee('Ops mail')
         ->assertSee('alerts@example.com')
         ->assertSee('Ops Slack')
@@ -134,5 +138,6 @@ it('lists notification channels in the Filament table', function () {
 
     Livewire::actingAs($user)
         ->test(ListNotificationChannels::class)
+        ->loadTable()
         ->assertCanSeeTableRecords([$channel]);
 });
