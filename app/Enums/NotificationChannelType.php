@@ -43,7 +43,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
     public function setupDescription(): string
     {
         return match ($this) {
-            self::Mail => 'Send alerts to one inbox using the app mailer.',
+            self::Mail => 'Send alerts to one inbox using the environment variables.',
             self::Slack => 'Post alerts to a Slack channel with an incoming webhook.',
             self::MicrosoftTeams => 'Post alerts to a Teams channel with an incoming webhook.',
             self::Discord => 'Post alerts to a Discord channel with a webhook.',
@@ -64,7 +64,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
                     label: 'Recipient email',
                     kind: 'email',
                     placeholder: 'ops@example.com',
-                    helperText: 'Uses the Laravel mailer (MAIL_*). One address per channel.',
+                    helperText: 'Uses the environment variables. One address per channel.',
                 ),
             ],
             self::Slack => [
