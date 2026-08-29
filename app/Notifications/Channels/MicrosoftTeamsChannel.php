@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications\Channels;
 
 use App\Models\NotificationChannel;
-use App\Notifications\MonitorAlert;
+use App\Notifications\NotificationChannelMessage;
 use App\Support\OutboundHttp;
 use Illuminate\Notifications\Notification;
 
@@ -13,7 +13,7 @@ final class MicrosoftTeamsChannel
 {
     public function send(object $notifiable, Notification $notification): void
     {
-        if (! $notifiable instanceof NotificationChannel || ! $notification instanceof MonitorAlert) {
+        if (! $notifiable instanceof NotificationChannel || ! $notification instanceof NotificationChannelMessage) {
             return;
         }
 
