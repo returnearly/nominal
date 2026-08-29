@@ -34,7 +34,7 @@ final class MonitorAlert extends Notification implements NotificationChannelMess
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject($this->headline())
             ->line($this->headline())
             ->line('Monitor: '.$this->monitor->name)
@@ -43,6 +43,10 @@ final class MonitorAlert extends Notification implements NotificationChannelMess
             ->when($this->monitor->tags !== [], fn (MailMessage $mail): MailMessage => $mail->line('Tags: '.implode(', ', $this->monitor->tags)))
             ->when($this->monitor->description, fn (MailMessage $mail): MailMessage => $mail->line($this->monitor->description))
             ->when($this->result->message, fn (MailMessage $mail): MailMessage => $mail->line('Detail: '.$this->result->message));
+
+        return $notifiable instanceof NotificationChannel
+            ? $notifiable->configureMailMessage($mail)
+            : $mail;
     }
 
     /**

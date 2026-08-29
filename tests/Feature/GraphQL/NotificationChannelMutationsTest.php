@@ -79,6 +79,90 @@ it('creates each channel type from its matching input', function (string $type, 
     ['Pagerduty', ['pagerduty' => ['routingKey' => 'R0123456789ABCDEF']], ['pagerduty' => ['routingKey' => 'R0123456789ABCDEF']]],
 ]);
 
+it('creates a mail channel with a mail server', function () {
+    $created = graphql('
+        mutation ($input: CreateNotificationChannelInput!) {
+            createNotificationChannel(input: $input) {
+                type
+                mail {
+                    to
+                    host
+                    port
+                    username
+                    password
+                    encryption
+                    fromAddress
+                    fromName
+                }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'SMTP mail',
+            'type' => 'Mail',
+            'mail' => [
+                'to' => 'ops@example.com',
+                'host' => 'smtp.example.com',
+                'port' => 587,
+                'username' => 'user',
+                'password' => 'secret',
+                'encryption' => 'tls',
+                'fromAddress' => 'alerts@example.com',
+                'fromName' => 'Nominal',
+            ],
+        ],
+    ])->assertSuccessful()
+        ->json('data.createNotificationChannel');
+
+    expect($created['mail'])->toBe([
+        'to' => 'ops@example.com',
+        'host' => 'smtp.example.com',
+        'port' => 587,
+        'username' => 'user',
+        'password' => 'secret',
+        'encryption' => 'tls',
+        'fromAddress' => 'alerts@example.com',
+        'fromName' => 'Nominal',
+    ]);
+});
+
+it('returns null mail server fields when they are omitted', function () {
+    $created = graphql('
+        mutation ($input: CreateNotificationChannelInput!) {
+            createNotificationChannel(input: $input) {
+                mail {
+                    to
+                    host
+                    port
+                    username
+                    encryption
+                    fromAddress
+                    fromName
+                }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Env mail',
+            'type' => 'Mail',
+            'mail' => [
+                'to' => 'ops@example.com',
+            ],
+        ],
+    ])->assertSuccessful()
+        ->json('data.createNotificationChannel.mail');
+
+    expect($created)->toBe([
+        'to' => 'ops@example.com',
+        'host' => null,
+        'port' => null,
+        'username' => null,
+        'encryption' => null,
+        'fromAddress' => null,
+        'fromName' => null,
+    ]);
+});
+
 it('rejects a mail channel without a mail input', function () {
     $response = graphql('
         mutation ($input: CreateNotificationChannelInput!) {

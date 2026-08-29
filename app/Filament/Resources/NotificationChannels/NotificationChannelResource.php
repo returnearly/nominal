@@ -11,7 +11,9 @@ use App\Filament\Resources\NotificationChannels\Pages\EditNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\ListNotificationChannels;
 use App\Models\NotificationChannel;
 use App\Support\NotificationChannelConfig;
+use App\Support\NotificationChannelField;
 use BackedEnum;
+use Closure;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -65,6 +67,7 @@ final class NotificationChannelResource extends Resource
                 ]),
             Section::make('Setup')
                 ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
+                ->columns(2)
                 ->components(self::setupFields()),
         ]);
     }
@@ -99,34 +102,66 @@ final class NotificationChannelResource extends Resource
     }
 
     /**
-     * @return list<TextInput>
+     * @return list<Select|TextInput>
      */
     private static function setupFields(): array
     {
         $fields = [];
 
         foreach (NotificationChannelConfig::formKeys() as $key => $kind) {
-            $needs = fn (Get $get): bool => self::type($get)?->needs($key) === true;
-
-            $input = TextInput::make('config.'.$key)
-                ->label(fn (Get $get): string => self::type($get)?->field($key)?->label ?? $key)
-                ->placeholder(fn (Get $get): string => self::type($get)?->field($key)?->placeholder ?? '')
-                ->helperText(fn (Get $get): ?string => self::type($get)?->field($key)?->helperText)
-                ->maxLength($kind === 'url' ? 2048 : 255)
-                ->required($needs)
-                ->visible($needs)
-                ->dehydrated($needs)
-                ->columnSpanFull();
-
-            $fields[] = match ($kind) {
-                'email' => $input->email($needs),
-                'url' => $input->url($needs),
-                'password' => $input->password($needs)->revealable($needs),
-                default => $input,
-            };
+            $fields[] = self::setupField($key, $kind);
         }
 
         return $fields;
+    }
+
+    private static function setupField(string $key, string $kind): Select|TextInput
+    {
+        $needs = fn (Get $get): bool => self::type($get)?->needs($key) === true;
+        $required = fn (Get $get): bool => self::field($get, $key)?->required === true;
+
+        if ($kind === 'select') {
+            return self::applyShared(Select::make('config.'.$key)
+                ->options(fn (Get $get): array => self::field($get, $key)?->options ?? [])
+                ->placeholder(fn (Get $get): string => self::field($get, $key)?->placeholder ?: 'Automatic'), $key, $needs, $required);
+        }
+
+        $input = self::applyShared(TextInput::make('config.'.$key)
+            ->placeholder(fn (Get $get): string => self::field($get, $key)?->placeholder ?? ''), $key, $needs, $required);
+
+        return match ($kind) {
+            'email' => $input->email($needs),
+            'url' => $input->url($needs)->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 2048),
+            'password' => $input->password($needs)->revealable($needs)->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 255),
+            'integer' => $input->numeric()
+                ->minValue(fn (Get $get): ?int => self::field($get, $key)?->min)
+                ->maxValue(fn (Get $get): ?int => self::field($get, $key)?->max),
+            default => $input->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 255),
+        };
+    }
+
+    /**
+     * @template T of Select|TextInput
+     *
+     * @param  T  $input
+     * @param  Closure(Get): bool  $needs
+     * @param  Closure(Get): bool  $required
+     * @return T
+     */
+    private static function applyShared(Select|TextInput $input, string $key, Closure $needs, Closure $required): Select|TextInput
+    {
+        return $input
+            ->label(fn (Get $get): string => self::field($get, $key)?->label ?? $key)
+            ->helperText(fn (Get $get): ?string => self::field($get, $key)?->helperText)
+            ->required($required)
+            ->visible($needs)
+            ->dehydrated($needs)
+            ->columnSpan(fn (Get $get): int|string => (self::field($get, $key)?->wide ?? true) ? 'full' : 1);
+    }
+
+    private static function field(Get $get, string $key): ?NotificationChannelField
+    {
+        return self::type($get)?->field($key);
     }
 
     private static function type(Get $get): ?NotificationChannelType

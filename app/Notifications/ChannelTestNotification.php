@@ -26,11 +26,15 @@ final class ChannelTestNotification extends Notification implements Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject($this->headline())
             ->line($this->headline())
             ->line('Channel: '.$this->channel->name)
             ->line('If you received this, the email channel is working.');
+
+        return $notifiable instanceof NotificationChannel
+            ? $notifiable->configureMailMessage($mail)
+            : $mail;
     }
 
     /**

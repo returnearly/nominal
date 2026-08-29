@@ -23,6 +23,36 @@ it('canonicalizes aliased config keys', function () {
         ->and($channel->destination)->toBe('hooks.slack.com');
 });
 
+it('stores mail server credentials on the channel', function () {
+    $channel = SaveNotificationChannel::make()->handle([
+        'name' => 'Ops mail',
+        'type' => NotificationChannelType::Mail,
+        'config' => [
+            'to' => 'ops@example.com',
+            'host' => 'smtp.example.com',
+            'port' => 587,
+            'username' => 'user',
+            'password' => 'secret',
+            'encryption' => 'tls',
+            'from_address' => 'alerts@example.com',
+            'from_name' => 'Nominal',
+        ],
+    ]);
+
+    expect($channel->type)->toBe(NotificationChannelType::Mail)
+        ->and($channel->configArray())->toBe([
+            'to' => 'ops@example.com',
+            'host' => 'smtp.example.com',
+            'port' => '587',
+            'username' => 'user',
+            'password' => 'secret',
+            'encryption' => 'tls',
+            'from_address' => 'alerts@example.com',
+            'from_name' => 'Nominal',
+        ])
+        ->and($channel->destination)->toBe('ops@example.com via smtp.example.com');
+});
+
 it('rejects mail channels without a recipient', function () {
     SaveNotificationChannel::make()->handle([
         'name' => 'Ops mail',
