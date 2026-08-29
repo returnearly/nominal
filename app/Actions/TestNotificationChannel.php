@@ -16,31 +16,27 @@ final readonly class TestNotificationChannel implements ActionsPatternInterface
 {
     use ActionsPattern;
 
-    public function handle(NotificationChannel $channel): void
-    {
-        NotificationChannelConfig::assertValid($channel->type, $channel->configArray());
-
-        $channel->notifyNow(new ChannelTestNotification($channel));
-    }
-
     /**
      * @param  array<string, mixed>  $data
      */
-    public function fromForm(NotificationChannel $record, array $data): NotificationChannel
+    public function handle(NotificationChannel $channel, array $data = []): void
     {
-        $type = $this->type($data['type'] ?? $record->type);
-        $config = NotificationChannelConfig::normalize($type, $data['config'] ?? []);
+        if ($data !== []) {
+            $id = $channel->id;
+            $type = $this->type($data['type'] ?? $channel->type);
+            $config = NotificationChannelConfig::normalize($type, $data['config'] ?? []);
 
-        $channel = new NotificationChannel([
-            'name' => $data['name'] ?? $record->name,
-            'type' => $type,
-            'config' => $config,
-        ]);
-        $channel->id = $record->id;
+            $channel = new NotificationChannel([
+                'name' => $data['name'] ?? $channel->name,
+                'type' => $type,
+                'config' => $config,
+            ]);
+            $channel->id = $id;
+        }
 
-        $this->handle($channel);
+        NotificationChannelConfig::assertValid($channel->type, $channel->configArray());
 
-        return $channel;
+        $channel->notifyNow(new ChannelTestNotification($channel));
     }
 
     private function type(mixed $type): NotificationChannelType

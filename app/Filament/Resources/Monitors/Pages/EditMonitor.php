@@ -69,6 +69,6 @@ final class EditMonitor extends EditRecord
         /** @var Monitor $record */
         $record = $this->record;
 
-        DispatchMonitorCheck::make()->forSaved($record);
+        DispatchMonitorCheck::make()->handle($record, saved: true);
     }
 }

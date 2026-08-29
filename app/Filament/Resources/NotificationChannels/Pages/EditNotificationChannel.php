@@ -64,7 +64,7 @@ final class EditNotificationChannel extends EditRecord
     private function sendTest(): void
     {
         try {
-            TestNotificationChannel::make()->fromForm(
+            TestNotificationChannel::make()->handle(
                 $this->channel(),
                 $this->form->getState(shouldCallHooksBefore: false),
             );

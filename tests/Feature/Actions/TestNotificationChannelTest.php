@@ -99,7 +99,7 @@ it('sends using form values without persisting them', function () {
         'config' => ['url' => 'https://example.com/hooks/old'],
     ]);
 
-    TestNotificationChannel::make()->fromForm($channel, [
+    TestNotificationChannel::make()->handle($channel, [
         'name' => 'Hooks',
         'type' => NotificationChannelType::Webhook,
         'config' => ['url' => 'https://example.com/hooks/new'],

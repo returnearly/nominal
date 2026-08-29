@@ -60,7 +60,9 @@ final readonly class EvaluateCheckConditions implements ActionsPatternInterface
             ip: $context->ip,
             connected: $context->connected,
             certificateExpirationSeconds: $context->certificateExpirationSeconds,
-            domainExpirationSeconds: $this->domains->seconds($expiresAt),
+            domainExpirationSeconds: $expiresAt instanceof DateTimeImmutable
+                ? $expiresAt->getTimestamp() - time()
+                : null,
             body: $context->body,
             rawBody: $context->rawBody,
             bodyPathExisted: $context->bodyPathExisted,

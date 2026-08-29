@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Conditions\ConditionExpression;
+use App\Actions\DefaultConditionExpressions;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -166,7 +166,7 @@ class MonitorFactory extends Factory
     public function withDefaultConditions(): static
     {
         return $this->afterCreating(function (Monitor $monitor): void {
-            foreach (ConditionExpression::defaultExpressions($monitor->type) as $sort => $expression) {
+            foreach (DefaultConditionExpressions::make()->handle($monitor->type) as $sort => $expression) {
                 $monitor->conditions()->create([
                     'expression' => $expression,
                     'sort' => $sort,

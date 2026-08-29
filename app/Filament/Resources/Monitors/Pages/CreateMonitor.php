@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors\Pages;
 
+use App\Actions\DefaultConditionExpressions;
 use App\Actions\DispatchMonitorCheck;
-use App\Conditions\ConditionExpression;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
 use App\Filament\Resources\Monitors\MonitorFormState;
@@ -72,7 +72,7 @@ final class CreateMonitor extends CreateRecord
         }
 
         if ($this->record->conditions()->doesntExist()) {
-            foreach (ConditionExpression::defaultExpressions($this->record->type) as $sort => $expression) {
+            foreach (DefaultConditionExpressions::make()->handle($this->record->type) as $sort => $expression) {
                 $this->record->conditions()->create([
                     'expression' => $expression,
                     'sort' => $sort,
@@ -88,7 +88,7 @@ final class CreateMonitor extends CreateRecord
         /** @var Monitor $record */
         $record = $this->record;
 
-        DispatchMonitorCheck::make()->forSaved($record);
+        DispatchMonitorCheck::make()->handle($record, saved: true);
     }
 
     private function sourceMonitor(): ?Monitor
