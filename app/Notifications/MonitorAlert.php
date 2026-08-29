@@ -6,19 +6,13 @@ namespace App\Notifications;
 
 use App\Checking\ProbeResult;
 use App\Enums\AlertKind;
-use App\Enums\NotificationChannelType;
 use App\Models\Monitor;
 use App\Models\NotificationChannel;
-use App\Notifications\Channels\DiscordWebhookChannel;
-use App\Notifications\Channels\GenericWebhookChannel;
-use App\Notifications\Channels\MicrosoftTeamsChannel;
-use App\Notifications\Channels\PagerDutyChannel;
-use App\Notifications\Channels\SlackWebhookChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-final class MonitorAlert extends Notification
+final class MonitorAlert extends Notification implements NotificationChannelMessage
 {
     use Queueable;
 
@@ -33,18 +27,9 @@ final class MonitorAlert extends Notification
      */
     public function via(object $notifiable): array
     {
-        if (! $notifiable instanceof NotificationChannel) {
-            return [];
-        }
-
-        return match ($notifiable->type) {
-            NotificationChannelType::Mail => ['mail'],
-            NotificationChannelType::Slack => [SlackWebhookChannel::class],
-            NotificationChannelType::MicrosoftTeams => [MicrosoftTeamsChannel::class],
-            NotificationChannelType::Discord => [DiscordWebhookChannel::class],
-            NotificationChannelType::Webhook => [GenericWebhookChannel::class],
-            NotificationChannelType::Pagerduty => [PagerDutyChannel::class],
-        };
+        return $notifiable instanceof NotificationChannel
+            ? $notifiable->deliversVia()
+            : [];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -83,6 +68,24 @@ final class MonitorAlert extends Notification
                 'http_status' => $this->result->httpStatus,
                 'ip' => $this->result->resolvedIp,
                 'message' => $this->result->message,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toPagerDuty(): array
+    {
+        return [
+            'event_action' => $this->kind === AlertKind::Recovered ? 'resolve' : 'trigger',
+            'dedup_key' => $this->monitor->id,
+            'payload' => [
+                'summary' => $this->headline().': '.$this->monitor->name,
+                'source' => 'nominal',
+                'severity' => $this->kind === AlertKind::Recovered ? 'info' : 'error',
+                'component' => $this->monitor->target,
+                'class' => $this->monitor->type->value,
             ],
         ];
     }

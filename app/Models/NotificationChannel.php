@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\NotificationChannelType;
+use App\Notifications\Channels\DiscordWebhookChannel;
+use App\Notifications\Channels\GenericWebhookChannel;
+use App\Notifications\Channels\MicrosoftTeamsChannel;
+use App\Notifications\Channels\PagerDutyChannel;
+use App\Notifications\Channels\SlackWebhookChannel;
 use App\Support\NotificationChannelConfig;
 use Database\Factories\NotificationChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -134,6 +139,21 @@ class NotificationChannel extends Model
         }
 
         return $out;
+    }
+
+    /**
+     * @return list<string|class-string>
+     */
+    public function deliversVia(): array
+    {
+        return match ($this->type) {
+            NotificationChannelType::Mail => ['mail'],
+            NotificationChannelType::Slack => [SlackWebhookChannel::class],
+            NotificationChannelType::MicrosoftTeams => [MicrosoftTeamsChannel::class],
+            NotificationChannelType::Discord => [DiscordWebhookChannel::class],
+            NotificationChannelType::Webhook => [GenericWebhookChannel::class],
+            NotificationChannelType::Pagerduty => [PagerDutyChannel::class],
+        };
     }
 
     public function routeNotificationForMail(): ?string

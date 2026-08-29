@@ -8,6 +8,10 @@ use App\Filament\Resources\NotificationChannels\Pages\EditNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\ListNotificationChannels;
 use App\Models\NotificationChannel;
 use App\Models\User;
+use App\Notifications\ChannelTestNotification;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
 it('shows notification channels and a redacted destination', function () {
@@ -140,4 +144,72 @@ it('lists notification channels in the Filament table', function () {
         ->test(ListNotificationChannels::class)
         ->loadTable()
         ->assertCanSeeTableRecords([$channel]);
+});
+
+it('sends a test notification from the edit page', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $channel = NotificationChannel::factory()->mail()->create(['name' => 'Ops mail']);
+
+    Livewire::actingAs($user)
+        ->test(EditNotificationChannel::class, ['record' => $channel->getRouteKey()])
+        ->assertActionExists('test')
+        ->callAction('test')
+        ->assertNotified('Test notification sent');
+
+    Notification::assertSentTo($channel, ChannelTestNotification::class);
+});
+
+it('sends a test using unsaved form values', function () {
+    Http::fake();
+
+    $user = User::factory()->create();
+    $channel = NotificationChannel::factory()->create([
+        'name' => 'Hooks',
+        'config' => ['url' => 'https://example.com/hooks/old'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(EditNotificationChannel::class, ['record' => $channel->getRouteKey()])
+        ->fillForm([
+            'config' => ['url' => 'https://example.com/hooks/new'],
+        ])
+        ->callAction('test')
+        ->assertNotified('Test notification sent');
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://example.com/hooks/new');
+    expect($channel->fresh()?->configArray())->toBe(['url' => 'https://example.com/hooks/old']);
+});
+
+it('does not send a test when the form is invalid', function () {
+    Notification::fake();
+    Http::fake();
+
+    $user = User::factory()->create();
+    $channel = NotificationChannel::factory()->mail()->create();
+
+    Livewire::actingAs($user)
+        ->test(EditNotificationChannel::class, ['record' => $channel->getRouteKey()])
+        ->fillForm([
+            'config' => ['to' => ''],
+        ])
+        ->callAction('test')
+        ->assertHasFormErrors(['config.to']);
+
+    Notification::assertNothingSent();
+});
+
+it('shows a failure notice when the test cannot be delivered', function () {
+    Http::fake([
+        '*' => Http::response('nope', 500),
+    ]);
+
+    $user = User::factory()->create();
+    $channel = NotificationChannel::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(EditNotificationChannel::class, ['record' => $channel->getRouteKey()])
+        ->callAction('test')
+        ->assertNotified('Test notification failed');
 });
