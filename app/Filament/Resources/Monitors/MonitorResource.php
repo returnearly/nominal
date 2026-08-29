@@ -272,7 +272,7 @@ final class MonitorResource extends Resource
                         ->label('Proxy URL')
                         ->maxLength(2048)
                         ->placeholder('socks5h://127.0.0.1:1080')
-                        ->helperText('HTTP (`http://proxy:8080`) or SOCKS (`socks5://`, `socks5h://`). Leave blank to use HTTP_PROXY / ALL_PROXY for HTTP checks.')
+                        ->helperText('HTTP (`http://proxy:8080`) or SOCKS (`socks5://`, `socks5h://`). Leave blank to use the environment variables for HTTP checks.')
                         ->dehydrateStateUsing(fn (mixed $state): ?string => filled($state) ? (string) $state : null)
                         ->rule(function (): \Closure {
                             return function (string $attribute, mixed $value, \Closure $fail): void {

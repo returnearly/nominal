@@ -77,6 +77,13 @@ it('summarizes destinations without leaking secrets', function () {
     ]))->toBe('Routing key configured');
 });
 
+it('describes email setup without framework names', function () {
+    $mail = NotificationChannelType::Mail;
+
+    expect($mail->setupDescription())->toBe('Send alerts to one inbox using the environment variables.')
+        ->and($mail->field('to')?->helperText)->toBe('Uses the environment variables. One address per channel.');
+});
+
 it('gives shared config keys the same input kind', function () {
     $kinds = [];
 

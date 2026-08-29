@@ -12,7 +12,7 @@ final class CreateApiTokenCommand extends Command
 {
     protected $signature = 'nominal:token {email} {--name=terraform}';
 
-    protected $description = 'Create a Sanctum API token for GraphQL and Terraform';
+    protected $description = 'Create an API token for GraphQL and Terraform';
 
     public function handle(CreateApiToken $createApiToken): int
     {
