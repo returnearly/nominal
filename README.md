@@ -123,6 +123,21 @@ mutation {
 }
 ```
 
+Notification channels take `name`, `type`, and the nested input for that type (`mail`, `slack`, `microsoftTeams`, `discord`, `webhook`, `pagerduty`):
+
+```graphql
+mutation {
+  createNotificationChannel(input: {
+    name: "Ops Slack"
+    type: Slack
+    slack: { webhookUrl: "https://hooks.slack.com/services/T/B/xxx" }
+  }) {
+    id
+    slack { webhookUrl }
+  }
+}
+```
+
 ## Status pages
 
 Nominal’s Filament UI is admin-only. Publish one or more public status pages (Uptime Kuma-style) instead of using the dashboard as the status page (Gatus-style).

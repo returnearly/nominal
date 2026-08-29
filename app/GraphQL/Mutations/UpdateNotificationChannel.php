@@ -19,22 +19,7 @@ final class UpdateNotificationChannel
     public function __invoke(mixed $root, array $args): NotificationChannel
     {
         $channel = NotificationChannel::query()->findOrFail($args['id']);
-        $input = $args['input'];
 
-        if (isset($input['config']) && is_array($input['config'])) {
-            $config = [];
-
-            foreach ($input['config'] as $pair) {
-                $config[$pair['key']] = $pair['value'];
-            }
-
-            $input['config'] = $config;
-        }
-
-        if (isset($input['type'])) {
-            $input['type'] = strtolower((string) $input['type']);
-        }
-
-        return $this->saveNotificationChannel->handle($input, $channel);
+        return $this->saveNotificationChannel->handle($args['input'], $channel);
     }
 }

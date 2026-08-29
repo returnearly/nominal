@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 #[Fillable(['name', 'type', 'config'])]
 class NotificationChannel extends Model
@@ -64,20 +65,75 @@ class NotificationChannel extends Model
     }
 
     /**
-     * @return list<array{key: string, value: string}>
+     * @return array<string, string>|null
      */
-    public function graphqlConfig(): array
+    public function graphqlMail(): ?array
     {
-        $pairs = [];
+        return $this->graphqlTypedConfig(NotificationChannelType::Mail);
+    }
 
-        foreach ($this->configArray() as $key => $value) {
-            $pairs[] = [
-                'key' => (string) $key,
-                'value' => is_scalar($value) ? (string) $value : (string) json_encode($value),
-            ];
+    /**
+     * @return array<string, string>|null
+     */
+    public function graphqlSlack(): ?array
+    {
+        return $this->graphqlTypedConfig(NotificationChannelType::Slack);
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    public function graphqlMicrosoftTeams(): ?array
+    {
+        return $this->graphqlTypedConfig(NotificationChannelType::MicrosoftTeams);
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    public function graphqlDiscord(): ?array
+    {
+        return $this->graphqlTypedConfig(NotificationChannelType::Discord);
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    public function graphqlWebhook(): ?array
+    {
+        return $this->graphqlTypedConfig(NotificationChannelType::Webhook);
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    public function graphqlPagerduty(): ?array
+    {
+        return $this->graphqlTypedConfig(NotificationChannelType::Pagerduty);
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function graphqlTypedConfig(NotificationChannelType $type): ?array
+    {
+        if ($this->type !== $type) {
+            return null;
         }
 
-        return $pairs;
+        $out = [];
+
+        foreach ($type->fields() as $field) {
+            $value = $this->configArray()[$field->key] ?? null;
+
+            if (! is_string($value) || $value === '') {
+                return null;
+            }
+
+            $out[Str::camel($field->key)] = $value;
+        }
+
+        return $out;
     }
 
     public function routeNotificationForMail(): ?string

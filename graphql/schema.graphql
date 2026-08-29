@@ -122,11 +122,64 @@ type MonitorUptime {
     thirtyDays: Float
 }
 
+type MailNotificationChannelConfig {
+    to: String!
+}
+
+input MailNotificationChannelInput {
+    to: String!
+}
+
+type SlackNotificationChannelConfig {
+    webhookUrl: String!
+}
+
+input SlackNotificationChannelInput {
+    webhookUrl: String!
+}
+
+type MicrosoftTeamsNotificationChannelConfig {
+    webhookUrl: String!
+}
+
+input MicrosoftTeamsNotificationChannelInput {
+    webhookUrl: String!
+}
+
+type DiscordNotificationChannelConfig {
+    webhookUrl: String!
+}
+
+input DiscordNotificationChannelInput {
+    webhookUrl: String!
+}
+
+type WebhookNotificationChannelConfig {
+    url: String!
+}
+
+input WebhookNotificationChannelInput {
+    url: String!
+}
+
+type PagerdutyNotificationChannelConfig {
+    routingKey: String!
+}
+
+input PagerdutyNotificationChannelInput {
+    routingKey: String!
+}
+
 type NotificationChannel {
     id: ID!
     name: String!
     type: NotificationChannelType!
-    config: [KeyValue!]! @method(name: "graphqlConfig")
+    mail: MailNotificationChannelConfig @method(name: "graphqlMail")
+    slack: SlackNotificationChannelConfig @method(name: "graphqlSlack")
+    microsoftTeams: MicrosoftTeamsNotificationChannelConfig @method(name: "graphqlMicrosoftTeams")
+    discord: DiscordNotificationChannelConfig @method(name: "graphqlDiscord")
+    webhook: WebhookNotificationChannelConfig @method(name: "graphqlWebhook")
+    pagerduty: PagerdutyNotificationChannelConfig @method(name: "graphqlPagerduty")
     created_at: DateTime
     updated_at: DateTime
 }
@@ -229,13 +282,23 @@ input UpdateMonitorInput {
 input CreateNotificationChannelInput {
     name: String!
     type: NotificationChannelType!
-    config: [KeyValueInput!]
+    mail: MailNotificationChannelInput
+    slack: SlackNotificationChannelInput
+    microsoftTeams: MicrosoftTeamsNotificationChannelInput
+    discord: DiscordNotificationChannelInput
+    webhook: WebhookNotificationChannelInput
+    pagerduty: PagerdutyNotificationChannelInput
 }
 
 input UpdateNotificationChannelInput {
     name: String
     type: NotificationChannelType
-    config: [KeyValueInput!]
+    mail: MailNotificationChannelInput
+    slack: SlackNotificationChannelInput
+    microsoftTeams: MicrosoftTeamsNotificationChannelInput
+    discord: DiscordNotificationChannelInput
+    webhook: WebhookNotificationChannelInput
+    pagerduty: PagerdutyNotificationChannelInput
 }
 
 type MaintenanceWindow {
