@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Probes;
 
 use App\Actions\ApplyProbeToMonitors;
+use App\Filament\Clusters\Settings\SettingsCluster;
 use App\Filament\Resources\Probes\Pages\CreateProbe;
 use App\Filament\Resources\Probes\Pages\EditProbe;
 use App\Filament\Resources\Probes\Pages\ListProbes;
@@ -31,9 +32,11 @@ final class ProbeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
 
+    protected static ?string $cluster = SettingsCluster::class;
+
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {

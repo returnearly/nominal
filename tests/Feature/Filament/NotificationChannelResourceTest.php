@@ -18,7 +18,7 @@ it('shows notification channels and a redacted destination', function () {
     ]);
 
     $this->actingAs($user)
-        ->get('/admin/notification-channels')
+        ->get('/admin/settings/notification-channels')
         ->assertOk();
 
     Livewire::actingAs($user)

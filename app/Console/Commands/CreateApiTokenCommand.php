@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Actions\CreateApiToken;
 use App\Models\User;
 use Illuminate\Console\Command;
 
@@ -13,7 +14,7 @@ final class CreateApiTokenCommand extends Command
 
     protected $description = 'Create a Sanctum API token for GraphQL and Terraform';
 
-    public function handle(): int
+    public function handle(CreateApiToken $createApiToken): int
     {
         $user = User::query()->where('email', $this->argument('email'))->first();
 
@@ -23,7 +24,7 @@ final class CreateApiTokenCommand extends Command
             return self::FAILURE;
         }
 
-        $this->line($user->createToken((string) $this->option('name'))->plainTextToken);
+        $this->line($createApiToken->handle($user, (string) $this->option('name')));
 
         return self::SUCCESS;
     }

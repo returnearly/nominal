@@ -18,7 +18,7 @@ it('lists probes in the admin panel', function () {
     Probe::factory()->create(['name' => 'US East']);
 
     $this->actingAs($user)
-        ->get('/admin/probes')
+        ->get('/admin/settings/probes')
         ->assertOk();
 
     Livewire::actingAs($user)
