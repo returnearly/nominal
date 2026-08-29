@@ -117,7 +117,7 @@ it('computes uptime and latency badges from recent checks', function () {
 });
 
 it('uses hourly aggregates for windows longer than an hour', function () {
-    $this->freezeTime();
+    $this->travelTo(now()->startOfHour()->addMinutes(30));
 
     $monitor = Monitor::factory()->create();
     $hour = now()->subHours(3)->startOfHour();
