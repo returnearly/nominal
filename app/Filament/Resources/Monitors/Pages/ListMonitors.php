@@ -5,22 +5,32 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\LoadRecentCheckResults;
+use App\Enums\MonitorStatus;
+use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorStatsWidget;
+use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
+use App\Support\DownMonitorFavicon;
 use Filament\Actions\CreateAction;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\On;
 
 final class ListMonitors extends ListRecords
 {
     use ExposesTableToWidgets;
+    use RefreshesOnMonitorBroadcasts;
 
     protected static string $resource = MonitorResource::class;
+
+    public string $faviconHref = '';
+
+    public int $downCount = 0;
 
     protected function getHeaderActions(): array
     {
@@ -44,6 +54,17 @@ final class ListMonitors extends ListRecords
         return 1;
     }
 
+    public function booted(): void
+    {
+        $this->downCount = Monitor::query()->where('status', MonitorStatus::Down)->count();
+        $this->faviconHref = DownMonitorFavicon::href($this->downCount) ?? asset('favicon.svg');
+    }
+
+    public function getFooter(): ?View
+    {
+        return view('filament.monitors.favicon');
+    }
+
     #[On('filter-monitors-by-status')]
     public function filterByStatus(string $status): void
     {
@@ -65,6 +86,7 @@ final class ListMonitors extends ListRecords
         $records = parent::paginateTableQuery($query);
         $monitors = $records->getCollection();
         $heartbeats = LoadRecentCheckResults::make()->handle($monitors->modelKeys());
+        MaintenanceWindow::primeMonitors($monitors);
 
         $monitors->each(function (Monitor $monitor) use ($heartbeats): void {
             $monitor->setRelation('recentChecks', $heartbeats->get($monitor->id, collect()));

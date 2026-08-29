@@ -20,6 +20,10 @@ final readonly class EvaluateAlerting implements ActionsPatternInterface
 
     public function handle(Monitor $monitor, ProbeResult $result): void
     {
+        if ($monitor->isUnderMaintenance()) {
+            return;
+        }
+
         $monitor->loadMissing('notificationChannels');
 
         foreach ($monitor->notificationChannels as $channel) {

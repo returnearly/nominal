@@ -21,6 +21,11 @@ final class MonitorStatusUpdated implements ShouldBroadcastNow
         public MonitorStatus $previous,
     ) {}
 
+    public function broadcastAs(): string
+    {
+        return 'MonitorStatusUpdated';
+    }
+
     /**
      * @return array<int, PrivateChannel>
      */
@@ -40,7 +45,7 @@ final class MonitorStatusUpdated implements ShouldBroadcastNow
         return [
             'id' => $this->monitor->id,
             'name' => $this->monitor->name,
-            'status' => $this->monitor->status->value,
+            'status' => $this->monitor->effectiveStatus()->value,
             'previous_status' => $this->previous->value,
             'consecutive_successes' => $this->monitor->consecutive_successes,
             'consecutive_failures' => $this->monitor->consecutive_failures,

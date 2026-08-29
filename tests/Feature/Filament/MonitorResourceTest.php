@@ -2,19 +2,37 @@
 
 declare(strict_types=1);
 
+use App\Enums\AggregateGranularity;
+use App\Enums\ConditionComparator;
+use App\Enums\ConditionPlaceholder;
+use App\Enums\HttpMethod;
 use App\Enums\MonitorStatus;
+use App\Enums\MonitorType;
+use App\Filament\Resources\Monitors\MonitorFormState;
+use App\Filament\Resources\Monitors\MonitorResource;
+use App\Filament\Resources\Monitors\Pages\CreateMonitor;
+use App\Filament\Resources\Monitors\Pages\EditMonitor;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
+use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
 use App\Filament\Widgets\MonitorHistoryWidget;
 use App\Filament\Widgets\MonitorStatsWidget;
 use App\Jobs\RunCheckJob;
+use App\Models\CheckAggregate;
 use App\Models\CheckResult;
 use App\Models\Monitor;
+use App\Models\NotificationChannel;
 use App\Models\Probe;
 use App\Models\User;
+use App\Support\DownMonitorFavicon;
+use App\Support\ReverbBrowser;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
+
+beforeEach(function () {
+    Queue::fake();
+});
 
 it('shows monitors in the admin panel', function () {
     $user = User::factory()->create();
@@ -24,7 +42,11 @@ it('shows monitors in the admin panel', function () {
 
     $this->actingAs($user)
         ->get('/admin/monitors')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Payments API');
 });
 
@@ -36,6 +58,16 @@ it('puts admin navigation in the top bar', function () {
     expect(filament()->getDefaultPanel()->hasTopNavigation())->toBeTrue();
 });
 
+it('links to documentation from the admin user menu', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('https://staynominal.com/docs')
+        ->assertSee('Documentation');
+});
+
 it('paginates monitors at 50, 100, or 250 rows', function () {
     $user = User::factory()->create();
 
@@ -45,22 +77,87 @@ it('paginates monitors at 50, 100, or 250 rows', function () {
         ->getTable();
 
     expect($table->getPaginationPageOptions())->toBe([50, 100, 250])
-        ->and($table->getDefaultPaginationPageOption())->toBe(50);
+        ->and($table->getDefaultPaginationPageOption())->toBe(50)
+        ->and($table->getDefaultGroup())->toBeNull();
 });
 
-it('groups the monitors table by group', function () {
+it('lazy-loads widgets and defers table records', function () {
     $user = User::factory()->create();
-    Monitor::factory()->create(['name' => 'Checkout', 'group' => 'payments']);
-    Monitor::factory()->create(['name' => 'Status page', 'group' => 'public']);
 
-    $livewire = Livewire::actingAs($user)
+    expect(MonitorStatsWidget::isLazy())->toBeTrue()
+        ->and(MonitorHistoryWidget::isLazy())->toBeTrue();
+
+    $table = Livewire::actingAs($user)
         ->test(ListMonitors::class)
-        ->assertSee('Checkout')
-        ->assertSee('Status page')
-        ->assertSee('payments')
-        ->assertSee('public');
+        ->instance()
+        ->getTable();
 
-    expect($livewire->instance()->getTable()->getDefaultGroup()?->getColumn())->toBe('group');
+    expect($table->isLoadingDeferred())->toBeTrue();
+});
+
+it('shows tags on monitor cards and filters by tag', function () {
+    $user = User::factory()->create();
+    $prod = Monitor::factory()->create([
+        'name' => 'Checkout API',
+        'tags' => ['prod', 'critical'],
+    ]);
+    $staging = Monitor::factory()->create([
+        'name' => 'Checkout staging',
+        'tags' => ['staging'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->assertSee('Checkout API')
+        ->assertSee('Checkout staging')
+        ->assertSee('prod')
+        ->assertSee('critical')
+        ->assertSee('staging')
+        ->filterTable('tag', 'critical')
+        ->assertCanSeeTableRecords([$prod])
+        ->assertCanNotSeeTableRecords([$staging]);
+});
+
+it('saves tags and a description from the create form', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Checkout API')
+        ->set('data.tags', [' Payments ', 'prod'])
+        ->set('data.description', 'Owned by payments. Page #payments-oncall if this is down.')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://pay.example/health')
+        ->set('data.probes', [$probe->id])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Checkout API')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->tags)->toBe(['Payments', 'prod'])
+        ->and($monitor->description)->toBe('Owned by payments. Page #payments-oncall if this is down.');
+});
+
+it('shows the description on the monitor view', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Checkout API',
+        'description' => 'Owned by payments. Restart the worker pool if this fails.',
+        'tags' => ['prod'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSeeLivewire(MonitorHistoryWidget::class);
+
+    Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee('Monitor Description')
+        ->assertSee('Owned by payments. Restart the worker pool if this fails.')
+        ->assertSee('prod');
 });
 
 it('shows status totals at the top of the monitors list', function () {
@@ -73,29 +170,139 @@ it('shows status totals at the top of the monitors list', function () {
 
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
-        ->assertSeeLivewire(MonitorStatsWidget::class)
-        ->assertSee('Up')
-        ->assertSee('Down')
-        ->assertSee('Pending')
-        ->assertSee('Paused');
+        ->assertSeeLivewire(MonitorStatsWidget::class);
 
-    $listHtml = Livewire::actingAs($user)
-        ->test(ListMonitors::class)
+    expect(Livewire::actingAs($user)->test(ListMonitors::class)->html())
+        ->toContain('nm-stats-placeholder');
+
+    $widgetHtml = Livewire::actingAs($user)
+        ->test(MonitorStatsWidget::class)
+        ->assertSee('Healthy')
+        ->assertSee('Unhealthy')
+        ->assertSee('Pending')
+        ->assertSee('Paused')
+        ->assertSee('2')
+        ->assertSee('3')
+        ->assertSee('4')
+        ->assertSee('5')
         ->html();
 
-    expect($listHtml)
+    expect($widgetHtml)
         ->toContain('fi-wi-stats-overview')
         ->toContain('data-status="up"')
         ->toContain('data-status="down"')
         ->toContain('data-status="pending"')
-        ->toContain('data-status="paused"');
+        ->toContain('data-status="paused"')
+        ->toContain('data-status="maintenance"');
+});
+
+it('shows a red favicon with the down count on the monitors page', function () {
+    $user = User::factory()->create();
+
+    Monitor::factory()->count(2)->create(['status' => MonitorStatus::Up]);
+    Monitor::factory()->count(3)->create(['status' => MonitorStatus::Down]);
+    Monitor::factory()->create(['status' => MonitorStatus::Paused]);
+
+    $href = DownMonitorFavicon::href(3);
 
     Livewire::actingAs($user)
-        ->test(MonitorStatsWidget::class)
-        ->assertSee('2')
-        ->assertSee('3')
-        ->assertSee('4')
-        ->assertSee('5');
+        ->test(ListMonitors::class)
+        ->assertSet('faviconHref', $href)
+        ->assertSet('downCount', 3)
+        ->assertSee('data-nm-favicon="'.$href.'"', escape: false)
+        ->assertSee('data-nm-down="3"', escape: false);
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('nm-logo-bg', escape: false)
+        ->assertSee('html.nm-monitors-down .nm-logo-bg', escape: false);
+});
+
+it('keeps the default favicon on the monitors page when none are down', function () {
+    $user = User::factory()->create();
+    Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->assertSet('downCount', 0)
+        ->assertSet('faviconHref', asset('favicon.svg'));
+});
+
+it('refreshes monitor cards when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'status' => MonitorStatus::Up,
+    ]);
+
+    $livewire = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->assertSee('Payments API')
+        ->assertSet('downCount', 0);
+
+    $monitor->update([
+        'name' => 'Billing API',
+        'status' => MonitorStatus::Down,
+    ]);
+
+    $livewire
+        ->dispatch('monitors-updated')
+        ->assertSee('Billing API')
+        ->assertDontSee('Payments API')
+        ->assertSet('downCount', 1);
+});
+
+it('refreshes status totals when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    $widget = Livewire::actingAs($user)
+        ->test(MonitorStatsWidget::class);
+
+    Monitor::factory()->count(2)->create(['status' => MonitorStatus::Down]);
+
+    $widget
+        ->dispatch('monitors-updated')
+        ->assertSee('2');
+});
+
+it('refreshes the monitor view when a reverb event arrives', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    $widget = Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee('Healthy');
+
+    $monitor->update(['status' => MonitorStatus::Down]);
+
+    $widget
+        ->dispatch('monitors-updated')
+        ->assertSee('Unhealthy');
+});
+
+it('loads the reverb client on the admin panel', function () {
+    config([
+        'broadcasting.default' => 'reverb',
+        'broadcasting.connections.reverb.key' => 'key',
+        'broadcasting.client.host' => 'localhost',
+        'broadcasting.client.port' => 8080,
+        'broadcasting.client.scheme' => 'http',
+    ]);
+    config(['filament.broadcasting.echo' => ReverbBrowser::filamentEcho()]);
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/admin/monitors')
+        ->assertOk()
+        ->assertSee('window.Echo = new window.EchoFactory', escape: false)
+        ->assertSee('NominalMonitorsEcho', escape: false)
+        ->assertSee('.CheckCompleted', escape: false)
+        ->assertSee('.MonitorStatusUpdated', escape: false)
+        ->assertSee('App.Models.User.'.$user->id, escape: false);
 });
 
 it('filters the monitors table when a status stat is clicked', function () {
@@ -110,6 +317,7 @@ it('filters the monitors table when a status stat is clicked', function () {
 
     Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertCanSeeTableRecords([$up, $down])
         ->dispatch('filter-monitors-by-status', status: MonitorStatus::Down->value)
         ->assertCanSeeTableRecords([$down])
@@ -118,30 +326,85 @@ it('filters the monitors table when a status stat is clicked', function () {
         ->assertCanSeeTableRecords([$up, $down]);
 });
 
-it('shows a heartbeat of the latest 20 checks on the monitors list', function () {
+it('renders monitors as status cards instead of a table', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'target' => 'https://pay.example/health',
+        'status' => MonitorStatus::Up,
+    ]);
+
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'success' => true,
+        'latency_ms' => 42,
+        'checked_at' => now()->subMinutes(8),
+        'condition_results' => [
+            ['expression' => '[STATUS] == 200', 'passed' => true, 'actual' => '200'],
+        ],
+    ]);
+
+    $table = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->instance()
+        ->getTable();
+
+    expect($table->hasColumnsLayout())->toBeTrue()
+        ->and($table->getContentGrid())->toBe([
+            'md' => 2,
+            'xl' => 4,
+        ]);
+
+    $html = Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->assertSee('Payments API')
+        ->assertSee('https://pay.example/health')
+        ->assertSee('Healthy')
+        ->html();
+
+    expect($html)
+        ->toContain('fi-ta-content-grid')
+        ->toContain('nm-card')
+        ->toContain('nm-card-chart')
+        ->toContain('data-heartbeat')
+        ->toContain('nm-status-badge')
+        ->toContain('TIMESTAMP')
+        ->toContain('[STATUS] == 200')
+        ->not->toContain('data-uptime-window')
+        ->not->toContain('100.00%')
+        ->not->toContain('data-latency')
+        ->not->toContain('fi-ta-table')
+        ->not->toContain('fi-ta-record-checkbox');
+});
+
+it('shows a heartbeat of recent checks on the monitors list', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
     $monitor = Monitor::factory()->create(['name' => 'Checkout API']);
 
-    foreach (range(1, 21) as $i) {
+    foreach (range(1, 41) as $i) {
         CheckResult::factory()->create([
             'monitor_id' => $monitor->id,
             'probe_id' => $probe->id,
-            'success' => $i !== 21,
-            'checked_at' => now()->subMinutes(21 - $i),
+            'success' => $i !== 41,
+            'checked_at' => now()->subMinutes(41 - $i),
         ]);
     }
 
     $html = Livewire::actingAs($user)
         ->test(ListMonitors::class)
+        ->loadTable()
         ->assertSee('Checkout API')
         ->html();
 
-    expect(substr_count($html, 'data-check="up"'))->toBe(19)
+    expect(substr_count($html, 'data-check="up"'))->toBe(39)
         ->and(substr_count($html, 'data-check="down"'))->toBe(1);
 });
 
-it('shows heartbeat, latency, and heatmap on the monitor view', function () {
+it('shows heartbeat and latency on the monitor view', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
     $monitor = Monitor::factory()->create();
@@ -163,14 +426,163 @@ it('shows heartbeat, latency, and heatmap on the monitor view', function () {
 
     Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
-        ->assertSeeLivewire(MonitorHistoryWidget::class)
-        ->assertSee('data-latency', false)
-        ->assertSee('data-heatmap', false);
+        ->assertSeeLivewire(MonitorHistoryWidget::class);
+
+    $html = Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee('Current status')
+        ->assertSee('Avg. response')
+        ->assertSee('Response range')
+        ->assertSee('42ms–90ms')
+        ->assertSee('Recent checks')
+        ->assertSee('Response time')
+        ->assertSee('Uptime')
+        ->assertDontSee('Last 7 days by hour')
+        ->assertDontSee('data-heatmap')
+        ->html();
+
+    expect($html)
+        ->toContain('data-trend')
+        ->toContain('nm-trend-hit')
+        ->toContain('preserveAspectRatio="none"')
+        ->toContain('TIMESTAMP')
+        ->toContain('RESPONSE TIME')
+        ->toContain('data-uptime-window="1h"')
+        ->toContain('data-uptime-window="24h"')
+        ->toContain('data-uptime-window="7d"')
+        ->toContain('data-uptime-window="30d"');
+
+    expect(strpos($html, 'nm-section-title">Response time'))
+        ->toBeLessThan(strpos($html, 'nm-section-title">Uptime'));
+});
+
+it('shows latency in seconds when a check takes a second or more', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'success' => true,
+        'latency_ms' => 1500,
+        'checked_at' => now()->subMinutes(2),
+    ]);
+    CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'success' => true,
+        'latency_ms' => 2500,
+        'checked_at' => now()->subMinute(),
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee('1.5s–2.5s')
+        ->assertSee('2s')
+        ->assertDontSee('1500ms')
+        ->assertDontSee('2500ms');
+});
+
+it('plots 24h hourly latency from rollups on the monitor view', function () {
+    $this->freezeTime();
+
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    CheckAggregate::query()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => null,
+        'period_start' => now()->subHours(2)->startOfHour(),
+        'granularity' => AggregateGranularity::Hour,
+        'up_count' => 10,
+        'down_count' => 0,
+        'avg_latency_ms' => 120,
+    ]);
+    CheckAggregate::query()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => null,
+        'period_start' => now()->subHour()->startOfHour(),
+        'granularity' => AggregateGranularity::Hour,
+        'up_count' => 9,
+        'down_count' => 1,
+        'avg_latency_ms' => 80,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee('80ms–120ms')
+        ->assertSee('100ms');
+});
+
+it('shows the last 10 checks in the monitor history table', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    $results = collect(range(1, 12))->map(fn (int $i) => CheckResult::factory()->create([
+        'monitor_id' => $monitor->id,
+        'probe_id' => $probe->id,
+        'checked_at' => now()->subMinutes(12 - $i),
+        'latency_ms' => $i * 10,
+    ]));
+
+    $livewire = Livewire::actingAs($user)
+        ->test(CheckResultsRelationManager::class, [
+            'ownerRecord' => $monitor,
+            'pageClass' => ViewMonitor::class,
+        ])
+        ->loadTable();
+
+    expect($livewire->instance()->getTable()->getPaginationPageOptions())->toBe([10])
+        ->and($livewire->instance()->getTable()->getDefaultPaginationPageOption())->toBe(10);
+
+    $livewire
+        ->assertCanSeeTableRecords($results->slice(-10)->values()->all())
+        ->assertCanNotSeeTableRecords([$results->first()]);
+});
+
+it('queues a check when a monitor is created', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Health API')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com/health')
+        ->set('data.probes', [$probe->id])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Health API')->first();
+
+    expect($monitor)->not->toBeNull();
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
+});
+
+it('queues a check when a monitor is edited', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
+    $monitor = Monitor::factory()->withDefaultConditions()->create(['name' => 'Health API']);
+    $monitor->probes()->attach($probe);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->set('data.name', 'Health API prod')
+        ->set('data.target', 'https://example.com/v2')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
+        return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
+    });
 });
 
 it('queues a check immediately from the monitor view page', function () {
-    Queue::fake();
-
     $user = User::factory()->create();
     $probe = Probe::factory()->create(['queue' => 'checks.local']);
     $monitor = Monitor::factory()->create();
@@ -184,4 +596,425 @@ it('queues a check immediately from the monitor view page', function () {
     Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
         return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
     });
+});
+
+it('hides check now and shows the heartbeat url on the monitor view', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertActionHidden('checkNow')
+        ->assertSee($monitor->heartbeatUrl());
+});
+
+it('shows embeddable badge urls on the monitor view', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
+
+    Livewire::actingAs($user)
+        ->test(MonitorHistoryWidget::class, ['record' => $monitor])
+        ->assertSee($monitor->statusBadgeSvgUrl())
+        ->assertSee($monitor->uptimeBadgeSvgUrl())
+        ->assertSee($monitor->latencyBadgeSvgUrl())
+        ->assertSee('Copy markdown');
+});
+
+it('hides badges and history on the monitor edit page', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    $livewire = Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertDontSee('Public SVG and JSON badges')
+        ->assertDontSeeLivewire(CheckResultsRelationManager::class);
+
+    expect($livewire->instance()->getRelationManagers())->toBe([]);
+});
+
+it('saves monitor conditions from the placeholder picker', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Health API')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com/health')
+        ->set('data.probes', [$probe->id])
+        ->set('data.conditions', [
+            'status' => [
+                'placeholder' => ConditionPlaceholder::Status->value,
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => '200',
+            ],
+            'body' => [
+                'placeholder' => ConditionPlaceholder::Body->value,
+                'path' => '.status',
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => 'UP',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Health API')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->conditions()->orderBy('sort')->pluck('expression')->all())->toBe([
+            '[STATUS] == 200',
+            '[BODY].status == UP',
+        ]);
+});
+
+it('saves body contains and redirect conditions from the picker', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Login')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com/login')
+        ->set('data.follow_redirects', false)
+        ->set('data.probes', [$probe->id])
+        ->set('data.conditions', [
+            'body' => [
+                'placeholder' => ConditionPlaceholder::Body->value,
+                'path' => '',
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => 'pat(*Welcome*)',
+            ],
+            'redirect' => [
+                'placeholder' => ConditionPlaceholder::Redirect->value,
+                'path' => '',
+                'comparator' => ConditionComparator::Equal->value,
+                'value' => 'pat(https://example.com/app/*)',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Login')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->follow_redirects)->toBeFalse()
+        ->and($monitor->conditions()->orderBy('sort')->pluck('expression')->all())->toBe([
+            '[BODY] == pat(*Welcome*)',
+            '[REDIRECT] == pat(https://example.com/app/*)',
+        ]);
+});
+
+it('saves a domain expiration condition', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'example.com')
+        ->set('data.type', MonitorType::Http->value)
+        ->set('data.target', 'https://example.com')
+        ->set('data.interval_seconds', 3600)
+        ->set('data.probes', [$probe->id])
+        ->set('data.conditions', [
+            'domain' => [
+                'placeholder' => ConditionPlaceholder::DomainExpiration->value,
+                'comparator' => ConditionComparator::GreaterThan->value,
+                'value' => '720h',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'example.com')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->interval_seconds)->toBe(3600)
+        ->and($monitor->conditions()->pluck('expression')->all())->toBe([
+            '[DOMAIN_EXPIRATION] > 720h',
+        ]);
+});
+
+it('hydrates the condition picker from stored expressions', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create(['name' => 'Checkout']);
+    $monitor->conditions()->create([
+        'expression' => '[BODY].user.name == john.doe',
+        'sort' => 0,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertFormSet(function (array $state): array {
+            $item = array_values($state['conditions'] ?? [])[0] ?? [];
+
+            expect($item)
+                ->toHaveKey('placeholder', ConditionPlaceholder::Body->value)
+                ->toHaveKey('path', '.user.name')
+                ->toHaveKey('comparator', ConditionComparator::Equal->value)
+                ->toHaveKey('value', 'john.doe');
+
+            return [];
+        });
+});
+
+it('defaults new http monitors to a 200-299 status range', function () {
+    $user = User::factory()->create();
+
+    $conditions = array_values(Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->get('data.conditions'));
+
+    expect($conditions)->toHaveCount(2)
+        ->and($conditions[0])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::GreaterThanOrEqual->value,
+            'value' => '200',
+        ])
+        ->and($conditions[1])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::LessThanOrEqual->value,
+            'value' => '299',
+        ]);
+});
+
+it('defaults graphql monitors to POST and a 200-299 status range', function () {
+    $user = User::factory()->create();
+
+    $livewire = Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.type', MonitorType::GraphQL->value);
+
+    $conditions = array_values($livewire->get('data.conditions'));
+
+    expect($livewire->get('data.method'))->toBe(HttpMethod::Post->value)
+        ->and($conditions)->toHaveCount(2)
+        ->and($conditions[0])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::GreaterThanOrEqual->value,
+            'value' => '200',
+        ])
+        ->and($conditions[1])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Status->value,
+            'comparator' => ConditionComparator::LessThanOrEqual->value,
+            'value' => '299',
+        ]);
+});
+
+it('defaults ping monitors to connected and under 50ms', function () {
+    $user = User::factory()->create();
+
+    $conditions = array_values(Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.type', MonitorType::Ping->value)
+        ->get('data.conditions'));
+
+    expect($conditions)->toHaveCount(2)
+        ->and($conditions[0])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::Connected->value,
+            'comparator' => ConditionComparator::Equal->value,
+            'value' => 'true',
+        ])
+        ->and($conditions[1])->toMatchArray([
+            'placeholder' => ConditionPlaceholder::ResponseTime->value,
+            'comparator' => ConditionComparator::LessThan->value,
+            'value' => '50',
+        ]);
+});
+
+it('creates a heartbeat monitor without probes, IP family, or conditions', function () {
+    $user = User::factory()->create();
+    Probe::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.name', 'Nightly backup')
+        ->set('data.type', MonitorType::Heartbeat->value)
+        ->set('data.target', 'backup-job')
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $monitor = Monitor::query()->where('name', 'Nightly backup')->first();
+
+    expect($monitor)->not->toBeNull()
+        ->and($monitor->type)->toBe(MonitorType::Heartbeat)
+        ->and($monitor->probes()->count())->toBe(0)
+        ->and($monitor->conditions()->count())->toBe(0)
+        ->and($monitor->heartbeat_token)->toHaveLength(48);
+});
+
+it('shows start, finish, and error heartbeat urls on the edit form', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'heartbeat_url' => $monitor->heartbeatUrl(),
+            'heartbeat_start_url' => $monitor->heartbeatStartUrl(),
+            'heartbeat_finish_url' => $monitor->heartbeatFinishUrl(),
+            'heartbeat_error_url' => $monitor->heartbeatErrorUrl(),
+        ]);
+});
+
+it('hides probe timeout on heartbeat monitors', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->set('data.type', MonitorType::Heartbeat->value)
+        ->assertFormFieldIsHidden('timeout_seconds')
+        ->assertFormFieldIsHidden('ip_family')
+        ->assertFormFieldIsHidden('probes')
+        ->assertFormFieldIsHidden('proxy_url');
+});
+
+it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis monitors', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::GraphQL->value)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Tcp->value)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Redis->value)
+        ->assertFormFieldIsVisible('proxy_url')
+        ->set('data.type', MonitorType::Mysql->value)
+        ->assertFormFieldIsHidden('proxy_url')
+        ->set('data.type', MonitorType::Postgres->value)
+        ->assertFormFieldIsHidden('proxy_url')
+        ->set('data.type', MonitorType::Ping->value)
+        ->assertFormFieldIsHidden('proxy_url');
+});
+
+it('duplicates a monitor from the view page into the create form', function () {
+    $user = User::factory()->create();
+    $probe = Probe::factory()->create();
+    $channel = NotificationChannel::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'name' => 'Payments API',
+        'description' => 'Owned by payments.',
+        'tags' => ['prod', 'critical'],
+        'type' => MonitorType::Http,
+        'target' => 'https://pay.example/health',
+        'method' => HttpMethod::Post,
+        'request_headers' => ['X-Token' => 'abc'],
+        'request_body' => '{"ok":true}',
+        'proxy_url' => 'socks5h://127.0.0.1:1080',
+        'interval_seconds' => 120,
+        'timeout_seconds' => 8,
+        'retention_days' => 14,
+        'follow_redirects' => false,
+        'verify_tls' => false,
+        'status' => MonitorStatus::Up,
+    ]);
+    $monitor->probes()->attach($probe);
+    $monitor->notificationChannels()->attach($channel);
+    $monitor->conditions()->create([
+        'expression' => '[BODY].status == UP',
+        'sort' => 0,
+    ]);
+
+    $duplicateUrl = MonitorResource::getUrl('create', ['replicate' => $monitor->getRouteKey()]);
+
+    Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertActionExists('duplicate')
+        ->assertActionHasUrl('duplicate', $duplicateUrl);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertActionExists('duplicate')
+        ->assertActionHasUrl('duplicate', $duplicateUrl);
+
+    $livewire = Livewire::actingAs($user)
+        ->test(CreateMonitor::class, ['replicate' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'name' => 'Payments API (copy)',
+            'description' => 'Owned by payments.',
+            'tags' => ['prod', 'critical'],
+            'type' => MonitorType::Http,
+            'target' => 'https://pay.example/health',
+            'method' => HttpMethod::Post,
+            'request_headers' => ['X-Token' => 'abc'],
+            'request_body' => '{"ok":true}',
+            'proxy_url' => 'socks5h://127.0.0.1:1080',
+            'interval_seconds' => 120,
+            'timeout_seconds' => 8,
+            'retention_days' => 14,
+            'follow_redirects' => false,
+            'verify_tls' => false,
+            'probes' => [$probe->id],
+            'notificationChannels' => [$channel->id],
+        ])
+        ->assertFormSet(function (array $state): array {
+            $item = array_values($state['conditions'] ?? [])[0] ?? [];
+
+            expect($item)
+                ->toHaveKey('placeholder', ConditionPlaceholder::Body->value)
+                ->toHaveKey('path', '.status')
+                ->toHaveKey('comparator', ConditionComparator::Equal->value)
+                ->toHaveKey('value', 'UP');
+
+            return [];
+        })
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $copy = Monitor::query()->where('name', 'Payments API (copy)')->first();
+
+    expect($copy)->not->toBeNull()
+        ->and($copy->id)->not->toBe($monitor->id)
+        ->and($copy->status)->toBe(MonitorStatus::Pending)
+        ->and($copy->target)->toBe('https://pay.example/health')
+        ->and($copy->method)->toBe(HttpMethod::Post)
+        ->and($copy->requestHeadersArray())->toBe(['X-Token' => 'abc'])
+        ->and($copy->request_body)->toBe('{"ok":true}')
+        ->and($copy->proxy_url)->toBe('socks5h://127.0.0.1:1080')
+        ->and($copy->description)->toBe('Owned by payments.')
+        ->and($copy->tags)->toBe(['prod', 'critical'])
+        ->and($copy->interval_seconds)->toBe(120)
+        ->and($copy->conditions()->pluck('expression')->all())->toBe(['[BODY].status == UP'])
+        ->and($copy->probes()->pluck('id')->all())->toBe([$probe->id])
+        ->and($copy->notificationChannels()->pluck('notification_channels.id')->all())->toBe([$channel->id]);
+
+    expect($monitor->fresh()->name)->toBe('Payments API')
+        ->and(Monitor::query()->count())->toBe(2);
+});
+
+it('issues a new heartbeat token when duplicating a heartbeat monitor', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'name' => 'Nightly backup',
+        'target' => 'backup-job',
+    ]);
+    $originalToken = $monitor->heartbeat_token;
+
+    Livewire::actingAs($user)
+        ->test(CreateMonitor::class, ['replicate' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'name' => 'Nightly backup (copy)',
+            'type' => MonitorType::Heartbeat,
+            'target' => 'backup-job',
+            'conditions' => [],
+            'probes' => [],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $copy = Monitor::query()->where('name', 'Nightly backup (copy)')->first();
+
+    expect($copy)->not->toBeNull()
+        ->and($copy->heartbeat_token)->not->toBe($originalToken)
+        ->and($copy->heartbeat_token)->toHaveLength(48)
+        ->and($monitor->fresh()->heartbeat_token)->toBe($originalToken);
+});
+
+it('truncates a long name when labelling a duplicate', function () {
+    expect(mb_strlen(MonitorFormState::copyName(str_repeat('a', 255))))
+        ->toBe(255)
+        ->and(MonitorFormState::copyName('API'))
+        ->toBe('API (copy)');
 });

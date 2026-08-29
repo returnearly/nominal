@@ -22,5 +22,6 @@ final readonly class ProbeResult
         public ?string $message,
         public array $conditionResults,
         public ?string $responseBody = null,
+        public ?DateTimeImmutable $domainExpiresAt = null,
     ) {}
 }

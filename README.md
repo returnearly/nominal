@@ -1,16 +1,22 @@
+![Nominal](public/images/logo.png)
+
 # Nominal
 
 Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, GraphQL mutations, Prometheus metrics, Reverb live events.
 
-Aviation sense of the word: all systems nominal.
+**[Documentation](https://staynominal.com/docs)**
+
+![Nominal — Modern self-hosted monitoring](public/images/og.jpg)
 
 ## Stack
 
 - PHP 8.5, Laravel 13, Filament 5, Lighthouse GraphQL, Sanctum, Reverb
 - Docker: `serversideup/php:8.5-frankenphp` with Laravel Octane, OPcache, and FrankenPHP worker mode
-- Monitors: HTTP/HTTPS (custom method, headers, body) and ICMP ping (TCP fallback)
-- Conditions: `[STATUS]`, `[BODY]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`
+- Monitors: HTTP/HTTPS, GraphQL, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, WebSocket, MySQL, Redis, and PostgreSQL
+- Proxies: per-monitor HTTP/SOCKS URL for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis; `HTTP_PROXY` / `ALL_PROXY` for HTTP checks and notification webhooks
+- Conditions: `[STATUS]`, `[BODY]`, `[REDIRECT]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DOMAIN_EXPIRATION]`, `[DNS_RCODE]`
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
+- Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
 
 ## Quick start
@@ -76,22 +82,103 @@ mutation {
 }
 ```
 
+`[BODY] == pat(*healthy*)` matches a substring in the raw response. `[REDIRECT]` is the `Location` header when follow redirects is off, or the final URL when it is on:
+
+```graphql
+mutation {
+  createMonitor(input: {
+    name: "Login redirect"
+    type: Http
+    target: "https://example.com/login"
+    followRedirects: false
+    conditions: ["[STATUS] == 302", "[REDIRECT] == pat(https://example.com/app/*)"]
+  }) { id }
+}
+```
+
+GraphQL monitors wrap `requestBody` as `{"query": "..."}` and default to POST:
+
+```graphql
+mutation {
+  createMonitor(input: {
+    name: "Countries"
+    type: GraphQL
+    target: "https://countries.trevorblades.com/"
+    requestBody: "{ __typename }"
+    conditions: ["[STATUS] == 200", "has([BODY].errors) == false"]
+  }) { id }
+}
+```
+
 Unauthenticated clients receive GraphQL `errors[]`. HTTP status is still 200 — Terraform maps those errors as failed applies.
+
+Database monitors take a connection URL, log in, and run a version/status query (`SHOW TABLES` / public tables / Redis `INFO` and `DBSIZE`). Optional `requestBody` is custom SQL or a Redis command:
+
+```graphql
+mutation {
+  createMonitor(input: {
+    name: "Primary Postgres"
+    type: Postgres
+    target: "postgres://monitor:secret@db.example.com:5432/app"
+    conditions: ["[CONNECTED] == true", "has([BODY].version) == true"]
+  }) { id }
+}
+```
+
+## Status pages
+
+Nominal’s Filament UI is admin-only. Publish one or more public status pages (Uptime Kuma-style) instead of using the dashboard as the status page (Gatus-style).
+
+Each page can:
+
+- List a subset of monitors, with optional public names (targets hidden by default)
+- Use a custom domain, logo, favicon, theme, footer, and CSS
+- Optionally require a password
+- Show incidents and scheduled maintenance with a public timeline
+
+Path URL: `/status/{slug}`. Custom domain: CNAME the hostname to Nominal; the page is served at `/` on that host.
+
+GraphQL: `createStatusPage`, `createIncident`, `addIncidentUpdate`.
 
 ## Reverb
 
-Filament polls every 10s as a fallback. Live events are broadcast on:
+The Filament admin subscribes to live events over Reverb and refreshes when a check finishes. Tables and widgets still poll every 10s if the WebSocket is down.
+
+Live events are broadcast on:
 
 - `private-monitors`
 - `private-monitors.{uuid}`
 
 Payloads: `MonitorStatusUpdated`, `CheckCompleted`. Authenticate `/broadcasting/auth` with the same Sanctum session or bearer token used for GraphQL.
 
+Public status pages keep a meta refresh (`refresh_seconds`) — they are unauthenticated, so they do not use the private monitor channels.
+
 Reverb through Cloudflare needs extra setup; GraphQL HTTP does not.
 
 ## Prometheus
 
-`GET /metrics` — Redis/cache-backed counters and gauges, prefix `nominal_`. Labels: `monitor`, `group`, `type`, `success`, `region`.
+`GET /metrics` — Redis/cache-backed counters and gauges, prefix `nominal_`. Labels: `monitor`, `type`, `success`, `region`.
+
+## Badges
+
+Public SVG and JSON badges for each monitor — the same first-class integration Gatus, Healthchecks, and Uptime Kuma expose. Served from `/embed` so they can be allowlisted independently of `/api` (e.g. through a firewall).
+
+```
+GET /embed/badges/{id}/status.svg
+GET /embed/badges/{id}/status.json
+GET /embed/badges/{id}/uptime/{period}/badge.svg
+GET /embed/badges/{id}/uptime/{period}
+GET /embed/badges/{id}/latency/{period}/badge.svg
+GET /embed/badges/{id}/latency/{period}
+```
+
+Periods: `1h`, `24h`, `7d`, `30d` (any `{n}h` / `{n}d` up to 90 days). Omit the period to default to `24h`. JSON is [Shields.io endpoint](https://shields.io/badges/endpoint-badge) compatible (`schemaVersion`, `label`, `message`, `color`).
+
+```md
+![status](https://nominal.example/embed/badges/{id}/status.svg)
+```
+
+Copy URLs and markdown from the monitor page.
 
 ## Multi-region workers
 
@@ -112,3 +199,17 @@ docker compose up --build
 ```
 
 App is on [http://localhost:8000](http://localhost:8000) (container port 8080). Queue, scheduler, and Reverb are the same image with `command:` overrides. Extra regional workers copy `worker` and change `PROBE_REGION` / `--queue`.
+
+Production images (`linux/amd64` and `linux/arm64`) are published to the GitHub Container Registry on every push to `master` (`latest`) and on version tags:
+
+```bash
+docker pull ghcr.io/returnearly/nominal:latest
+```
+
+The package is public. If the first publish lands as private, set visibility to **Public** once under the repo's Packages settings.
+
+## License
+
+Copyright © 2026 Return Early.
+
+Nominal is licensed under the [Elastic License 2.0](LICENSE) (source-available, not OSI open source). You may self-host it and run it for your own business, including for-profit internal use. You may not offer Nominal to third parties as a hosted or managed service.

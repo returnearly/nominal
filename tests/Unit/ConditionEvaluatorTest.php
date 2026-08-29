@@ -21,8 +21,10 @@ function httpContext(array $overrides = []): CheckContext
         ip: $overrides['ip'] ?? '93.184.216.34',
         connected: $overrides['connected'] ?? true,
         certificateExpirationSeconds: $overrides['certificateExpirationSeconds'] ?? 86400 * 60,
+        domainExpirationSeconds: $overrides['domainExpirationSeconds'] ?? 86400 * 400,
         body: $body,
         rawBody: is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR),
+        redirectUrl: $overrides['redirectUrl'] ?? null,
     );
 }
 
@@ -64,6 +66,26 @@ it('evaluates JSON body paths, len, has, and pat', function () {
         ->and(evaluate('[BODY].data[0].id == any(1, 2)', $context))->toBeTrue();
 });
 
+it('matches a substring in the raw HTTP body', function () {
+    $html = httpContext(['body' => '<h1>Welcome home</h1>']);
+    $json = httpContext(['body' => ['status' => 'UP', 'message' => 'healthy']]);
+
+    expect(evaluate('[BODY] == pat(*Welcome*)', $html))->toBeTrue()
+        ->and(evaluate('[BODY] == pat(*goodbye*)', $html))->toBeFalse()
+        ->and(evaluate('[BODY] == pat(*"status":"UP"*)', $json))->toBeTrue()
+        ->and(evaluate('[BODY] == pat(*missing*)', $json))->toBeFalse();
+});
+
+it('evaluates redirect URLs and wildcard prefixes', function () {
+    $context = httpContext(['redirectUrl' => 'https://example.com/app/home']);
+
+    expect(evaluate('[REDIRECT] == https://example.com/app/home', $context))->toBeTrue()
+        ->and(evaluate('[REDIRECT] == pat(https://example.com/app/*)', $context))->toBeTrue()
+        ->and(evaluate('[REDIRECT] == pat(https://other.example.com/*)', $context))->toBeFalse()
+        ->and(evaluate('[REDIRECT] == https://example.com/login', $context))->toBeFalse()
+        ->and(evaluate('[REDIRECT] == https://example.com/app/home', httpContext()))->toBeFalse();
+});
+
 it('evaluates certificate expiration durations', function () {
     expect(evaluate('[CERTIFICATE_EXPIRATION] > 48h', httpContext([
         'certificateExpirationSeconds' => 49 * 3600,
@@ -71,6 +93,28 @@ it('evaluates certificate expiration durations', function () {
         ->and(evaluate('[CERTIFICATE_EXPIRATION] > 48h', httpContext([
             'certificateExpirationSeconds' => 3600,
         ])))->toBeFalse();
+});
+
+it('evaluates domain expiration durations', function () {
+    expect(evaluate('[DOMAIN_EXPIRATION] > 720h', httpContext([
+        'domainExpirationSeconds' => 721 * 3600,
+    ])))->toBeTrue()
+        ->and(evaluate('[DOMAIN_EXPIRATION] > 720h', httpContext([
+            'domainExpirationSeconds' => 24 * 3600,
+        ])))->toBeFalse();
+});
+
+it('evaluates DNS response codes and answer bodies', function () {
+    $context = new CheckContext(
+        connected: true,
+        body: '93.184.216.34',
+        rawBody: '93.184.216.34',
+        dnsRcode: 'NOERROR',
+    );
+
+    expect(evaluate('[DNS_RCODE] == NOERROR', $context))->toBeTrue()
+        ->and(evaluate('[DNS_RCODE] == NXDOMAIN', $context))->toBeFalse()
+        ->and(evaluate('[BODY] == 93.184.216.34', $context))->toBeTrue();
 });
 
 it('treats inverted HTTP success as a normal condition', function () {

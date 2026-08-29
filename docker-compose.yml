@@ -27,12 +27,14 @@ x-nominal-environment: &nominal-environment
 x-code-volumes: &code-volumes
   - .:/var/www/html
   - composer-vendor:/var/www/html/vendor
+  - bootstrap-cache:/var/www/html/bootstrap/cache
 
 services:
   app:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: development
     image: returnearly/nominal:local
     restart: always
     ports:
@@ -47,16 +49,20 @@ services:
       AUTORUN_LARAVEL_VIEW_CACHE: "false"
       AUTORUN_LARAVEL_EVENT_CACHE: "false"
       SSL_MODE: "off"
-      REVERB_HOST: localhost
-      REVERB_PORT: "${CONDUCTOR_REVERB_PORT:-8080}"
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
       REVERB_SCHEME: http
+      REVERB_CLIENT_HOST: localhost
+      REVERB_CLIENT_PORT: ${CONDUCTOR_REVERB_PORT:-8080}
+      REVERB_CLIENT_SCHEME: http
     command: ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8080", "--admin-port=2019", "--watch"]
     healthcheck:
       test: ["CMD", "healthcheck-octane"]
       start_period: 10s
     volumes: *code-volumes
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   worker:
     image: returnearly/nominal:local
@@ -67,7 +73,8 @@ services:
       - NET_RAW
     command: ["sh", "-c", "php artisan queue:work --queue=checks.$${PROBE_REGION:-local},default --sleep=1 --tries=1"]
     healthcheck:
-      disable: true
+      test: ["CMD", "healthcheck-queue"]
+      start_period: 10s
     environment:
       <<: *nominal-environment
       AUTORUN_ENABLED: "false"
@@ -76,28 +83,34 @@ services:
       REVERB_SCHEME: http
     volumes: *code-volumes
     depends_on:
-      - redis
-      - app
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
 
   scheduler:
     image: returnearly/nominal:local
     restart: always
     command: ["php", "artisan", "schedule:work"]
     healthcheck:
-      disable: true
+      test: ["CMD", "healthcheck-schedule"]
+      start_period: 10s
     environment:
       <<: *nominal-environment
       AUTORUN_ENABLED: "false"
     volumes: *code-volumes
     depends_on:
-      - redis
-      - app
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
 
   reverb:
     image: returnearly/nominal:local
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
     healthcheck:
-      disable: true
+      test: ["CMD", "healthcheck-reverb"]
+      start_period: 10s
     environment:
       <<: *nominal-environment
       AUTORUN_ENABLED: "false"
@@ -110,12 +123,20 @@ services:
     ports:
       - "${CONDUCTOR_REVERB_PORT:-8080}:8080"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports:
       - "${CONDUCTOR_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
 volumes:
   composer-vendor:
+  bootstrap-cache:

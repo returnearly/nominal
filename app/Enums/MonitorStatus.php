@@ -12,6 +12,7 @@ enum MonitorStatus: string implements HasColor
     case Up = 'up';
     case Down = 'down';
     case Paused = 'paused';
+    case Maintenance = 'maintenance';
 
     public function getColor(): string
     {
@@ -20,6 +21,18 @@ enum MonitorStatus: string implements HasColor
             self::Down => 'danger',
             self::Pending => 'gray',
             self::Paused => 'purple',
+            self::Maintenance => 'warning',
+        };
+    }
+
+    public function badgeLabel(): string
+    {
+        return match ($this) {
+            self::Up => 'Healthy',
+            self::Down => 'Unhealthy',
+            self::Pending => 'Pending',
+            self::Paused => 'Paused',
+            self::Maintenance => 'Maintenance',
         };
     }
 }

@@ -19,9 +19,14 @@ final class CheckCompleted implements ShouldBroadcastNow
 
     public function __construct(
         public Monitor $monitor,
-        public Probe $probe,
+        public ?Probe $probe,
         public CheckResult $result,
     ) {}
+
+    public function broadcastAs(): string
+    {
+        return 'CheckCompleted';
+    }
 
     /**
      * @return array<int, PrivateChannel>
@@ -42,7 +47,7 @@ final class CheckCompleted implements ShouldBroadcastNow
         return [
             'id' => $this->result->id,
             'monitor_id' => $this->monitor->id,
-            'probe_id' => $this->probe->id,
+            'probe_id' => $this->probe?->id,
             'success' => $this->result->success,
             'latency_ms' => $this->result->latency_ms,
             'http_status' => $this->result->http_status,

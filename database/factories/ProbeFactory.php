@@ -21,6 +21,14 @@ class ProbeFactory extends Factory
             'name' => fake()->city().' probe',
             'queue' => 'checks.'.$slug,
             'enabled' => true,
+            'is_default' => false,
         ];
+    }
+
+    public function asDefault(): static
+    {
+        return $this->state(fn (): array => [
+            'is_default' => true,
+        ]);
     }
 }

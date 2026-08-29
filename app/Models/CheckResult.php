@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'http_status',
     'resolved_ip',
     'certificate_expires_at',
+    'domain_expires_at',
     'message',
     'condition_results',
 ])]
@@ -38,6 +39,7 @@ class CheckResult extends Model
             'latency_ms' => 'integer',
             'http_status' => 'integer',
             'certificate_expires_at' => 'datetime',
+            'domain_expires_at' => 'datetime',
             'condition_results' => 'array',
         ];
     }

@@ -14,13 +14,14 @@ it('lists users on the settings users page', function () {
 
     $this->actingAs($user)
         ->get('/admin/settings/users')
-        ->assertOk()
-        ->assertSee('Ada Lovelace')
-        ->assertSee('ada@example.com');
+        ->assertOk();
 
     Livewire::actingAs($user)
         ->test(ListUsers::class)
-        ->assertCanSeeTableRecords([$user]);
+        ->loadTable()
+        ->assertCanSeeTableRecords([$user])
+        ->assertSee('Ada Lovelace')
+        ->assertSee('ada@example.com');
 });
 
 it('creates a user from settings', function () {

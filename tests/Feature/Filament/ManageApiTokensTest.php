@@ -13,7 +13,11 @@ it('lists api tokens on the settings page', function () {
 
     $this->actingAs($user)
         ->get('/admin/settings/api-tokens')
-        ->assertOk()
+        ->assertOk();
+
+    Livewire::actingAs($user)
+        ->test(ManageApiTokens::class)
+        ->loadTable()
         ->assertSee('terraform')
         ->assertSee('owner@example.com');
 });

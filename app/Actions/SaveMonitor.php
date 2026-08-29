@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Conditions\ConditionExpression;
+use App\Enums\DnsQueryType;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
@@ -11,6 +13,9 @@ use App\Enums\MonitorType;
 use App\Models\Monitor;
 use App\Models\Probe;
 use App\Support\EnumValue;
+use App\Support\MonitorTags;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
@@ -25,38 +30,103 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     {
         $monitor ??= new Monitor;
         $type = $this->type($input['type'] ?? $monitor->type);
+        $intervalSeconds = (int) ($input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60);
+
+        $this->assertDomainExpirationInterval(
+            $type,
+            $intervalSeconds,
+            $input['conditions'] ?? $monitor->conditions?->pluck('expression')->all(),
+        );
 
         $monitor->fill([
             'name' => $input['name'] ?? $monitor->name,
-            'group' => $input['group'] ?? $monitor->group,
+            'description' => array_key_exists('description', $input)
+                ? $this->description($input['description'])
+                : $monitor->description,
+            'tags' => array_key_exists('tags', $input)
+                ? MonitorTags::normalize($input['tags'])
+                : $monitor->tags,
             'type' => $type,
             'enabled' => $input['enabled'] ?? $monitor->enabled ?? true,
-            'interval_seconds' => $input['intervalSeconds'] ?? $input['interval_seconds'] ?? $monitor->interval_seconds ?? 60,
-            'timeout_seconds' => $input['timeoutSeconds'] ?? $input['timeout_seconds'] ?? $monitor->timeout_seconds ?? 10,
-            'ip_family' => $this->ipFamily($input['ipFamily'] ?? $input['ip_family'] ?? $monitor->ip_family ?? IpFamily::Any),
+            'interval_seconds' => $intervalSeconds,
+            'timeout_seconds' => $type->usesOutboundProbe()
+                ? ($input['timeoutSeconds'] ?? $input['timeout_seconds'] ?? $monitor->timeout_seconds ?? 10)
+                : ($monitor->timeout_seconds ?? 10),
+            'ip_family' => $type->usesOutboundProbe()
+                ? $this->ipFamily($input['ipFamily'] ?? $input['ip_family'] ?? $monitor->ip_family ?? IpFamily::Any)
+                : IpFamily::Any,
             'target' => $input['target'] ?? $monitor->target,
-            'method' => $type === MonitorType::Http
-                ? $this->method($input['method'] ?? $monitor->method ?? HttpMethod::Get)
+            'method' => $type->usesHttpRequest()
+                ? $this->method($input['method'] ?? $monitor->method ?? ($type->wrapsGraphQLBody() ? HttpMethod::Post : HttpMethod::Get))
                 : null,
-            'request_headers' => $input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [],
-            'request_body' => $input['requestBody'] ?? $input['request_body'] ?? $monitor->request_body,
-            'follow_redirects' => $input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true,
-            'verify_tls' => $input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true,
+            'request_headers' => $type->usesRequestHeaders()
+                ? ($input['requestHeaders'] ?? $input['request_headers'] ?? $monitor->request_headers ?? [])
+                : null,
+            'request_body' => $type->usesRequestBody()
+                ? ($input['requestBody'] ?? $input['request_body'] ?? $monitor->request_body)
+                : null,
+            'dns_query_name' => $type->usesDnsQuery()
+                ? ($input['dnsQueryName'] ?? $input['dns_query_name'] ?? $monitor->dns_query_name)
+                : null,
+            'dns_query_type' => $type->usesDnsQuery()
+                ? $this->dnsQueryType($input['dnsQueryType'] ?? $input['dns_query_type'] ?? $monitor->dns_query_type ?? DnsQueryType::A)
+                : null,
+            'heartbeat_token' => $type === MonitorType::Heartbeat
+                ? ($monitor->heartbeat_token ?: Str::random(48))
+                : $monitor->heartbeat_token,
+            'follow_redirects' => $type->usesHttpRequest()
+                ? ($input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true)
+                : true,
+            'verify_tls' => $type->usesVerifyTls()
+                ? ($input['verifyTls'] ?? $input['verify_tls'] ?? $monitor->verify_tls ?? true)
+                : true,
+            'proxy_url' => $type->usesProxy()
+                ? $this->nullableString($input['proxyUrl'] ?? $input['proxy_url'] ?? $monitor->proxy_url)
+                : null,
             'retention_days' => $input['retentionDays'] ?? $input['retention_days'] ?? $monitor->retention_days ?? 30,
             'status' => $monitor->status ?? MonitorStatus::Pending,
         ]);
 
         $monitor->save();
 
-        if (array_key_exists('conditions', $input) || $monitor->conditions()->doesntExist()) {
-            $this->syncConditions($monitor, $input['conditions'] ?? null);
+        if ($type === MonitorType::Heartbeat) {
+            $monitor->conditions()->delete();
+            $monitor->probes()->sync([]);
+        } else {
+            if (array_key_exists('conditions', $input) || $monitor->conditions()->doesntExist()) {
+                $this->syncConditions($monitor, $input['conditions'] ?? null);
+            }
+
+            if (array_key_exists('probeIds', $input) || array_key_exists('probe_ids', $input) || $monitor->probes()->doesntExist()) {
+                $this->syncProbes($monitor, $input['probeIds'] ?? $input['probe_ids'] ?? null);
+            }
         }
 
-        if (array_key_exists('probeIds', $input) || array_key_exists('probe_ids', $input) || $monitor->probes()->doesntExist()) {
-            $this->syncProbes($monitor, $input['probeIds'] ?? $input['probe_ids'] ?? null);
+        $monitor = $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
+
+        DispatchMonitorCheck::make()->forSaved($monitor);
+
+        return $monitor;
+    }
+
+    /**
+     * @param  list<string>|null  $expressions
+     */
+    private function assertDomainExpirationInterval(MonitorType $type, int $intervalSeconds, ?array $expressions): void
+    {
+        if (! $type->supportsDomainExpiration()) {
+            return;
         }
 
-        return $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
+        if (! LookupDomainExpiration::expressionsNeedLookup($expressions)) {
+            return;
+        }
+
+        if ($intervalSeconds < LookupDomainExpiration::MinimumIntervalSeconds) {
+            throw ValidationException::withMessages([
+                'intervalSeconds' => 'The minimum interval for a monitor with a [DOMAIN_EXPIRATION] condition is 300s (5m).',
+            ]);
+        }
     }
 
     /**
@@ -64,7 +134,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
      */
     private function syncConditions(Monitor $monitor, ?array $expressions): void
     {
-        $expressions ??= [$monitor->type === MonitorType::Ping ? '[CONNECTED] == true' : '[STATUS] == 200'];
+        $expressions ??= ConditionExpression::defaultExpressions($monitor->type);
 
         $monitor->conditions()->delete();
 
@@ -86,7 +156,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function syncProbes(Monitor $monitor, ?array $probeIds): void
     {
         if ($probeIds === null) {
-            $probeIds = Probe::query()->where('enabled', true)->pluck('id')->all();
+            $probeIds = Probe::defaultIds();
         }
 
         $monitor->probes()->sync($probeIds);
@@ -109,5 +179,30 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function method(mixed $method): HttpMethod
     {
         return $method instanceof HttpMethod ? $method : EnumValue::parse(HttpMethod::class, $method);
+    }
+
+    private function dnsQueryType(mixed $type): DnsQueryType
+    {
+        return $type instanceof DnsQueryType ? $type : EnumValue::parse(DnsQueryType::class, $type);
+    }
+
+    private function description(mixed $description): ?string
+    {
+        return $this->nullableString($description);
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

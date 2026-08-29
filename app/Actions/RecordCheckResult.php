@@ -12,6 +12,7 @@ use App\Metrics\MetricsStore;
 use App\Models\CheckResult;
 use App\Models\Monitor;
 use App\Models\Probe;
+use Illuminate\Broadcasting\BroadcastException;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
@@ -24,19 +25,20 @@ final readonly class RecordCheckResult implements ActionsPatternInterface
         private MetricsStore $metrics,
     ) {}
 
-    public function handle(Monitor $monitor, Probe $probe, ProbeResult $result): CheckResult
+    public function handle(Monitor $monitor, ?Probe $probe, ProbeResult $result): CheckResult
     {
         $now = now();
         $previousStatus = $monitor->status;
 
         $checkResult = $monitor->checkResults()->create([
-            'probe_id' => $probe->id,
+            'probe_id' => $probe?->id,
             'checked_at' => $now,
             'success' => $result->success,
             'latency_ms' => $result->latencyMs,
             'http_status' => $result->httpStatus,
             'resolved_ip' => $result->resolvedIp,
             'certificate_expires_at' => $result->certificateExpiresAt,
+            'domain_expires_at' => $result->domainExpiresAt,
             'message' => $result->message,
             'condition_results' => array_map(
                 fn ($outcome): array => $outcome->toArray(),
@@ -65,10 +67,14 @@ final readonly class RecordCheckResult implements ActionsPatternInterface
 
         $monitor->save();
 
-        CheckCompleted::dispatch($monitor, $probe, $checkResult);
+        try {
+            CheckCompleted::dispatch($monitor, $probe, $checkResult);
 
-        if ($statusChanged) {
-            MonitorStatusUpdated::dispatch($monitor, $previousStatus);
+            if ($statusChanged) {
+                MonitorStatusUpdated::dispatch($monitor, $previousStatus);
+            }
+        } catch (BroadcastException $exception) {
+            report($exception);
         }
 
         $this->metrics->record($monitor, $probe, $result);

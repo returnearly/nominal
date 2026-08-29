@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\NotificationChannelType;
 use App\Models\NotificationChannel;
 use App\Support\EnumValue;
+use App\Support\NotificationChannelConfig;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
 use ReturnEarly\ActionsPattern\Traits\ActionsPattern;
 
@@ -20,18 +21,31 @@ final readonly class SaveNotificationChannel implements ActionsPatternInterface
     public function handle(array $input, ?NotificationChannel $channel = null): NotificationChannel
     {
         $channel ??= new NotificationChannel;
-        $type = $input['type'] ?? $channel->type;
+        $type = $this->type($input['type'] ?? $channel->type);
+        $config = array_key_exists('config', $input)
+            ? $input['config']
+            : $channel->configArray();
+
+        $config = NotificationChannelConfig::normalize($type, $config);
+        NotificationChannelConfig::assertValid($type, $config);
 
         $channel->fill([
             'name' => $input['name'] ?? $channel->name,
-            'type' => $type instanceof NotificationChannelType
-                ? $type
-                : EnumValue::parse(NotificationChannelType::class, $type),
-            'config' => $input['config'] ?? $channel->config ?? [],
+            'type' => $type,
+            'config' => $config,
         ]);
 
         $channel->save();
 
         return $channel->fresh() ?? $channel;
+    }
+
+    private function type(mixed $type): NotificationChannelType
+    {
+        if ($type instanceof NotificationChannelType) {
+            return $type;
+        }
+
+        return EnumValue::parse(NotificationChannelType::class, $type);
     }
 }

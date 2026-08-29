@@ -10,15 +10,18 @@ use App\Filament\Resources\NotificationChannels\Pages\CreateNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\EditNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\ListNotificationChannels;
 use App\Models\NotificationChannel;
+use App\Support\NotificationChannelConfig;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -39,16 +42,30 @@ final class NotificationChannelResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            TextInput::make('name')->required()->maxLength(255),
-            Select::make('type')
-                ->options(NotificationChannelType::class)
-                ->required()
-                ->live(),
-            KeyValue::make('config')
-                ->keyLabel('Setting')
-                ->valueLabel('Value')
-                ->helperText('mail: to. slack/discord/teams/webhook: webhook_url or url. pagerduty: routing_key.')
-                ->columnSpanFull(),
+            Section::make('Channel')
+                ->columns(2)
+                ->components([
+                    TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Select::make('type')
+                        ->options(NotificationChannelType::class)
+                        ->default(NotificationChannelType::Mail)
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                            $type = self::typeFrom($state);
+
+                            if ($type === null) {
+                                return;
+                            }
+
+                            $set('config', NotificationChannelConfig::forForm($type, $get('config') ?? []));
+                        }),
+                ]),
+            Section::make('Setup')
+                ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
+                ->components(self::setupFields()),
         ]);
     }
 
@@ -58,6 +75,7 @@ final class NotificationChannelResource extends Resource
             ->columns([
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('type')->badge(),
+                TextColumn::make('destination')->placeholder('—'),
                 TextColumn::make('updated_at')->since(),
             ])
             ->recordActions([
@@ -78,5 +96,54 @@ final class NotificationChannelResource extends Resource
             'create' => CreateNotificationChannel::route('/create'),
             'edit' => EditNotificationChannel::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * @return list<TextInput>
+     */
+    private static function setupFields(): array
+    {
+        $fields = [];
+
+        foreach (NotificationChannelConfig::formKeys() as $key => $kind) {
+            $needs = fn (Get $get): bool => self::type($get)?->needs($key) === true;
+
+            $input = TextInput::make('config.'.$key)
+                ->label(fn (Get $get): string => self::type($get)?->field($key)?->label ?? $key)
+                ->placeholder(fn (Get $get): string => self::type($get)?->field($key)?->placeholder ?? '')
+                ->helperText(fn (Get $get): ?string => self::type($get)?->field($key)?->helperText)
+                ->maxLength($kind === 'url' ? 2048 : 255)
+                ->required($needs)
+                ->visible($needs)
+                ->dehydrated($needs)
+                ->columnSpanFull();
+
+            $fields[] = match ($kind) {
+                'email' => $input->email($needs),
+                'url' => $input->url($needs),
+                'password' => $input->password($needs)->revealable($needs),
+                default => $input,
+            };
+        }
+
+        return $fields;
+    }
+
+    private static function type(Get $get): ?NotificationChannelType
+    {
+        return self::typeFrom($get('type'));
+    }
+
+    private static function typeFrom(mixed $type): ?NotificationChannelType
+    {
+        if ($type instanceof NotificationChannelType) {
+            return $type;
+        }
+
+        if (! is_string($type) || $type === '') {
+            return null;
+        }
+
+        return NotificationChannelType::tryFrom($type);
     }
 }

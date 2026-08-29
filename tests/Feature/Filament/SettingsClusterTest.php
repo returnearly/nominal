@@ -38,13 +38,11 @@ it('moves notification channels and probes under settings', function () {
 
     $this->actingAs($user)
         ->get('/admin/settings/notification-channels')
-        ->assertOk()
-        ->assertSee('PagerDuty prod');
+        ->assertOk();
 
     $this->actingAs($user)
         ->get('/admin/settings/probes')
-        ->assertOk()
-        ->assertSee('US East');
+        ->assertOk();
 
     expect(Route::has('filament.admin.resources.notification-channels.index'))->toBeFalse()
         ->and(Route::has('filament.admin.settings.resources.notification-channels.index'))->toBeTrue()
@@ -52,10 +50,12 @@ it('moves notification channels and probes under settings', function () {
 
     Livewire::actingAs($user)
         ->test(ListNotificationChannels::class)
+        ->loadTable()
         ->assertCanSeeTableRecords([$channel]);
 
     Livewire::actingAs($user)
         ->test(ListProbes::class)
+        ->loadTable()
         ->assertCanSeeTableRecords([$probe]);
 });
 

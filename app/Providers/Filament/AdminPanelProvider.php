@@ -8,14 +8,16 @@ use App\Enums\InterfaceAuth;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Http\Middleware\AuthenticateAnonymousOperator;
 use App\Http\Middleware\LoginCloudflareInterfaceUser;
+use Filament\Actions\Action;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -36,20 +38,48 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('Nominal')
+            ->brandLogo(fn () => view('filament.logo'))
+            ->brandLogoHeight('2rem')
+            ->favicon(asset('favicon.svg'))
             ->maxContentWidth(Width::Full)
+            ->defaultThemeMode(ThemeMode::Dark)
             ->colors([
-                'primary' => Color::Emerald,
-                'purple' => Color::Purple,
+                'primary' => '#5ADEB7',
+                'success' => '#4FCBA6',
+                'danger' => '#D15C5C',
+                'warning' => '#DFC331',
+                'info' => '#485FDE',
+                'purple' => '#98A5EF',
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.meta')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.theme')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
                 fn (): string => view('components.monitor.stats-styles')->render(),
+            )
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): string => view('filament.echo')->render(),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\Filament\Clusters')
             ->homeUrl(fn (): string => MonitorResource::getUrl())
             ->topNavigation()
+            ->spa()
+            ->userMenuItems([
+                Action::make('documentation')
+                    ->label('Documentation')
+                    ->url('https://staynominal.com/docs')
+                    ->openUrlInNewTab()
+                    ->icon(Heroicon::OutlinedBookOpen),
+            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->middleware($this->panelMiddleware($auth))
             ->authMiddleware([

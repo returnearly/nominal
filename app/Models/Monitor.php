@@ -4,14 +4,22 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\ComputeMonitorUptime;
+use App\Checking\DatabaseUrl;
+use App\Enums\DnsQueryType;
+use App\Enums\HeartbeatSignal;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
+use App\Support\MonitorTags;
+use App\Uptime\MonitorUptime;
 use Database\Factories\MonitorFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,10 +27,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 #[Fillable([
     'name',
-    'group',
+    'description',
+    'tags',
     'type',
     'enabled',
     'interval_seconds',
@@ -32,8 +43,12 @@ use Illuminate\Support\Carbon;
     'method',
     'request_headers',
     'request_body',
+    'dns_query_name',
+    'dns_query_type',
+    'heartbeat_token',
     'follow_redirects',
     'verify_tls',
+    'proxy_url',
     'status',
     'last_checked_at',
     'next_check_at',
@@ -47,18 +62,24 @@ class Monitor extends Model
     /** @use HasFactory<MonitorFactory> */
     use HasFactory, HasUuids, SoftDeletes;
 
+    private ?MonitorUptime $computedUptime = null;
+
     protected function casts(): array
     {
         return [
             'type' => MonitorType::class,
             'ip_family' => IpFamily::class,
             'method' => HttpMethod::class,
+            'dns_query_type' => DnsQueryType::class,
             'status' => MonitorStatus::class,
             'enabled' => 'boolean',
             'follow_redirects' => 'boolean',
             'verify_tls' => 'boolean',
+            'proxy_url' => 'encrypted',
             'request_headers' => AsEncryptedArrayObject::class,
             'last_checked_at' => 'datetime',
+            'last_heartbeat_at' => 'datetime',
+            'heartbeat_started_at' => 'datetime',
             'next_check_at' => 'datetime',
             'last_status_changed_at' => 'datetime',
             'interval_seconds' => 'integer',
@@ -67,6 +88,40 @@ class Monitor extends Model
             'consecutive_failures' => 'integer',
             'retention_days' => 'integer',
         ];
+    }
+
+    /**
+     * @return Attribute<list<string>, list<string>|string>
+     */
+    protected function tags(): Attribute
+    {
+        return Attribute::make(
+            get: function (mixed $value): array {
+                if (is_string($value) && $value !== '') {
+                    $value = json_decode($value, true);
+                }
+
+                return MonitorTags::normalize($value);
+            },
+            set: fn (mixed $value): string => json_encode(MonitorTags::normalize($value)),
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function graphqlTags(): array
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param  Builder<Monitor>  $query
+     * @return Builder<Monitor>
+     */
+    public function scopeTagged(Builder $query, string $tag): Builder
+    {
+        return $query->whereJsonContains('tags', $tag);
     }
 
     public function probes(): BelongsToMany
@@ -103,6 +158,90 @@ class Monitor extends Model
             ]);
     }
 
+    public function maintenanceWindows(): BelongsToMany
+    {
+        return $this->belongsToMany(MaintenanceWindow::class);
+    }
+
+    public function statusPages(): BelongsToMany
+    {
+        return $this->belongsToMany(StatusPage::class, 'status_page_monitor')
+            ->withPivot(['id', 'public_name', 'sort']);
+    }
+
+    public function incidents(): BelongsToMany
+    {
+        return $this->belongsToMany(Incident::class, 'incident_monitor');
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeUnderMaintenance(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->whereHas('maintenanceWindows', fn (Builder $windows) => $windows->active())
+                ->orWhereExists(function ($sub): void {
+                    $sub->from('maintenance_windows')
+                        ->where('applies_to_all', true)
+                        ->whereNull('cancelled_at')
+                        ->where('starts_at', '<=', now())
+                        ->where(function ($inner): void {
+                            $inner->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                        });
+                });
+        });
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeNotUnderMaintenance(Builder $query): Builder
+    {
+        return $query->whereNot(fn (Builder $query) => $query->underMaintenance());
+    }
+
+    public function activeMaintenanceWindow(): ?MaintenanceWindow
+    {
+        if ($this->relationLoaded('activeMaintenanceWindow')) {
+            return $this->getRelation('activeMaintenanceWindow');
+        }
+
+        if (! $this->exists) {
+            return null;
+        }
+
+        $window = MaintenanceWindow::query()->covering($this)->first();
+        $this->setRelation('activeMaintenanceWindow', $window);
+
+        return $window;
+    }
+
+    public function isUnderMaintenance(): bool
+    {
+        return $this->activeMaintenanceWindow() !== null;
+    }
+
+    public function hasDirectMaintenance(): bool
+    {
+        return MaintenanceWindow::query()
+            ->active()
+            ->where('applies_to_all', false)
+            ->whereHas('monitors', fn (Builder $query) => $query->whereKey($this->id))
+            ->exists();
+    }
+
+    public function effectiveStatus(): MonitorStatus
+    {
+        if ($this->isUnderMaintenance()) {
+            return MonitorStatus::Maintenance;
+        }
+
+        return $this->status;
+    }
+
     /**
      * @return list<array{key: string, value: string}>
      */
@@ -120,6 +259,30 @@ class Monitor extends Model
         return $headers;
     }
 
+    public function outboundProxyUrl(): ?string
+    {
+        if (! $this->type->usesProxy()) {
+            return null;
+        }
+
+        $url = $this->proxy_url;
+
+        return is_string($url) && $url !== '' ? $url : null;
+    }
+
+    public function displayTarget(): string
+    {
+        if (! $this->type->usesDatabaseUrl()) {
+            return $this->target;
+        }
+
+        try {
+            return DatabaseUrl::parse($this->target, $this->type)->redacted();
+        } catch (InvalidArgumentException) {
+            return $this->target;
+        }
+    }
+
     /**
      * @return array<string, string>
      */
@@ -132,6 +295,24 @@ class Monitor extends Model
         }
 
         return (array) $headers;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function outboundRequestHeaders(): array
+    {
+        $headers = $this->requestHeadersArray();
+
+        foreach (array_keys($headers) as $key) {
+            if (strcasecmp((string) $key, 'User-Agent') === 0) {
+                return $headers;
+            }
+        }
+
+        $headers['User-Agent'] = 'Nominal';
+
+        return $headers;
     }
 
     public function isDue(): bool
@@ -152,9 +333,145 @@ class Monitor extends Model
         return $this;
     }
 
+    public function heartbeatUrl(HeartbeatSignal|string|null $signal = null): ?string
+    {
+        if ($this->type !== MonitorType::Heartbeat || blank($this->heartbeat_token)) {
+            return null;
+        }
+
+        $url = url('/api/heartbeat/'.$this->heartbeat_token);
+        $suffix = $signal instanceof HeartbeatSignal ? $signal->value : trim((string) $signal);
+
+        return $suffix === '' ? $url : $url.'/'.$suffix;
+    }
+
+    public function heartbeatStartUrl(): ?string
+    {
+        return $this->heartbeatUrl(HeartbeatSignal::Start);
+    }
+
+    public function heartbeatFinishUrl(): ?string
+    {
+        return $this->heartbeatUrl(HeartbeatSignal::Finish);
+    }
+
+    public function heartbeatErrorUrl(): ?string
+    {
+        return $this->heartbeatUrl(HeartbeatSignal::Error);
+    }
+
+    public function badgeUrl(string $kind, string $format = 'svg', ?string $period = null): string
+    {
+        $path = '/embed/badges/'.$this->id.'/'.$kind;
+
+        if ($kind === 'status') {
+            return url($path.'.'.$format);
+        }
+
+        if ($period !== null) {
+            $path .= '/'.$period;
+        }
+
+        return $format === 'svg'
+            ? url($path.'/badge.svg')
+            : url($path);
+    }
+
+    public function statusBadgeSvgUrl(): string
+    {
+        return $this->badgeUrl('status');
+    }
+
+    public function statusBadgeJsonUrl(): string
+    {
+        return $this->badgeUrl('status', 'json');
+    }
+
+    public function uptimeBadgeSvgUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('uptime', 'svg', $period);
+    }
+
+    public function uptimeBadgeJsonUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('uptime', 'json', $period);
+    }
+
+    public function latencyBadgeSvgUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('latency', 'svg', $period);
+    }
+
+    public function latencyBadgeJsonUrl(string $period = '24h'): string
+    {
+        return $this->badgeUrl('latency', 'json', $period);
+    }
+
+    public function badgeMarkdown(): string
+    {
+        return sprintf(
+            '![%s](%s) ![%s](%s) ![%s](%s)',
+            $this->name.' status',
+            $this->statusBadgeSvgUrl(),
+            $this->name.' uptime',
+            $this->uptimeBadgeSvgUrl(),
+            $this->name.' latency',
+            $this->latencyBadgeSvgUrl(),
+        );
+    }
+
+    public function heartbeatIsRunning(): bool
+    {
+        return $this->heartbeat_started_at !== null
+            && $this->heartbeat_started_at->gt(now()->subSeconds($this->interval_seconds));
+    }
+
+    public function heartbeatIsHung(): bool
+    {
+        return $this->heartbeat_started_at !== null
+            && $this->heartbeat_started_at->lte(now()->subSeconds($this->interval_seconds));
+    }
+
+    public function setComputedUptime(MonitorUptime $uptime): static
+    {
+        $this->computedUptime = $uptime;
+
+        return $this;
+    }
+
+    public function uptime(): MonitorUptime
+    {
+        return $this->computedUptime ??= ComputeMonitorUptime::make()
+            ->handle([$this->id])
+            ->get($this->id, MonitorUptime::empty());
+    }
+
+    /**
+     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float}
+     */
+    public function graphqlUptime(): array
+    {
+        return $this->uptime()->toGraphQL();
+    }
+
     protected static function booted(): void
     {
+        static::saving(function (Monitor $monitor): void {
+            $description = $monitor->description;
+            $monitor->description = is_string($description) && trim($description) !== ''
+                ? trim($description)
+                : null;
+        });
+
         static::creating(function (Monitor $monitor): void {
+            if ($monitor->type === MonitorType::Heartbeat) {
+                $monitor->heartbeat_token ??= Str::random(48);
+                $monitor->target = filled($monitor->target) ? $monitor->target : '/api/heartbeat/'.$monitor->heartbeat_token;
+                $monitor->next_check_at ??= now()->addSeconds(max(10, (int) $monitor->interval_seconds));
+
+                return;
+            }
+
             $monitor->next_check_at ??= now();
         });
     }

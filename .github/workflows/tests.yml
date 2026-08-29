@@ -9,13 +9,17 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.5"
-          extensions: mbstring, sqlite, pdo_sqlite, redis
+          extensions: mbstring, sqlite, pdo_sqlite, redis, pdo_mysql, pdo_pgsql
           coverage: none
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
       - name: Run tests
         run: php artisan test

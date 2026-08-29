@@ -11,7 +11,7 @@ final class RollupCheckAggregatesCommand extends Command
 {
     protected $signature = 'nominal:rollup-aggregates';
 
-    protected $description = 'Roll hourly check results into aggregates';
+    protected $description = 'Roll hourly and daily check results into aggregates';
 
     public function handle(RollupCheckAggregates $action): int
     {

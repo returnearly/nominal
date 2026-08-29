@@ -27,12 +27,14 @@ it('records a successful check and marks the monitor up', function () {
         certificateExpiresAt: null,
         message: null,
         conditionResults: [],
+        domainExpiresAt: new DateTimeImmutable('+400 days'),
     );
 
     $stored = RecordCheckResult::make()->handle($monitor, $probe, $result);
 
     expect($stored->success)->toBeTrue()
         ->and(Str::isUuid($stored->id, 7))->toBeTrue()
+        ->and($stored->domain_expires_at)->not->toBeNull()
         ->and($monitor->fresh()->status)->toBe(MonitorStatus::Up)
         ->and($monitor->consecutive_successes)->toBe(1)
         ->and($monitor->consecutive_failures)->toBe(0);
@@ -83,4 +85,24 @@ it('schedules the next check when a result is recorded', function () {
 
     expect($monitor->fresh()->next_check_at?->toDateTimeString())
         ->toBe(now()->copy()->addSeconds(60)->toDateTimeString());
+});
+
+it('records heartbeat results without a probe', function () {
+    Event::fake([CheckCompleted::class, MonitorStatusUpdated::class]);
+
+    $monitor = Monitor::factory()->heartbeat()->create(['status' => MonitorStatus::Pending]);
+
+    $stored = RecordCheckResult::make()->handle($monitor, null, new ProbeResult(
+        success: true,
+        connected: true,
+        latencyMs: 12,
+        httpStatus: null,
+        resolvedIp: null,
+        certificateExpiresAt: null,
+        message: null,
+        conditionResults: [],
+    ));
+
+    expect($stored->probe_id)->toBeNull()
+        ->and($monitor->fresh()->status)->toBe(MonitorStatus::Up);
 });
