@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors;
 
-use App\Conditions\ConditionExpression;
+use App\Actions\DefaultConditionFormState;
+use App\Actions\ParseConditionExpression;
 use App\Models\Monitor;
 use App\Models\Probe;
 use Illuminate\Support\Str;
@@ -67,11 +68,11 @@ final class MonitorFormState
         $items = [];
 
         foreach ($monitor->conditions as $condition) {
-            $items[(string) Str::uuid()] = ConditionExpression::parse($condition->expression);
+            $items[(string) Str::uuid()] = ParseConditionExpression::make()->handle($condition->expression);
         }
 
         if ($items === []) {
-            return ConditionExpression::defaultFormState($monitor->type);
+            return DefaultConditionFormState::make()->handle($monitor->type);
         }
 
         return $items;

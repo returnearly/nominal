@@ -12,7 +12,7 @@ final readonly class ResolvePublicStatusPage implements ActionsPatternInterface
 {
     use ActionsPattern;
 
-    public function forSlug(string $slug): ?StatusPage
+    private function forSlug(string $slug): ?StatusPage
     {
         return StatusPage::query()
             ->published()
@@ -20,7 +20,7 @@ final readonly class ResolvePublicStatusPage implements ActionsPatternInterface
             ->first();
     }
 
-    public function forHost(string $host): ?StatusPage
+    private function forHost(string $host): ?StatusPage
     {
         $domain = StatusPage::normalizeDomain($host);
 

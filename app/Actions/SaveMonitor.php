@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
-use App\Conditions\ConditionExpression;
 use App\Enums\DnsQueryType;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
@@ -104,7 +103,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
 
         $monitor = $monitor->fresh(['conditions', 'probes', 'notificationChannels']) ?? $monitor;
 
-        DispatchMonitorCheck::make()->forSaved($monitor);
+        DispatchMonitorCheck::make()->handle($monitor, saved: true);
 
         return $monitor;
     }
@@ -118,7 +117,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             return;
         }
 
-        if (! LookupDomainExpiration::expressionsNeedLookup($expressions)) {
+        if (! DetectDomainExpirationCondition::make()->handle($expressions)) {
             return;
         }
 
@@ -134,7 +133,7 @@ final readonly class SaveMonitor implements ActionsPatternInterface
      */
     private function syncConditions(Monitor $monitor, ?array $expressions): void
     {
-        $expressions ??= ConditionExpression::defaultExpressions($monitor->type);
+        $expressions ??= DefaultConditionExpressions::make()->handle($monitor->type);
 
         $monitor->conditions()->delete();
 

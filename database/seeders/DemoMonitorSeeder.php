@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Actions\DefaultConditionExpressions;
 use App\Actions\DispatchMonitorCheck;
 use App\Actions\SaveStatusPage;
-use App\Conditions\ConditionExpression;
 use App\Enums\HttpMethod;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
@@ -148,7 +148,7 @@ class DemoMonitorSeeder extends Seeder
         return [
             [
                 'name' => 'Example HTTP',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Http),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Http),
                 'attributes' => $this->attributes(
                     type: MonitorType::Http,
                     target: 'https://example.com',
@@ -158,7 +158,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example GraphQL',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::GraphQL),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::GraphQL),
                 'attributes' => $this->attributes(
                     type: MonitorType::GraphQL,
                     target: 'https://countries.trevorblades.com/',
@@ -168,7 +168,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example Ping',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Ping),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Ping),
                 'attributes' => $this->attributes(
                     type: MonitorType::Ping,
                     target: '1.1.1.1',
@@ -176,7 +176,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example TCP',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Tcp),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Tcp),
                 'attributes' => $this->attributes(
                     type: MonitorType::Tcp,
                     target: 'tcp://1.1.1.1:443',
@@ -184,7 +184,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example DNS',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Dns),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Dns),
                 'attributes' => $this->attributes(
                     type: MonitorType::Dns,
                     target: '1.1.1.1',
@@ -194,7 +194,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example TLS',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Tls),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Tls),
                 'attributes' => $this->attributes(
                     type: MonitorType::Tls,
                     target: 'tls://1.1.1.1:443',
@@ -210,7 +210,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example UDP',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Udp),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Udp),
                 'attributes' => $this->attributes(
                     type: MonitorType::Udp,
                     target: 'udp://1.1.1.1:53',
@@ -218,7 +218,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example WebSocket',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::WebSocket),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::WebSocket),
                 'attributes' => $this->attributes(
                     type: MonitorType::WebSocket,
                     target: 'wss://echo.websocket.events',
@@ -226,7 +226,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example MySQL',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Mysql),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Mysql),
                 'attributes' => $this->attributes(
                     type: MonitorType::Mysql,
                     target: 'mysql://app:secret@db.example.com:3306/app',
@@ -234,7 +234,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example Redis',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Redis),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Redis),
                 'attributes' => $this->attributes(
                     type: MonitorType::Redis,
                     target: 'redis://:secret@cache.example.com:6379/0',
@@ -242,7 +242,7 @@ class DemoMonitorSeeder extends Seeder
             ],
             [
                 'name' => 'Example PostgreSQL',
-                'conditions' => ConditionExpression::defaultExpressions(MonitorType::Postgres),
+                'conditions' => DefaultConditionExpressions::make()->handle(MonitorType::Postgres),
                 'attributes' => $this->attributes(
                     type: MonitorType::Postgres,
                     target: 'postgres://app:secret@db.example.com:5432/app',

@@ -18,7 +18,7 @@ final class StatusPageController
 {
     public function home(Request $request): RedirectResponse|Response|View
     {
-        $page = ResolvePublicStatusPage::make()->forHost($request->getHost());
+        $page = ResolvePublicStatusPage::make()->handle(host: $request->getHost());
 
         if ($page instanceof StatusPage) {
             return $this->show($request, $page, onCustomDomain: true);
@@ -120,7 +120,7 @@ final class StatusPageController
 
     private function publishedBySlug(string $slug): StatusPage
     {
-        $page = ResolvePublicStatusPage::make()->forSlug($slug);
+        $page = ResolvePublicStatusPage::make()->handle(slug: $slug);
 
         abort_if($page === null, 404);
 
@@ -129,7 +129,7 @@ final class StatusPageController
 
     private function publishedByHost(Request $request): StatusPage
     {
-        $page = ResolvePublicStatusPage::make()->forHost($request->getHost());
+        $page = ResolvePublicStatusPage::make()->handle(host: $request->getHost());
 
         abort_if($page === null, 404);
 

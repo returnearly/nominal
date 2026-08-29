@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Monitors;
 
+use App\Actions\DefaultConditionExpressions;
+use App\Actions\DefaultConditionFormState;
+use App\Actions\FillConditionForm;
 use App\Actions\LookupDomainExpiration;
-use App\Conditions\ConditionExpression;
+use App\Actions\NewConditionExpression;
+use App\Actions\ParseConditionExpression;
+use App\Actions\RecordConditionExpression;
 use App\Enums\ConditionComparator;
 use App\Enums\ConditionPlaceholder;
 use App\Enums\DnsQueryType;
@@ -86,7 +91,7 @@ final class MonitorResource extends Resource
                         ->required()
                         ->live()
                         ->afterStateUpdated(function (Set $set, mixed $state): void {
-                            $set('conditions', ConditionExpression::defaultFormState($state));
+                            $set('conditions', DefaultConditionFormState::make()->handle($state));
 
                             $type = $state instanceof MonitorType
                                 ? $state
@@ -329,7 +334,7 @@ final class MonitorResource extends Resource
                                         $get('placeholder'),
                                         self::monitorType($get),
                                     ))
-                                    ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['placeholder'])
+                                    ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['placeholder'])
                                     ->required()
                                     ->native(false)
                                     ->selectablePlaceholder(false)
@@ -349,20 +354,23 @@ final class MonitorResource extends Resource
                                     $get('placeholder'),
                                     $get('comparator'),
                                 ))
-                                ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['comparator'])
+                                ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['comparator'])
                                 ->required()
                                 ->native(false)
                                 ->selectablePlaceholder(false),
                             TextInput::make('value')
                                 ->hiddenLabel()
-                                ->default(fn (Get $get): string => ConditionExpression::newItem(self::monitorType($get))['value'])
+                                ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['value'])
                                 ->required(),
                         ])
-                        ->mutateRelationshipDataBeforeFillUsing(ConditionExpression::toForm(...))
-                        ->mutateRelationshipDataBeforeCreateUsing(ConditionExpression::toRecord(...))
-                        ->mutateRelationshipDataBeforeSaveUsing(ConditionExpression::toRecord(...))
+                        ->mutateRelationshipDataBeforeFillUsing(fn (array $data): array => FillConditionForm::make()->handle($data))
+                        ->mutateRelationshipDataBeforeCreateUsing(fn (array $data): array => RecordConditionExpression::make()->handle($data))
+                        ->mutateRelationshipDataBeforeSaveUsing(fn (array $data): array => RecordConditionExpression::make()->handle($data))
                         ->orderColumn('sort')
-                        ->default(fn (Get $get): array => ConditionExpression::defaultsForType($get('type')))
+                        ->default(fn (Get $get): array => array_map(
+                            ParseConditionExpression::make()->handle(...),
+                            DefaultConditionExpressions::make()->handle($get('type')),
+                        ))
                         ->minItems(fn (Get $get): int => self::usesOutboundProbe($get) ? 1 : 0)
                         ->dehydrated(self::usesOutboundProbe(...))
                         ->addActionLabel('Add condition')
