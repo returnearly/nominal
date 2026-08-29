@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\InterfaceAuth;
 use App\Filament\Clusters\Settings\Resources\Users\Pages\CreateUser;
 use App\Filament\Clusters\Settings\Resources\Users\Pages\EditUser;
 use App\Filament\Clusters\Settings\Resources\Users\Pages\ListUsers;
@@ -22,6 +23,25 @@ it('lists users on the settings users page', function () {
         ->assertCanSeeTableRecords([$user])
         ->assertSee('Ada Lovelace')
         ->assertSee('ada@example.com');
+});
+
+it('explains that interface authentication is disabled on the users page', function () {
+    config(['nominal.interface_auth' => InterfaceAuth::None->value]);
+
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(ListUsers::class)
+        ->assertSee('Interface authentication is disabled')
+        ->assertSee('signed in as the local operator');
+});
+
+it('does not show the no-authentication banner when login is required', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(ListUsers::class)
+        ->assertDontSee('Interface authentication is disabled');
 });
 
 it('creates a user from settings', function () {
