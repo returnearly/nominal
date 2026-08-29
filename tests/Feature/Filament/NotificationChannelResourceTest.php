@@ -41,11 +41,18 @@ it('shows only the setup fields the selected type needs', function () {
     Livewire::actingAs($user)
         ->test(CreateNotificationChannel::class)
         ->assertFormFieldIsVisible('config.to')
+        ->assertFormFieldIsVisible('config.host')
+        ->assertFormFieldIsVisible('config.port')
+        ->assertFormFieldIsVisible('config.username')
+        ->assertFormFieldIsVisible('config.password')
+        ->assertFormFieldIsVisible('config.encryption')
+        ->assertFormFieldIsVisible('config.from_address')
         ->assertFormFieldIsHidden('config.webhook_url')
         ->assertFormFieldIsHidden('config.url')
         ->assertFormFieldIsHidden('config.routing_key')
         ->set('data.type', NotificationChannelType::Slack->value)
         ->assertFormFieldIsHidden('config.to')
+        ->assertFormFieldIsHidden('config.host')
         ->assertFormFieldIsVisible('config.webhook_url')
         ->assertFormFieldIsHidden('config.url')
         ->set('data.type', NotificationChannelType::Webhook->value)
@@ -76,6 +83,42 @@ it('creates an email channel from the type-specific fields', function () {
     expect($channel)->not->toBeNull()
         ->and($channel?->type)->toBe(NotificationChannelType::Mail)
         ->and($channel?->configArray())->toBe(['to' => 'ops@example.com']);
+});
+
+it('creates an email channel with a mail server', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test(CreateNotificationChannel::class)
+        ->fillForm([
+            'name' => 'SMTP email',
+            'type' => NotificationChannelType::Mail,
+            'config' => [
+                'to' => 'ops@example.com',
+                'host' => 'smtp.example.com',
+                'port' => '587',
+                'username' => 'user',
+                'password' => 'secret',
+                'encryption' => 'tls',
+                'from_address' => 'alerts@example.com',
+                'from_name' => 'Nominal',
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $channel = NotificationChannel::query()->where('name', 'SMTP email')->first();
+
+    expect($channel?->configArray())->toBe([
+        'to' => 'ops@example.com',
+        'host' => 'smtp.example.com',
+        'port' => '587',
+        'username' => 'user',
+        'password' => 'secret',
+        'encryption' => 'tls',
+        'from_address' => 'alerts@example.com',
+        'from_name' => 'Nominal',
+    ]);
 });
 
 it('requires the recipient when creating an email channel', function () {

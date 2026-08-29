@@ -68,6 +68,11 @@ it('summarizes destinations without leaking secrets', function () {
         'to' => 'ops@example.com',
     ]))->toBe('ops@example.com');
 
+    expect(NotificationChannelConfig::destination(NotificationChannelType::Mail, [
+        'to' => 'ops@example.com',
+        'host' => 'smtp.example.com',
+    ]))->toBe('ops@example.com via smtp.example.com');
+
     expect(NotificationChannelConfig::destination(NotificationChannelType::Slack, [
         'webhook_url' => 'https://hooks.slack.com/services/T000/B000/secret',
     ]))->toBe('hooks.slack.com');
@@ -80,8 +85,10 @@ it('summarizes destinations without leaking secrets', function () {
 it('describes email setup without framework names', function () {
     $mail = NotificationChannelType::Mail;
 
-    expect($mail->setupDescription())->toBe('Send alerts to one inbox using the environment variables.')
-        ->and($mail->field('to')?->helperText)->toBe('Uses the environment variables. One address per channel.');
+    expect($mail->setupDescription())->toBe('Send alerts to one inbox. Set a mail server here, or leave the host blank to use the environment.')
+        ->and($mail->field('to')?->helperText)->toBe('One address per channel.')
+        ->and($mail->field('host')?->required)->toBeFalse()
+        ->and($mail->field('host')?->helperText)->toBe('Leave blank to use the environment mail server.');
 });
 
 it('gives shared config keys the same input kind', function () {
@@ -97,5 +104,42 @@ it('gives shared config keys the same input kind', function () {
         }
     }
 
-    expect($kinds)->toHaveKeys(['to', 'webhook_url', 'url', 'routing_key']);
+    expect($kinds)->toHaveKeys(['to', 'host', 'port', 'username', 'password', 'encryption', 'from_address', 'from_name', 'webhook_url', 'url', 'routing_key']);
 });
+
+it('accepts a mail channel with only a recipient', function () {
+    NotificationChannelConfig::assertValid(NotificationChannelType::Mail, [
+        'to' => 'ops@example.com',
+    ]);
+});
+
+it('accepts a mail channel with a mail server', function () {
+    $config = [
+        'to' => 'ops@example.com',
+        'host' => 'smtp.example.com',
+        'port' => '587',
+        'username' => 'user',
+        'password' => 'secret',
+        'encryption' => 'tls',
+        'from_address' => 'alerts@example.com',
+        'from_name' => 'Nominal',
+    ];
+
+    NotificationChannelConfig::assertValid(NotificationChannelType::Mail, $config);
+
+    expect(NotificationChannelConfig::normalize(NotificationChannelType::Mail, [
+        ...$config,
+        'port' => 587.0,
+    ]))->toBe($config);
+});
+
+it('rejects an invalid mail server port or encryption', function (array $config) {
+    NotificationChannelConfig::assertValid(NotificationChannelType::Mail, [
+        'to' => 'ops@example.com',
+        ...$config,
+    ]);
+})->with([
+    [['port' => '0']],
+    [['port' => '70000']],
+    [['encryption' => 'starttls']],
+])->throws(ValidationException::class);

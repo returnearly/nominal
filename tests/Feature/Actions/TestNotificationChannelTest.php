@@ -8,6 +8,7 @@ use App\Enums\AlertKind;
 use App\Enums\NotificationChannelType;
 use App\Models\Monitor;
 use App\Models\NotificationChannel;
+use App\Notifications\Channels\SmtpMailChannel;
 use App\Notifications\ChannelTestNotification;
 use App\Notifications\MonitorAlert;
 use Illuminate\Http\Client\Request;
@@ -27,10 +28,37 @@ it('sends a test email through a mail channel', function () {
         $mail = $notification->toMail($channel);
 
         expect($mail->subject)->toBe('Nominal: test notification')
-            ->and($notification->text())->toContain('Ops mail');
+            ->and($notification->text())->toContain('Ops mail')
+            ->and($channel->deliversVia())->toBe([SmtpMailChannel::class]);
 
         return true;
     });
+});
+
+it('sends a test email through the environment mailer', function () {
+    $channel = NotificationChannel::factory()->mail('ops@example.com')->create(['name' => 'Ops mail']);
+
+    TestNotificationChannel::make()->handle($channel);
+
+    $messages = app('mailer')->getSymfonyTransport()->messages();
+
+    expect($messages)->toHaveCount(1)
+        ->and($messages->first()->getOriginalMessage()->getTo()[0]->getAddress())->toBe('ops@example.com');
+});
+
+it('uses the channel from address on the mail message', function () {
+    $channel = NotificationChannel::factory()->mail()->create([
+        'name' => 'Ops mail',
+        'config' => [
+            'to' => 'ops@example.com',
+            'from_address' => 'alerts@acme.test',
+            'from_name' => 'Acme',
+        ],
+    ]);
+
+    $mail = (new ChannelTestNotification($channel))->toMail($channel);
+
+    expect($mail->from)->toBe(['alerts@acme.test', 'Acme']);
 });
 
 it('posts a test payload to webhook channels', function (NotificationChannelType $type, string $url, string $key) {

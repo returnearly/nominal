@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Validation\Rule;
+
 final readonly class NotificationChannelField
 {
     /**
-     * @param  'email'|'url'|'password'|'text'  $kind
+     * @param  'email'|'url'|'password'|'text'|'integer'|'select'  $kind
      * @param  list<string>  $aliases
+     * @param  array<string, string>  $options
      */
     public function __construct(
         public string $key,
@@ -18,20 +21,33 @@ final readonly class NotificationChannelField
         public string $helperText = '',
         public array $aliases = [],
         public int $maxLength = 255,
+        public bool $required = true,
+        public bool $wide = true,
+        public array $options = [],
+        public ?int $min = null,
+        public ?int $max = null,
     ) {}
 
     /**
-     * @return list<string>
+     * @return list<mixed>
      */
     public function rules(): array
     {
-        $max = 'max:'.$this->maxLength;
+        $presence = $this->required ? ['required'] : ['nullable'];
 
-        return match ($this->kind) {
-            'email' => ['required', 'email', $max],
-            'url' => ['required', 'url', $max],
-            'password' => ['required', 'string', $max],
-            default => ['required', 'string', $max],
+        $specific = match ($this->kind) {
+            'email' => ['email', 'max:'.$this->maxLength],
+            'url' => ['url', 'max:'.$this->maxLength],
+            'password' => ['string', 'max:'.$this->maxLength],
+            'integer' => [
+                'integer',
+                ...($this->min !== null ? ['min:'.$this->min] : []),
+                ...($this->max !== null ? ['max:'.$this->max] : []),
+            ],
+            'select' => ['string', Rule::in(array_keys($this->options))],
+            default => ['string', 'max:'.$this->maxLength],
         };
+
+        return [...$presence, ...$specific];
     }
 }

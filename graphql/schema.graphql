@@ -124,10 +124,24 @@ type MonitorUptime {
 
 type MailNotificationChannelConfig {
     to: String!
+    host: String
+    port: Int
+    username: String
+    password: String
+    encryption: String
+    fromAddress: String
+    fromName: String
 }
 
 input MailNotificationChannelInput {
     to: String!
+    host: String
+    port: Int
+    username: String
+    password: String
+    encryption: String
+    fromAddress: String
+    fromName: String
 }
 
 type SlackNotificationChannelConfig {

@@ -107,7 +107,7 @@ final class NotificationChannelConfig
         $config = self::normalize($type, $config);
 
         return match ($type) {
-            NotificationChannelType::Mail => $config['to'] ?? null,
+            NotificationChannelType::Mail => self::mailDestination($config),
             NotificationChannelType::Pagerduty => isset($config['routing_key']) ? 'Routing key configured' : null,
             default => self::host($config['webhook_url'] ?? $config['url'] ?? null),
         };
@@ -116,7 +116,7 @@ final class NotificationChannelConfig
     /**
      * Unique config keys across types, in enum order. Shared keys keep the first kind.
      *
-     * @return array<string, 'email'|'url'|'password'|'text'>
+     * @return array<string, 'email'|'url'|'password'|'text'|'integer'|'select'>
      */
     public static function formKeys(): array
     {
@@ -129,6 +129,22 @@ final class NotificationChannelConfig
         }
 
         return $keys;
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    private static function mailDestination(array $config): ?string
+    {
+        $to = $config['to'] ?? null;
+
+        if (! is_string($to) || $to === '') {
+            return null;
+        }
+
+        $host = $config['host'] ?? null;
+
+        return is_string($host) && $host !== '' ? $to.' via '.$host : $to;
     }
 
     private static function host(?string $url): ?string
@@ -144,6 +160,10 @@ final class NotificationChannelConfig
 
     private static function string(mixed $value): ?string
     {
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
         if (! is_string($value)) {
             return null;
         }

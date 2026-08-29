@@ -10,6 +10,7 @@ use App\Notifications\Channels\GenericWebhookChannel;
 use App\Notifications\Channels\MicrosoftTeamsChannel;
 use App\Notifications\Channels\PagerDutyChannel;
 use App\Notifications\Channels\SlackWebhookChannel;
+use App\Notifications\Channels\SmtpMailChannel;
 use App\Support\NotificationChannelConfig;
 use Database\Factories\NotificationChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
@@ -70,7 +72,7 @@ class NotificationChannel extends Model
     }
 
     /**
-     * @return array<string, string>|null
+     * @return array<string, string|int|null>|null
      */
     public function graphqlMail(): ?array
     {
@@ -118,7 +120,7 @@ class NotificationChannel extends Model
     }
 
     /**
-     * @return array<string, string>|null
+     * @return array<string, string|int|null>|null
      */
     private function graphqlTypedConfig(NotificationChannelType $type): ?array
     {
@@ -126,13 +128,36 @@ class NotificationChannel extends Model
             return null;
         }
 
+        $config = $this->configArray();
         $out = [];
 
         foreach ($type->fields() as $field) {
-            $value = $this->configArray()[$field->key] ?? null;
+            $value = $config[$field->key] ?? null;
+
+            if ($field->kind === 'integer') {
+                if ($value === null || $value === '') {
+                    if ($field->required) {
+                        return null;
+                    }
+
+                    $out[Str::camel($field->key)] = null;
+
+                    continue;
+                }
+
+                $out[Str::camel($field->key)] = (int) $value;
+
+                continue;
+            }
 
             if (! is_string($value) || $value === '') {
-                return null;
+                if ($field->required) {
+                    return null;
+                }
+
+                $out[Str::camel($field->key)] = null;
+
+                continue;
             }
 
             $out[Str::camel($field->key)] = $value;
@@ -141,13 +166,26 @@ class NotificationChannel extends Model
         return $out;
     }
 
+    public function configureMailMessage(MailMessage $mail): MailMessage
+    {
+        $from = $this->configArray()['from_address'] ?? null;
+
+        if (! is_string($from) || $from === '') {
+            return $mail;
+        }
+
+        $name = $this->configArray()['from_name'] ?? null;
+
+        return $mail->from($from, is_string($name) && $name !== '' ? $name : null);
+    }
+
     /**
      * @return list<string|class-string>
      */
     public function deliversVia(): array
     {
         return match ($this->type) {
-            NotificationChannelType::Mail => ['mail'],
+            NotificationChannelType::Mail => [SmtpMailChannel::class],
             NotificationChannelType::Slack => [SlackWebhookChannel::class],
             NotificationChannelType::MicrosoftTeams => [MicrosoftTeamsChannel::class],
             NotificationChannelType::Discord => [DiscordWebhookChannel::class],
