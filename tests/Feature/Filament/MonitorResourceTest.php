@@ -620,6 +620,18 @@ it('shows embeddable badge urls on the monitor view', function () {
         ->assertSee('Copy markdown');
 });
 
+it('hides badges and history on the monitor edit page', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    $livewire = Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertDontSee('Public SVG and JSON badges')
+        ->assertDontSeeLivewire(CheckResultsRelationManager::class);
+
+    expect($livewire->instance()->getRelationManagers())->toBe([]);
+});
+
 it('saves monitor conditions from the placeholder picker', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();

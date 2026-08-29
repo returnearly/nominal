@@ -27,6 +27,14 @@ final class EditMonitor extends EditRecord
     }
 
     /**
+     * @return array<class-string>
+     */
+    public function getRelationManagers(): array
+    {
+        return [];
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
