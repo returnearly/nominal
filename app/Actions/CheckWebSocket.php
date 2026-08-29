@@ -37,7 +37,7 @@ final readonly class CheckWebSocket implements ActionsPatternInterface
                 $monitor->timeout_seconds,
                 $monitor->ip_family,
                 $monitor->verify_tls,
-                $monitor->requestHeadersArray(),
+                $monitor->outboundRequestHeaders(),
                 $monitor->request_body,
                 $monitor->outboundProxyUrl(),
             );

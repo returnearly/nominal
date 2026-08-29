@@ -297,6 +297,24 @@ class Monitor extends Model
         return (array) $headers;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function outboundRequestHeaders(): array
+    {
+        $headers = $this->requestHeadersArray();
+
+        foreach (array_keys($headers) as $key) {
+            if (strcasecmp((string) $key, 'User-Agent') === 0) {
+                return $headers;
+            }
+        }
+
+        $headers['User-Agent'] = 'Nominal';
+
+        return $headers;
+    }
+
     public function isDue(): bool
     {
         if (! $this->enabled || $this->status === MonitorStatus::Paused || $this->next_check_at === null) {

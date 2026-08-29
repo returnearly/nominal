@@ -154,7 +154,7 @@ final readonly class CheckHttp implements ActionsPatternInterface
      */
     private function requestHeaders(Monitor $monitor): array
     {
-        $headers = $monitor->requestHeadersArray();
+        $headers = $monitor->outboundRequestHeaders();
 
         if ($monitor->type->wrapsGraphQLBody() && ! $this->hasHeader($headers, 'Content-Type')) {
             $headers['Content-Type'] = 'application/json';
