@@ -25,7 +25,9 @@ php artisan serve
 
 Admin: [http://localhost:8000/admin](http://localhost:8000/admin)
 
-Create a GraphQL/Terraform token:
+Notification channels, probes, users, and API tokens live under **Settings**.
+
+Create a GraphQL/Terraform token from Settings → API Tokens, or:
 
 ```bash
 php artisan nominal:token admin@nominal.test

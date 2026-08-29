@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\NotificationChannels;
 
 use App\Enums\NotificationChannelType;
+use App\Filament\Clusters\Settings\SettingsCluster;
 use App\Filament\Resources\NotificationChannels\Pages\CreateNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\EditNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\ListNotificationChannels;
@@ -29,9 +30,11 @@ final class NotificationChannelResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBell;
 
+    protected static ?string $cluster = SettingsCluster::class;
+
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {
