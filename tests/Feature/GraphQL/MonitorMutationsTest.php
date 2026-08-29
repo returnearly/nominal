@@ -456,15 +456,15 @@ it('manages notification channels and syncs them to a monitor', function () {
             createNotificationChannel(input: $input) {
                 id
                 type
-                config { key value }
+                webhook { url }
             }
         }
     ', [
         'input' => [
             'name' => 'Ops webhook',
             'type' => 'Webhook',
-            'config' => [
-                ['key' => 'url', 'value' => 'https://example.com/hook'],
+            'webhook' => [
+                'url' => 'https://example.com/hook',
             ],
         ],
     ], $user)->json('data.createNotificationChannel');

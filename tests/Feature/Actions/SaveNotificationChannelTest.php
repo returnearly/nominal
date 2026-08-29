@@ -56,3 +56,35 @@ it('drops keys the new type does not use', function () {
     expect($updated->type)->toBe(NotificationChannelType::Mail)
         ->and($updated->configArray())->toBe(['to' => 'ops@example.com']);
 });
+
+it('creates a slack channel from the typed slack input', function () {
+    $channel = SaveNotificationChannel::make()->handle([
+        'name' => 'Ops Slack',
+        'type' => NotificationChannelType::Slack,
+        'slack' => [
+            'webhookUrl' => 'https://hooks.slack.com/services/T/B/xxx',
+        ],
+    ]);
+
+    expect($channel->type)->toBe(NotificationChannelType::Slack)
+        ->and($channel->configArray())->toBe([
+            'webhook_url' => 'https://hooks.slack.com/services/T/B/xxx',
+        ]);
+});
+
+it('requires the matching typed input when config is omitted', function () {
+    SaveNotificationChannel::make()->handle([
+        'name' => 'Ops Slack',
+        'type' => NotificationChannelType::Slack,
+    ]);
+})->throws(ValidationException::class);
+
+it('rejects a typed input that does not match the type', function () {
+    SaveNotificationChannel::make()->handle([
+        'name' => 'Ops Slack',
+        'type' => NotificationChannelType::Slack,
+        'mail' => [
+            'to' => 'ops@example.com',
+        ],
+    ]);
+})->throws(ValidationException::class);
