@@ -77,7 +77,35 @@ it('passes HTTP checks when conditions match', function () {
     expect($result->success)->toBeTrue()
         ->and($result->httpStatus)->toBe(200)
         ->and($result->connected)->toBeTrue()
-        ->and((string) $history[0]['request']->getBody())->toBe('{"ping":true}');
+        ->and((string) $history[0]['request']->getBody())->toBe('{"ping":true}')
+        ->and($history[0]['request']->getHeaderLine('User-Agent'))->toBe('Nominal')
+        ->and($history[0]['request']->getHeaderLine('X-Token'))->toBe('secret');
+});
+
+it('sends Nominal as the User-Agent when the monitor does not set one', function () {
+    $history = [];
+    $monitor = Monitor::factory()->withDefaultConditions()->create();
+    $monitor->load('conditions');
+
+    checkHttp([
+        new Response(200, [], '{"status":"UP"}'),
+    ], null, $history)->handle($monitor);
+
+    expect($history[0]['request']->getHeaderLine('User-Agent'))->toBe('Nominal');
+});
+
+it('does not override a monitor User-Agent header', function () {
+    $history = [];
+    $monitor = Monitor::factory()->withDefaultConditions()->create([
+        'request_headers' => ['user-agent' => 'UptimeBot/2.0'],
+    ]);
+    $monitor->load('conditions');
+
+    checkHttp([
+        new Response(200, [], '{"status":"UP"}'),
+    ], null, $history)->handle($monitor);
+
+    expect($history[0]['request']->getHeaderLine('User-Agent'))->toBe('UptimeBot/2.0');
 });
 
 it('fails HTTP checks when a condition fails', function () {

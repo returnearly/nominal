@@ -12,7 +12,7 @@ it('passes WebSocket checks when the upgrade succeeds', function () {
     $monitor = Monitor::factory()->websocket()->withDefaultConditions()->create();
     $monitor->load('conditions');
 
-    $captured = (object) ['path' => null, 'secure' => null, 'body' => null];
+    $captured = (object) ['path' => null, 'secure' => null, 'body' => null, 'headers' => null];
 
     app()->instance(WebSocketTransport::class, new class($captured) implements WebSocketTransport
     {
@@ -33,6 +33,7 @@ it('passes WebSocket checks when the upgrade succeeds', function () {
             $this->captured->path = $path;
             $this->captured->secure = $secure;
             $this->captured->body = $body;
+            $this->captured->headers = $headers;
 
             return SocketOutcome::ok(22, '93.184.216.34', 'pong');
         }
@@ -45,7 +46,8 @@ it('passes WebSocket checks when the upgrade succeeds', function () {
         ->and($result->responseBody)->toBe('pong')
         ->and($captured->path)->toBe('/socket')
         ->and($captured->secure)->toBeTrue()
-        ->and($captured->body)->toBe('ping');
+        ->and($captured->body)->toBe('ping')
+        ->and($captured->headers['User-Agent'])->toBe('Nominal');
 });
 
 it('fails WebSocket checks when the upgrade is refused', function () {
