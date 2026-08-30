@@ -1,0 +1,9 @@
+{
+  "preservePatterns": [".env", ".env.local"],
+  "shellSetup": "[ -n \"${EMDASH_PORT:-}\" ] && export EMDASH_REVERB_PORT=$((EMDASH_PORT + 1)) EMDASH_REDIS_PORT=$((EMDASH_PORT + 2))",
+  "scripts": {
+    "setup": "touch database/database.sqlite && [ -n \"${EMDASH_PORT:-}\" ] && export EMDASH_REVERB_PORT=$((EMDASH_PORT + 1)) EMDASH_REDIS_PORT=$((EMDASH_PORT + 2)); docker compose up --build -d --wait",
+    "run": "[ -n \"${EMDASH_PORT:-}\" ] && export EMDASH_REVERB_PORT=$((EMDASH_PORT + 1)) EMDASH_REDIS_PORT=$((EMDASH_PORT + 2)); docker compose up",
+    "teardown": "[ -n \"${EMDASH_PORT:-}\" ] && export EMDASH_REVERB_PORT=$((EMDASH_PORT + 1)) EMDASH_REDIS_PORT=$((EMDASH_PORT + 2)); docker compose down"
+  }
+}
