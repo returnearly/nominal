@@ -4572,16 +4572,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.69.2",
+            "version": "v6.70.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "43e036e1123e92ab1d060df2627f1eb1ffe186c9"
+                "reference": "d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/43e036e1123e92ab1d060df2627f1eb1ffe186c9",
-                "reference": "43e036e1123e92ab1d060df2627f1eb1ffe186c9",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9",
+                "reference": "d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9",
                 "shasum": ""
             },
             "require": {
@@ -4699,7 +4699,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-07-29T12:57:29+00:00"
+            "time": "2026-09-02T12:48:27+00:00"
         },
         {
             "name": "openspout/openspout",
