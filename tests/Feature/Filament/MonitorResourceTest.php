@@ -95,6 +95,18 @@ it('lazy-loads widgets and defers table records', function () {
     expect($table->isLoadingDeferred())->toBeTrue();
 });
 
+it('lazy-loads monitor charts from the visible placeholder', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    $html = Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->html();
+
+    expect($html)->toMatch('/<div\b(?=[^>]*\bclass="nm-detail")(?=[^>]*\bx-intersect="\$wire\.__lazyLoad)[^>]*>/')
+        ->and($html)->not->toMatch('/<style\b[^>]*\bx-intersect=/');
+});
+
 it('shows tags on monitor cards and filters by tag', function () {
     $user = User::factory()->create();
     $prod = Monitor::factory()->create([
