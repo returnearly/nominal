@@ -36,6 +36,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="LIGHTHOUSE_SCHEMA_CACHE_ENABLE" value="false"/>
+        <env name="LIGHTHOUSE_QUERY_CACHE_ENABLE" value="false"/>
         <env name="PROBE_REGION" value="local"/>
         <env name="INTERFACE_AUTH" value="login"/>
         <env name="CLOUDFLARE_ZERO_TRUST_ENABLED" value="false"/>
