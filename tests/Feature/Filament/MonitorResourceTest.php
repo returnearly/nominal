@@ -453,8 +453,8 @@ it('shows heartbeat and latency on the monitor view', function () {
         ->assertDontSee('data-heatmap')
         ->html();
 
-    expect($html)
-        ->toContain('data-trend')
+    expect(ltrim($html))->toMatch('/^<div\b(?=[^>]*\bclass="[^"]*\bnm-detail\b)[^>]*>/')
+        ->and($html)->toContain('data-trend')
         ->toContain('nm-trend-hit')
         ->toContain('preserveAspectRatio="none"')
         ->toContain('TIMESTAMP')
