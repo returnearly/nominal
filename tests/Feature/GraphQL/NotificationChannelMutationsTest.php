@@ -76,7 +76,7 @@ it('creates each channel type from its matching input', function (string $type, 
     ['MicrosoftTeams', ['microsoftTeams' => ['webhookUrl' => 'https://outlook.office.com/webhook/abc']], ['microsoftTeams' => ['webhookUrl' => 'https://outlook.office.com/webhook/abc']]],
     ['Discord', ['discord' => ['webhookUrl' => 'https://discord.com/api/webhooks/1/abc']], ['discord' => ['webhookUrl' => 'https://discord.com/api/webhooks/1/abc']]],
     ['Webhook', ['webhook' => ['url' => 'https://example.com/hooks/nominal']], ['webhook' => ['url' => 'https://example.com/hooks/nominal']]],
-    ['Pagerduty', ['pagerduty' => ['routingKey' => 'R0123456789ABCDEF']], ['pagerduty' => ['routingKey' => 'R0123456789ABCDEF']]],
+    ['Pagerduty', ['pagerduty' => ['routingKey' => '0123456789abcdef0123456789abcdef']], ['pagerduty' => ['routingKey' => '0123456789abcdef0123456789abcdef']]],
 ]);
 
 it('creates a mail channel with a mail server', function () {
