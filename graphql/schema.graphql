@@ -525,6 +525,8 @@ type Mutation @guard(with: ["sanctum"]) {
     deleteMaintenanceWindow(id: ID!): Boolean!
     startMonitorMaintenance(monitorId: ID!, title: String, message: String, endsAt: DateTime): MaintenanceWindow!
     endMonitorMaintenance(monitorId: ID!): Monitor!
+    pauseMonitor(monitorId: ID!): Monitor!
+    resumeMonitor(monitorId: ID!): Monitor!
     createStatusPage(input: CreateStatusPageInput!): StatusPage!
     updateStatusPage(id: ID!, input: UpdateStatusPageInput!): StatusPage!
     deleteStatusPage(id: ID!): Boolean!
