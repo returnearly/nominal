@@ -901,6 +901,18 @@ it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis mo
         ->assertFormFieldIsHidden('proxy_url');
 });
 
+it('masks saved request header values until the field is focused', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'type' => MonitorType::Http,
+        'request_headers' => ['X-Token' => 'abc'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSeeHtml('nm-secret-header-values');
+});
+
 it('duplicates a monitor from the view page into the create form', function () {
     $user = User::factory()->create();
     $probe = Probe::factory()->create();
