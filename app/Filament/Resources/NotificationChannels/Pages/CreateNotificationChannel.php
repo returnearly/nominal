@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Filament\Resources\NotificationChannels\Pages;
 
 use App\Actions\SaveNotificationChannel;
+use App\Filament\Concerns\AbortsApiManagedCreate;
 use App\Filament\Resources\NotificationChannels\NotificationChannelResource;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 
 final class CreateNotificationChannel extends CreateRecord
 {
+    use AbortsApiManagedCreate;
+
     protected static string $resource = NotificationChannelResource::class;
 
     /**
