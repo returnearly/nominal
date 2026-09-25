@@ -136,7 +136,11 @@ final class NotificationChannelResource extends Resource
         return match ($kind) {
             'email' => $input->email($needs),
             'url' => $input->url($needs)->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 2048),
-            'password' => $input->password($needs)->revealable($needs)->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 255),
+            'password' => $input
+                ->password($needs)
+                ->revealable($needs)
+                ->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 255)
+                ->regex(fn (Get $get): ?string => self::field($get, $key)?->regex),
             'integer' => $input->numeric()
                 ->minValue(fn (Get $get): ?int => self::field($get, $key)?->min)
                 ->maxValue(fn (Get $get): ?int => self::field($get, $key)?->max),

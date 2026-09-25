@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
 use App\Enums\NotificationChannelType;
 use App\Filament\Resources\Monitors\Pages\CreateMonitor;
@@ -84,7 +85,7 @@ it('disables duplicate on the monitor view', function () {
 
 it('pauses and resumes a monitor from the view', function () {
     $user = User::factory()->create();
-    $monitor = Monitor::factory()->create(['enabled' => true]);
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Up]);
 
     Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
@@ -95,14 +96,14 @@ it('pauses and resumes a monitor from the view', function () {
         ->assertActionHidden('pause')
         ->assertActionVisible('resume');
 
-    expect($monitor->fresh()->enabled)->toBeFalse();
+    expect($monitor->fresh()->status)->toBe(MonitorStatus::Paused);
 
     Livewire::actingAs($user)
         ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
         ->callAction('resume')
         ->assertNotified('Monitor resumed');
 
-    expect($monitor->fresh()->enabled)->toBeTrue();
+    expect($monitor->fresh()->status)->toBe(MonitorStatus::Pending);
 });
 
 it('starts maintenance while resources are API-managed', function () {

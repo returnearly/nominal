@@ -6,8 +6,12 @@ namespace App\Notifications\Channels;
 
 use App\Models\NotificationChannel;
 use App\Notifications\NotificationChannelMessage;
+use App\Notifications\PagerDutyEvent;
 use App\Support\OutboundHttp;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Notifications\Notification;
+use Throwable;
 
 final class PagerDutyChannel
 {
@@ -25,9 +29,24 @@ final class PagerDutyChannel
             return;
         }
 
-        OutboundHttp::json()->post('https://events.pagerduty.com/v2/enqueue', [
-            ...$notification->toPagerDuty(),
-            'routing_key' => $routingKey,
-        ])->throw();
+        foreach ($notification->toPagerDutyEvents() as $event) {
+            OutboundHttp::json()
+                ->retry(3, 200, fn (Throwable $exception): bool => $this->shouldRetry($exception))
+                ->post(PagerDutyEvent::Endpoint, [
+                    ...$event,
+                    'routing_key' => $routingKey,
+                ])
+                ->throw();
+        }
+    }
+
+    private function shouldRetry(Throwable $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        return $exception instanceof RequestException
+            && in_array($exception->response->status(), [429, 500, 502, 503, 504], true);
     }
 }

@@ -305,6 +305,7 @@ final class MonitorResource extends Resource
                         KeyValue::make('request_headers')
                             ->keyLabel('Header')
                             ->valueLabel('Value')
+                            ->extraAttributes(['class' => 'nm-secret-header-values'])
                             ->visible($usesRequestHeaders),
                         Textarea::make('request_body')
                             ->rows(6)

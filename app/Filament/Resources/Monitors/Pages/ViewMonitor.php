@@ -6,8 +6,10 @@ namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\DispatchMonitorCheck;
 use App\Actions\EndMonitorMaintenance;
-use App\Actions\SetMonitorEnabled;
+use App\Actions\PauseMonitor;
+use App\Actions\ResumeMonitor;
 use App\Actions\StartMonitorMaintenance;
+use App\Enums\MonitorStatus;
 use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorHistoryWidget;
@@ -35,25 +37,38 @@ final class ViewMonitor extends ViewRecord
                 ->label('Check now')
                 ->icon(Heroicon::OutlinedPlay)
                 ->visible(function (): bool {
-                    /** @var Monitor $record */
-                    $record = $this->getRecord();
+                    $record = $this->monitor();
 
-                    return $record->type->usesOutboundProbe();
+                    return $record->type->usesOutboundProbe()
+                        && $record->status !== MonitorStatus::Paused;
                 })
                 ->action($this->queueCheck(...)),
             Action::make('pause')
                 ->label('Pause')
                 ->icon(Heroicon::OutlinedPause)
-                ->visible(fn (): bool => $this->monitor()->enabled)
+                ->visible(fn (): bool => $this->monitor()->status !== MonitorStatus::Paused)
+                ->requiresConfirmation()
                 ->action(function (): void {
-                    $this->setEnabled(false);
+                    PauseMonitor::make()->handle($this->monitor());
+                    $this->refreshRecord();
+
+                    Notification::make()
+                        ->success()
+                        ->title('Monitor paused')
+                        ->send();
                 }),
             Action::make('resume')
                 ->label('Resume')
-                ->icon(Heroicon::OutlinedPlayCircle)
-                ->visible(fn (): bool => ! $this->monitor()->enabled)
+                ->icon(Heroicon::OutlinedPlay)
+                ->visible(fn (): bool => $this->monitor()->status === MonitorStatus::Paused)
                 ->action(function (): void {
-                    $this->setEnabled(true);
+                    ResumeMonitor::make()->handle($this->monitor());
+                    $this->refreshRecord();
+
+                    Notification::make()
+                        ->success()
+                        ->title('Monitor resumed')
+                        ->send();
                 }),
             Action::make('startMaintenance')
                 ->label('Start maintenance')
@@ -144,17 +159,6 @@ final class ViewMonitor extends ViewRecord
     protected function onMonitorBroadcast(): void
     {
         $this->refreshRecord();
-    }
-
-    private function setEnabled(bool $enabled): void
-    {
-        SetMonitorEnabled::make()->handle($this->monitor(), $enabled);
-        $this->refreshRecord();
-
-        Notification::make()
-            ->success()
-            ->title($enabled ? 'Monitor resumed' : 'Monitor paused')
-            ->send();
     }
 
     private function monitor(): Monitor

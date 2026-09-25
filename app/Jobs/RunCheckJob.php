@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Actions\CheckMonitor;
 use App\Actions\RecordCheckResult;
+use App\Enums\MonitorStatus;
 use App\Models\Monitor;
 use App\Models\Probe;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,7 +28,7 @@ final class RunCheckJob implements ShouldQueue
         $monitor = Monitor::query()->with('conditions')->find($this->monitorId);
         $probe = $this->probeId === null ? null : Probe::query()->find($this->probeId);
 
-        if ($monitor === null || ! $monitor->enabled) {
+        if ($monitor === null || ! $monitor->enabled || $monitor->status === MonitorStatus::Paused) {
             return;
         }
 
