@@ -8,6 +8,7 @@ use App\Actions\DefaultConditionExpressions;
 use App\Actions\DispatchMonitorCheck;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
+use App\Filament\Concerns\AbortsApiManagedCreate;
 use App\Filament\Resources\Monitors\MonitorFormState;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Models\Monitor;
@@ -16,6 +17,8 @@ use Livewire\Attributes\Url;
 
 final class CreateMonitor extends CreateRecord
 {
+    use AbortsApiManagedCreate;
+
     protected static string $resource = MonitorResource::class;
 
     #[Url]

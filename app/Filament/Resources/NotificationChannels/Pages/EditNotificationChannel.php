@@ -7,7 +7,9 @@ namespace App\Filament\Resources\NotificationChannels\Pages;
 use App\Actions\SaveNotificationChannel;
 use App\Actions\TestNotificationChannel;
 use App\Enums\NotificationChannelType;
+use App\Filament\Concerns\AbortsApiManagedSave;
 use App\Filament\Resources\NotificationChannels\NotificationChannelResource;
+use App\Filament\Support\ApiManagedUi;
 use App\Models\NotificationChannel;
 use App\Support\NotificationChannelConfig;
 use Filament\Actions\Action;
@@ -21,6 +23,8 @@ use Throwable;
 
 final class EditNotificationChannel extends EditRecord
 {
+    use AbortsApiManagedSave;
+
     protected static string $resource = NotificationChannelResource::class;
 
     protected function getHeaderActions(): array
@@ -31,7 +35,7 @@ final class EditNotificationChannel extends EditRecord
                 ->icon(Heroicon::OutlinedPaperAirplane)
                 ->tooltip('Uses the form values on this page, including unsaved changes.')
                 ->action($this->sendTest(...)),
-            DeleteAction::make(),
+            ApiManagedUi::lockWrite(DeleteAction::make()),
         ];
     }
 

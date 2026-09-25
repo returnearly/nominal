@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\DispatchMonitorCheck;
 use App\Actions\EndMonitorMaintenance;
+use App\Actions\SetMonitorEnabled;
 use App\Actions\StartMonitorMaintenance;
 use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Filament\Resources\Monitors\MonitorResource;
@@ -40,6 +41,20 @@ final class ViewMonitor extends ViewRecord
                     return $record->type->usesOutboundProbe();
                 })
                 ->action($this->queueCheck(...)),
+            Action::make('pause')
+                ->label('Pause')
+                ->icon(Heroicon::OutlinedPause)
+                ->visible(fn (): bool => $this->monitor()->enabled)
+                ->action(function (): void {
+                    $this->setEnabled(false);
+                }),
+            Action::make('resume')
+                ->label('Resume')
+                ->icon(Heroicon::OutlinedPlayCircle)
+                ->visible(fn (): bool => ! $this->monitor()->enabled)
+                ->action(function (): void {
+                    $this->setEnabled(true);
+                }),
             Action::make('startMaintenance')
                 ->label('Start maintenance')
                 ->icon(Heroicon::OutlinedWrenchScrewdriver)
@@ -129,6 +144,17 @@ final class ViewMonitor extends ViewRecord
     protected function onMonitorBroadcast(): void
     {
         $this->refreshRecord();
+    }
+
+    private function setEnabled(bool $enabled): void
+    {
+        SetMonitorEnabled::make()->handle($this->monitor(), $enabled);
+        $this->refreshRecord();
+
+        Notification::make()
+            ->success()
+            ->title($enabled ? 'Monitor resumed' : 'Monitor paused')
+            ->send();
     }
 
     private function monitor(): Monitor

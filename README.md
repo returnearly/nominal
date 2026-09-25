@@ -67,6 +67,10 @@ CLOUDFLARE_ADMIN_AUD=your-application-aud-tag
 
 The origin must sit behind Cloudflare Tunnel (or equivalent). A valid Access JWT is a bearer credential.
 
+## API-managed resources
+
+`NOMINAL_API_MANAGED=true` locks monitor and notification-channel create, edit, and delete in the Filament admin. GraphQL and Sanctum tokens stay available so Terraform can manage those records. Pause, resume, and maintenance stay available in the admin.
+
 ## GraphQL
 
 `POST /graphql` with a Sanctum bearer token (`php artisan nominal:token you@example.com`).
