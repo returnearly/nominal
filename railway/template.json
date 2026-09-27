@@ -1,0 +1,691 @@
+{
+  "services": {
+    "7f3a1c2e-4b58-4d1a-8e21-0c6b9a1d4e11": {
+      "name": "web",
+      "source": {
+        "image": "ghcr.io/returnearly/nominal:latest"
+      },
+      "deploy": {
+        "startCommand": "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8080 --admin-port=2019",
+        "healthcheckPath": "/up",
+        "healthcheckTimeout": 300,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": {
+          "defaultValue": "8080",
+          "isOptional": false,
+          "description": "Octane listens here. The public domain targets this port."
+        },
+        "APP_NAME": {
+          "defaultValue": "Nominal",
+          "isOptional": false,
+          "description": "Application name."
+        },
+        "APP_ENV": {
+          "defaultValue": "production",
+          "isOptional": false,
+          "description": "Laravel environment."
+        },
+        "APP_DEBUG": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Keep debug off on the public deploy."
+        },
+        "APP_KEY": {
+          "defaultValue": "base64:${{secret(43, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/\")}}=",
+          "isOptional": false,
+          "description": "Laravel encryption key. Generated once when the template is deployed."
+        },
+        "APP_URL": {
+          "defaultValue": "https://${{RAILWAY_PUBLIC_DOMAIN}}",
+          "isOptional": false,
+          "description": "Public URL of the web service."
+        },
+        "LOG_CHANNEL": {
+          "defaultValue": "stderr",
+          "isOptional": false,
+          "description": "Write Laravel logs to the Railway log stream."
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "isOptional": false
+        },
+        "DB_CONNECTION": {
+          "defaultValue": "pgsql",
+          "isOptional": false
+        },
+        "DB_URL": {
+          "defaultValue": "${{Postgres.DATABASE_URL}}",
+          "isOptional": false,
+          "description": "Private Postgres connection string."
+        },
+        "DB_SSLMODE": {
+          "defaultValue": "require",
+          "isOptional": false,
+          "description": "Railway Postgres requires TLS."
+        },
+        "SESSION_DRIVER": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "SESSION_SECURE_COOKIE": {
+          "defaultValue": "true",
+          "isOptional": false
+        },
+        "CACHE_STORE": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "QUEUE_CONNECTION": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "BROADCAST_CONNECTION": {
+          "defaultValue": "log",
+          "isOptional": false,
+          "description": "Live Reverb events stay off in this template. The admin still polls."
+        },
+        "MAIL_MAILER": {
+          "defaultValue": "log",
+          "isOptional": false
+        },
+        "MAIL_FROM_ADDRESS": {
+          "defaultValue": "alerts@nominal.local",
+          "isOptional": false
+        },
+        "MAIL_FROM_NAME": {
+          "defaultValue": "${{APP_NAME}}",
+          "isOptional": false
+        },
+        "OCTANE_SERVER": {
+          "defaultValue": "frankenphp",
+          "isOptional": false
+        },
+        "PROBE_REGION": {
+          "defaultValue": "local",
+          "isOptional": false,
+          "description": "Probe slug and queue suffix. The worker listens on checks.$PROBE_REGION."
+        },
+        "INTERFACE_AUTH": {
+          "defaultValue": "login",
+          "isOptional": false,
+          "description": "Filament admin requires email and password."
+        },
+        "TRUSTED_PROXIES": {
+          "defaultValue": "*",
+          "isOptional": false,
+          "description": "Trust Railway's proxy for HTTPS and client IP."
+        },
+        "AUTORUN_ENABLED": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Migrations run in the migrate service."
+        },
+        "SSL_MODE": {
+          "defaultValue": "off",
+          "isOptional": false,
+          "description": "Railway terminates TLS. The container serves HTTP."
+        },
+        "NOMINAL_ADMIN_EMAIL": {
+          "defaultValue": "admin@nominal.test",
+          "isOptional": false,
+          "description": "Email for the first admin user. Change this before deploying if you want a different login."
+        },
+        "NOMINAL_ADMIN_NAME": {
+          "defaultValue": "Nominal Admin",
+          "isOptional": false
+        },
+        "NOMINAL_ADMIN_PASSWORD": {
+          "defaultValue": "${{secret(24, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\")}}",
+          "isOptional": false,
+          "description": "Password for the first admin user. Generated once. Applied only when that user is created."
+        }
+      },
+      "networking": {
+        "serviceDomains": {
+          "<hasDomain>:8080": {
+            "port": 8080
+          }
+        }
+      }
+    },
+    "7f3a1c2e-4b58-4d1a-8e21-0c6b9a1d4e12": {
+      "name": "worker",
+      "source": {
+        "image": "ghcr.io/returnearly/nominal:latest"
+      },
+      "deploy": {
+        "startCommand": "sh -c 'php artisan queue:work --queue=checks.${PROBE_REGION:-local},default --sleep=1 --tries=1'",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "APP_NAME": {
+          "defaultValue": "Nominal",
+          "isOptional": false,
+          "description": "Application name."
+        },
+        "APP_ENV": {
+          "defaultValue": "production",
+          "isOptional": false,
+          "description": "Laravel environment."
+        },
+        "APP_DEBUG": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Keep debug off on the public deploy."
+        },
+        "APP_KEY": {
+          "defaultValue": "${{web.APP_KEY}}",
+          "isOptional": false,
+          "description": "Same APP_KEY as web. Keep this reference so every service can decrypt the same data."
+        },
+        "APP_URL": {
+          "defaultValue": "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
+          "isOptional": false,
+          "description": "Public URL of the web service."
+        },
+        "LOG_CHANNEL": {
+          "defaultValue": "stderr",
+          "isOptional": false,
+          "description": "Write Laravel logs to the Railway log stream."
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "isOptional": false
+        },
+        "DB_CONNECTION": {
+          "defaultValue": "pgsql",
+          "isOptional": false
+        },
+        "DB_URL": {
+          "defaultValue": "${{Postgres.DATABASE_URL}}",
+          "isOptional": false,
+          "description": "Private Postgres connection string."
+        },
+        "DB_SSLMODE": {
+          "defaultValue": "require",
+          "isOptional": false,
+          "description": "Railway Postgres requires TLS."
+        },
+        "SESSION_DRIVER": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "SESSION_SECURE_COOKIE": {
+          "defaultValue": "true",
+          "isOptional": false
+        },
+        "CACHE_STORE": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "QUEUE_CONNECTION": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "BROADCAST_CONNECTION": {
+          "defaultValue": "log",
+          "isOptional": false,
+          "description": "Live Reverb events stay off in this template. The admin still polls."
+        },
+        "MAIL_MAILER": {
+          "defaultValue": "log",
+          "isOptional": false
+        },
+        "MAIL_FROM_ADDRESS": {
+          "defaultValue": "alerts@nominal.local",
+          "isOptional": false
+        },
+        "MAIL_FROM_NAME": {
+          "defaultValue": "${{APP_NAME}}",
+          "isOptional": false
+        },
+        "OCTANE_SERVER": {
+          "defaultValue": "frankenphp",
+          "isOptional": false
+        },
+        "PROBE_REGION": {
+          "defaultValue": "${{web.PROBE_REGION}}",
+          "isOptional": false,
+          "description": "Same probe region as web. The worker queue and the default probe stay aligned."
+        },
+        "INTERFACE_AUTH": {
+          "defaultValue": "login",
+          "isOptional": false,
+          "description": "Filament admin requires email and password."
+        },
+        "TRUSTED_PROXIES": {
+          "defaultValue": "*",
+          "isOptional": false,
+          "description": "Trust Railway's proxy for HTTPS and client IP."
+        },
+        "AUTORUN_ENABLED": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Migrations run in the migrate service."
+        },
+        "SSL_MODE": {
+          "defaultValue": "off",
+          "isOptional": false,
+          "description": "Railway terminates TLS. The container serves HTTP."
+        },
+        "NOMINAL_ADMIN_EMAIL": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_EMAIL}}",
+          "isOptional": false,
+          "description": "Same admin email as web."
+        },
+        "NOMINAL_ADMIN_NAME": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_NAME}}",
+          "isOptional": false,
+          "description": "Same admin name as web."
+        },
+        "NOMINAL_ADMIN_PASSWORD": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_PASSWORD}}",
+          "isOptional": false,
+          "description": "Same admin password as web. Keep this reference."
+        }
+      }
+    },
+    "7f3a1c2e-4b58-4d1a-8e21-0c6b9a1d4e13": {
+      "name": "scheduler",
+      "source": {
+        "image": "ghcr.io/returnearly/nominal:latest"
+      },
+      "deploy": {
+        "startCommand": "php artisan schedule:work",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "APP_NAME": {
+          "defaultValue": "Nominal",
+          "isOptional": false,
+          "description": "Application name."
+        },
+        "APP_ENV": {
+          "defaultValue": "production",
+          "isOptional": false,
+          "description": "Laravel environment."
+        },
+        "APP_DEBUG": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Keep debug off on the public deploy."
+        },
+        "APP_KEY": {
+          "defaultValue": "${{web.APP_KEY}}",
+          "isOptional": false,
+          "description": "Same APP_KEY as web. Keep this reference so every service can decrypt the same data."
+        },
+        "APP_URL": {
+          "defaultValue": "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
+          "isOptional": false,
+          "description": "Public URL of the web service."
+        },
+        "LOG_CHANNEL": {
+          "defaultValue": "stderr",
+          "isOptional": false,
+          "description": "Write Laravel logs to the Railway log stream."
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "isOptional": false
+        },
+        "DB_CONNECTION": {
+          "defaultValue": "pgsql",
+          "isOptional": false
+        },
+        "DB_URL": {
+          "defaultValue": "${{Postgres.DATABASE_URL}}",
+          "isOptional": false,
+          "description": "Private Postgres connection string."
+        },
+        "DB_SSLMODE": {
+          "defaultValue": "require",
+          "isOptional": false,
+          "description": "Railway Postgres requires TLS."
+        },
+        "SESSION_DRIVER": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "SESSION_SECURE_COOKIE": {
+          "defaultValue": "true",
+          "isOptional": false
+        },
+        "CACHE_STORE": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "QUEUE_CONNECTION": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "BROADCAST_CONNECTION": {
+          "defaultValue": "log",
+          "isOptional": false,
+          "description": "Live Reverb events stay off in this template. The admin still polls."
+        },
+        "MAIL_MAILER": {
+          "defaultValue": "log",
+          "isOptional": false
+        },
+        "MAIL_FROM_ADDRESS": {
+          "defaultValue": "alerts@nominal.local",
+          "isOptional": false
+        },
+        "MAIL_FROM_NAME": {
+          "defaultValue": "${{APP_NAME}}",
+          "isOptional": false
+        },
+        "OCTANE_SERVER": {
+          "defaultValue": "frankenphp",
+          "isOptional": false
+        },
+        "PROBE_REGION": {
+          "defaultValue": "${{web.PROBE_REGION}}",
+          "isOptional": false,
+          "description": "Same probe region as web. The worker queue and the default probe stay aligned."
+        },
+        "INTERFACE_AUTH": {
+          "defaultValue": "login",
+          "isOptional": false,
+          "description": "Filament admin requires email and password."
+        },
+        "TRUSTED_PROXIES": {
+          "defaultValue": "*",
+          "isOptional": false,
+          "description": "Trust Railway's proxy for HTTPS and client IP."
+        },
+        "AUTORUN_ENABLED": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Migrations run in the migrate service."
+        },
+        "SSL_MODE": {
+          "defaultValue": "off",
+          "isOptional": false,
+          "description": "Railway terminates TLS. The container serves HTTP."
+        },
+        "NOMINAL_ADMIN_EMAIL": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_EMAIL}}",
+          "isOptional": false,
+          "description": "Same admin email as web."
+        },
+        "NOMINAL_ADMIN_NAME": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_NAME}}",
+          "isOptional": false,
+          "description": "Same admin name as web."
+        },
+        "NOMINAL_ADMIN_PASSWORD": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_PASSWORD}}",
+          "isOptional": false,
+          "description": "Same admin password as web. Keep this reference."
+        }
+      }
+    },
+    "7f3a1c2e-4b58-4d1a-8e21-0c6b9a1d4e14": {
+      "name": "migrate",
+      "source": {
+        "image": "ghcr.io/returnearly/nominal:latest"
+      },
+      "deploy": {
+        "startCommand": "sh railway/migrate.sh",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "APP_NAME": {
+          "defaultValue": "Nominal",
+          "isOptional": false,
+          "description": "Application name."
+        },
+        "APP_ENV": {
+          "defaultValue": "production",
+          "isOptional": false,
+          "description": "Laravel environment."
+        },
+        "APP_DEBUG": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Keep debug off on the public deploy."
+        },
+        "APP_KEY": {
+          "defaultValue": "${{web.APP_KEY}}",
+          "isOptional": false,
+          "description": "Same APP_KEY as web. Keep this reference so every service can decrypt the same data."
+        },
+        "APP_URL": {
+          "defaultValue": "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
+          "isOptional": false,
+          "description": "Public URL of the web service."
+        },
+        "LOG_CHANNEL": {
+          "defaultValue": "stderr",
+          "isOptional": false,
+          "description": "Write Laravel logs to the Railway log stream."
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "isOptional": false
+        },
+        "DB_CONNECTION": {
+          "defaultValue": "pgsql",
+          "isOptional": false
+        },
+        "DB_URL": {
+          "defaultValue": "${{Postgres.DATABASE_URL}}",
+          "isOptional": false,
+          "description": "Private Postgres connection string."
+        },
+        "DB_SSLMODE": {
+          "defaultValue": "require",
+          "isOptional": false,
+          "description": "Railway Postgres requires TLS."
+        },
+        "SESSION_DRIVER": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "SESSION_SECURE_COOKIE": {
+          "defaultValue": "true",
+          "isOptional": false
+        },
+        "CACHE_STORE": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "QUEUE_CONNECTION": {
+          "defaultValue": "database",
+          "isOptional": false
+        },
+        "BROADCAST_CONNECTION": {
+          "defaultValue": "log",
+          "isOptional": false,
+          "description": "Live Reverb events stay off in this template. The admin still polls."
+        },
+        "MAIL_MAILER": {
+          "defaultValue": "log",
+          "isOptional": false
+        },
+        "MAIL_FROM_ADDRESS": {
+          "defaultValue": "alerts@nominal.local",
+          "isOptional": false
+        },
+        "MAIL_FROM_NAME": {
+          "defaultValue": "${{APP_NAME}}",
+          "isOptional": false
+        },
+        "OCTANE_SERVER": {
+          "defaultValue": "frankenphp",
+          "isOptional": false
+        },
+        "PROBE_REGION": {
+          "defaultValue": "${{web.PROBE_REGION}}",
+          "isOptional": false,
+          "description": "Same probe region as web. The worker queue and the default probe stay aligned."
+        },
+        "INTERFACE_AUTH": {
+          "defaultValue": "login",
+          "isOptional": false,
+          "description": "Filament admin requires email and password."
+        },
+        "TRUSTED_PROXIES": {
+          "defaultValue": "*",
+          "isOptional": false,
+          "description": "Trust Railway's proxy for HTTPS and client IP."
+        },
+        "AUTORUN_ENABLED": {
+          "defaultValue": "false",
+          "isOptional": false,
+          "description": "Migrations run in the migrate service."
+        },
+        "SSL_MODE": {
+          "defaultValue": "off",
+          "isOptional": false,
+          "description": "Railway terminates TLS. The container serves HTTP."
+        },
+        "NOMINAL_ADMIN_EMAIL": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_EMAIL}}",
+          "isOptional": false,
+          "description": "Same admin email as web."
+        },
+        "NOMINAL_ADMIN_NAME": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_NAME}}",
+          "isOptional": false,
+          "description": "Same admin name as web."
+        },
+        "NOMINAL_ADMIN_PASSWORD": {
+          "defaultValue": "${{web.NOMINAL_ADMIN_PASSWORD}}",
+          "isOptional": false,
+          "description": "Same admin password as web. Keep this reference."
+        }
+      }
+    },
+    "7f3a1c2e-4b58-4d1a-8e21-0c6b9a1d4e15": {
+      "icon": "https://devicons.railway.app/i/postgresql.svg",
+      "name": "Postgres",
+      "build": {},
+      "deploy": {
+        "requiredMountPath": "/var/lib/postgresql/data",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "source": {
+        "image": "ghcr.io/railwayapp-templates/postgres-ssl:18"
+      },
+      "variables": {
+        "PGDATA": {
+          "defaultValue": "/var/lib/postgresql/data/pgdata",
+          "isOptional": false,
+          "description": "Location where the database will be initialized"
+        },
+        "PGHOST": {
+          "defaultValue": "${{RAILWAY_PRIVATE_DOMAIN}}",
+          "isOptional": false,
+          "description": "Railway Private Domain Name."
+        },
+        "PGPORT": {
+          "defaultValue": "5432",
+          "isOptional": false,
+          "description": "Port to connect to Postgres."
+        },
+        "PGUSER": {
+          "defaultValue": "${{POSTGRES_USER}}",
+          "isOptional": false,
+          "description": "Required variable for Data panel"
+        },
+        "PGDATABASE": {
+          "defaultValue": "${{POSTGRES_DB}}",
+          "isOptional": false,
+          "description": "Required variable for the data panel."
+        },
+        "PGPASSWORD": {
+          "defaultValue": "${{POSTGRES_PASSWORD}}",
+          "isOptional": false,
+          "description": "Required variable for Data panel"
+        },
+        "POSTGRES_DB": {
+          "defaultValue": "railway",
+          "isOptional": false,
+          "description": "Default database created when image is started."
+        },
+        "DATABASE_URL": {
+          "defaultValue": "postgresql://${{PGUSER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{PGDATABASE}}",
+          "isOptional": false,
+          "description": "URL to connect to Postgres database."
+        },
+        "POSTGRES_USER": {
+          "defaultValue": "postgres",
+          "isOptional": false,
+          "description": "User to connect to Postgres DB"
+        },
+        "SSL_CERT_DAYS": {
+          "defaultValue": "820",
+          "isOptional": true,
+          "description": "SSL certificate expiry in days."
+        },
+        "POSTGRES_PASSWORD": {
+          "defaultValue": "${{ secret(32, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\") }}",
+          "isOptional": false,
+          "description": "Password to connect to DB. Generated once when the template is deployed."
+        },
+        "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": {
+          "defaultValue": "60",
+          "isOptional": false,
+          "description": "Allow Postgres to cleanly shut down"
+        }
+      },
+      "networking": {},
+      "volumeMounts": {
+        "7f3a1c2e-4b58-4d1a-8e21-0c6b9a1d4e15": {
+          "mountPath": "/var/lib/postgresql/data"
+        }
+      },
+      "haTemplateCode": "postgres-ha",
+      "haConversionConfig": {
+        "edge": {
+          "label": "Reverse Proxy",
+          "options": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "nodeLabel": "HAProxy",
+          "description": "Routes traffic to the primary",
+          "defaultValue": 3
+        },
+        "replica": {
+          "label": "Replicas",
+          "options": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "nodeLabel": "Postgres",
+          "description": "Streaming replicas for automatic failover",
+          "defaultValue": 2
+        },
+        "internal": {
+          "label": "Coordinator Nodes",
+          "options": [
+            3,
+            5,
+            7,
+            9
+          ],
+          "nodeLabel": "etcd",
+          "defaultValue": 3
+        },
+        "description": "This will convert your Postgres database to an HA cluster with Patroni failover and etcd consensus."
+      }
+    }
+  }
+}
