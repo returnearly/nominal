@@ -46,3 +46,43 @@ it('returns an empty collection for monitors with no checks', function () {
 
     expect($heartbeats[$monitor->id])->toHaveCount(0);
 });
+
+it('keeps the newest checks for each monitor, oldest first', function () {
+    $this->freezeTime();
+
+    $probe = Probe::factory()->create(['name' => 'Edge']);
+    $over = Monitor::factory()->create();
+    $under = Monitor::factory()->create();
+    $empty = Monitor::factory()->create();
+
+    foreach (range(1, 5) as $i) {
+        CheckResult::factory()->create([
+            'monitor_id' => $over->id,
+            'probe_id' => $probe->id,
+            'checked_at' => now()->subMinutes(5 - $i),
+            'latency_ms' => $i,
+        ]);
+    }
+
+    CheckResult::factory()->create([
+        'monitor_id' => $under->id,
+        'probe_id' => $probe->id,
+        'checked_at' => now()->subMinute(),
+        'success' => false,
+        'latency_ms' => 9,
+    ]);
+
+    $heartbeats = LoadRecentCheckResults::make()->handle([
+        $over->id,
+        $under->id,
+        $empty->id,
+    ], 3);
+
+    expect($heartbeats->keys()->all())->toBe([$over->id, $under->id, $empty->id])
+        ->and($heartbeats[$over->id])->toHaveCount(3)
+        ->and($heartbeats[$over->id]->pluck('latency_ms')->all())->toBe([3, 4, 5])
+        ->and($heartbeats[$under->id])->toHaveCount(1)
+        ->and($heartbeats[$under->id]->first()->success)->toBeFalse()
+        ->and($heartbeats[$under->id]->first()->probe?->name)->toBe('Edge')
+        ->and($heartbeats[$empty->id])->toHaveCount(0);
+});
