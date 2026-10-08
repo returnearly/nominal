@@ -101,7 +101,7 @@ final class EditNotificationChannel extends EditRecord
 
     public function removeBrowserDevice(string $subscriptionId): void
     {
-        UnsubscribePushDevice::make()->byId($this->channel(), $subscriptionId);
+        UnsubscribePushDevice::make()->handle($this->channel(), $subscriptionId);
 
         Notification::make()
             ->success()

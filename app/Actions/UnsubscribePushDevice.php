@@ -13,19 +13,16 @@ final readonly class UnsubscribePushDevice implements ActionsPatternInterface
 {
     use ActionsPattern;
 
-    public function handle(NotificationChannel $channel, string $endpoint): void
+    public function handle(NotificationChannel $channel, string $endpointOrId): void
     {
-        PushSubscription::query()
-            ->where('notification_channel_id', $channel->id)
-            ->where('endpoint_hash', PushSubscription::hashEndpoint($endpoint))
-            ->delete();
-    }
+        $query = PushSubscription::query()->where('notification_channel_id', $channel->id);
 
-    public function byId(NotificationChannel $channel, string $subscriptionId): void
-    {
-        PushSubscription::query()
-            ->where('notification_channel_id', $channel->id)
-            ->whereKey($subscriptionId)
-            ->delete();
+        if (str_starts_with($endpointOrId, 'http://') || str_starts_with($endpointOrId, 'https://')) {
+            $query->where('endpoint_hash', PushSubscription::hashEndpoint($endpointOrId));
+        } else {
+            $query->whereKey($endpointOrId);
+        }
+
+        $query->delete();
     }
 }
