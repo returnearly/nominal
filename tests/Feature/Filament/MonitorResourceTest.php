@@ -81,6 +81,56 @@ it('paginates monitors at 50, 100, or 250 rows', function () {
         ->and($table->getDefaultGroup())->toBeNull();
 });
 
+it('searches monitors across all pages by name, target, description, and tags', function () {
+    $user = User::factory()->create();
+
+    Monitor::factory()->count(50)->sequence(fn ($sequence) => [
+        'name' => sprintf('AAA Page One %03d', $sequence->index),
+    ])->create();
+
+    $hidden = Monitor::factory()->create([
+        'name' => 'ZZZ Cross Page Monitor',
+        'target' => 'https://unique-cross-page.example/health',
+        'description' => 'findme-by-description-across-pages',
+        'tags' => ['cross-page-search'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->assertCanNotSeeTableRecords([$hidden])
+        ->searchTable('ZZZ Cross Page Monitor')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('unique-cross-page')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('findme-by-description-across-pages')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('cross-page-search')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    $firstPageMonitor = Monitor::query()->orderBy('name')->first();
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->call('gotoPage', 2)
+        ->assertCanNotSeeTableRecords([$firstPageMonitor])
+        ->searchTable($firstPageMonitor->name)
+        ->assertCanSeeTableRecords([$firstPageMonitor]);
+});
+
 it('lazy-loads widgets and defers table records', function () {
     $user = User::factory()->create();
 
