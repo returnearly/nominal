@@ -419,6 +419,18 @@ final class MonitorResource extends Resource
             ->selectable(false)
             ->paginated([50, 100, 250])
             ->defaultPaginationPageOption(50)
+            ->searchable()
+            ->searchPlaceholder('Search all monitors')
+            ->searchUsing(function (Builder $query, string $search): void {
+                $like = '%'.$search.'%';
+
+                $query->where(function (Builder $query) use ($like): void {
+                    $query->where('name', 'like', $like)
+                        ->orWhere('target', 'like', $like)
+                        ->orWhere('description', 'like', $like)
+                        ->orWhere('tags', 'like', $like);
+                });
+            })
             ->filters([
                 SelectFilter::make('status')
                     ->options(MonitorStatus::class)
