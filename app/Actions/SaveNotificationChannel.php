@@ -8,6 +8,7 @@ use App\Enums\NotificationChannelType;
 use App\Models\NotificationChannel;
 use App\Support\EnumValue;
 use App\Support\NotificationChannelConfig;
+use App\Support\WebPushVapid;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
@@ -23,10 +24,16 @@ final readonly class SaveNotificationChannel implements ActionsPatternInterface
     public function handle(array $input, ?NotificationChannel $channel = null): NotificationChannel
     {
         $channel ??= new NotificationChannel;
+        $previousType = $channel->exists ? $channel->type : null;
         $type = $this->type($input['type'] ?? $channel->type);
         $config = $this->config($type, $input, $channel);
 
         $config = NotificationChannelConfig::normalize($type, $config);
+
+        if ($type === NotificationChannelType::Browser) {
+            $config = $this->browserConfig($config, $channel, $previousType);
+        }
+
         NotificationChannelConfig::assertValid($type, $config);
 
         $channel->fill([
@@ -37,6 +44,10 @@ final readonly class SaveNotificationChannel implements ActionsPatternInterface
 
         $channel->save();
 
+        if ($previousType === NotificationChannelType::Browser && $type !== NotificationChannelType::Browser) {
+            $channel->pushSubscriptions()->delete();
+        }
+
         return $channel->fresh() ?? $channel;
     }
 
@@ -46,6 +57,26 @@ final readonly class SaveNotificationChannel implements ActionsPatternInterface
      */
     private function config(NotificationChannelType $type, array $input, NotificationChannel $channel): array
     {
+        if ($type === NotificationChannelType::Browser) {
+            $typed = $this->typedInputs($input);
+
+            if ($typed !== [] && ! isset($typed['browser'])) {
+                throw ValidationException::withMessages([
+                    array_key_first($typed) => 'Only the browser input can be used when type is Browser.',
+                ]);
+            }
+
+            if (array_key_exists('config', $input) && is_array($input['config'])) {
+                return $input['config'];
+            }
+
+            if ($channel->exists && $channel->type === NotificationChannelType::Browser) {
+                return $channel->configArray();
+            }
+
+            return [];
+        }
+
         $typed = $this->typedInputs($input);
 
         if ($typed !== []) {
@@ -63,6 +94,33 @@ final readonly class SaveNotificationChannel implements ActionsPatternInterface
         throw ValidationException::withMessages([
             $this->field($type) => 'The '.$this->field($type).' input is required when type is '.$type->name.'.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, string>
+     */
+    private function browserConfig(array $config, NotificationChannel $channel, ?NotificationChannelType $previousType): array
+    {
+        $existing = WebPushVapid::fromConfig(
+            $previousType === NotificationChannelType::Browser
+                ? $channel->configArray()
+                : $config,
+        );
+
+        if ($existing !== null && $previousType === NotificationChannelType::Browser) {
+            return $existing;
+        }
+
+        if ($existing !== null && WebPushVapid::fromConfig($config) !== null) {
+            return $existing;
+        }
+
+        return WebPushVapid::generate(
+            isset($config['vapid_subject']) && is_string($config['vapid_subject'])
+                ? $config['vapid_subject']
+                : null,
+        );
     }
 
     /**

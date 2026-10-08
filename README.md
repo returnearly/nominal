@@ -15,7 +15,7 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 - Monitors: HTTP/HTTPS, GraphQL, ICMP ping, TCP, DNS, TLS, heartbeat, UDP, WebSocket, MySQL, Redis, and PostgreSQL
 - Proxies: per-monitor HTTP/SOCKS URL for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis; `HTTP_PROXY` / `ALL_PROXY` for HTTP checks and notification webhooks
 - Conditions: `[STATUS]`, `[BODY]`, `[REDIRECT]`, `[RESPONSE_TIME]`, `[IP]`, `[CONNECTED]`, `[CERTIFICATE_EXPIRATION]`, `[DOMAIN_EXPIRATION]`, `[DNS_RCODE]`
-- Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty
+- Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty, browser (Web Push)
 - Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
 

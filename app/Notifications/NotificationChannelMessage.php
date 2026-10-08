@@ -6,6 +6,8 @@ namespace App\Notifications;
 
 interface NotificationChannelMessage
 {
+    public function headline(): string;
+
     public function text(): string;
 
     /**

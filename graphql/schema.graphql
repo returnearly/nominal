@@ -57,6 +57,7 @@ enum NotificationChannelType {
     Discord
     Webhook
     Pagerduty
+    Browser
 }
 
 enum AggregateGranularity {
@@ -184,6 +185,10 @@ input PagerdutyNotificationChannelInput {
     routingKey: String!
 }
 
+type BrowserNotificationChannelConfig {
+    deviceCount: Int!
+}
+
 type NotificationChannel {
     id: ID!
     name: String!
@@ -194,6 +199,7 @@ type NotificationChannel {
     discord: DiscordNotificationChannelConfig @method(name: "graphqlDiscord")
     webhook: WebhookNotificationChannelConfig @method(name: "graphqlWebhook")
     pagerduty: PagerdutyNotificationChannelConfig @method(name: "graphqlPagerduty")
+    browser: BrowserNotificationChannelConfig @method(name: "graphqlBrowser")
     created_at: DateTime
     updated_at: DateTime
 }

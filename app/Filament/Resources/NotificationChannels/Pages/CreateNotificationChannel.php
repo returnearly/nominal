@@ -20,4 +20,9 @@ final class CreateNotificationChannel extends CreateRecord
     {
         return SaveNotificationChannel::make()->handle($data);
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('edit', ['record' => $this->getRecord()]);
+    }
 }

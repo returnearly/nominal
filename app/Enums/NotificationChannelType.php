@@ -16,6 +16,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
     case Discord = 'discord';
     case Webhook = 'webhook';
     case Pagerduty = 'pagerduty';
+    case Browser = 'web_push';
 
     public function getLabel(): string
     {
@@ -26,6 +27,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::Discord => 'Discord',
             self::Webhook => 'Webhook',
             self::Pagerduty => 'PagerDuty',
+            self::Browser => 'Browser',
         };
     }
 
@@ -37,6 +39,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::MicrosoftTeams => 'info',
             self::Webhook => 'gray',
             self::Pagerduty => 'warning',
+            self::Browser => 'success',
         };
     }
 
@@ -49,6 +52,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::Discord => 'Post alerts to a Discord channel with a webhook.',
             self::Webhook => 'POST JSON to your own endpoint when a monitor changes state.',
             self::Pagerduty => 'Open and resolve incidents with the PagerDuty Events API.',
+            self::Browser => 'Push OS notifications to browsers that enable this channel. Save, then enable a device on the edit page.',
         };
     }
 
@@ -186,6 +190,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
                     aliases: ['integration_key'],
                 ),
             ],
+            self::Browser => [],
         };
     }
 
