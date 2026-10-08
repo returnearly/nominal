@@ -64,4 +64,5 @@ FROM app AS production
 COPY --from=assets --chown=www-data:www-data /app/public/build /var/www/html/public/build
 
 ENV PHP_OPCACHE_VALIDATE_TIMESTAMPS=0 \
-    PHP_OPCACHE_REVALIDATE_FREQ=0
+    PHP_OPCACHE_REVALIDATE_FREQ=0 \
+    LOG_CHANNEL=stderr
