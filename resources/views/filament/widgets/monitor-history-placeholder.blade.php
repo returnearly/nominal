@@ -1,6 +1,6 @@
-<x-monitor.history-styles />
-
 <div class="nm-detail">
+    <x-monitor.history-styles />
+
     <div class="nm-stat-cards">
         @foreach (range(1, 4) as $i)
             <div class="nm-panel nm-stat-card">

@@ -154,6 +154,7 @@ class Monitor extends Model
                 'send_on_resolved',
                 'reminder_interval_seconds',
                 'triggered',
+                'triggered_at',
                 'last_notified_at',
             ]);
     }

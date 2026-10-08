@@ -10,7 +10,9 @@ use App\Actions\SubscribePushDevice;
 use App\Actions\TestNotificationChannel;
 use App\Actions\UnsubscribePushDevice;
 use App\Enums\NotificationChannelType;
+use App\Filament\Concerns\AbortsApiManagedSave;
 use App\Filament\Resources\NotificationChannels\NotificationChannelResource;
+use App\Filament\Support\ApiManagedUi;
 use App\Models\NotificationChannel;
 use App\Models\User;
 use App\Support\NotificationChannelConfig;
@@ -27,6 +29,8 @@ use Throwable;
 
 final class EditNotificationChannel extends EditRecord
 {
+    use AbortsApiManagedSave;
+
     protected static string $resource = NotificationChannelResource::class;
 
     protected function getHeaderActions(): array
@@ -55,7 +59,7 @@ final class EditNotificationChannel extends EditRecord
                         ->body('Devices must enable this channel again.')
                         ->send();
                 }),
-            DeleteAction::make(),
+            ApiManagedUi::lockWrite(DeleteAction::make()),
         ];
     }
 

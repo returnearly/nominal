@@ -9,7 +9,9 @@ use App\Filament\Clusters\Settings\SettingsCluster;
 use App\Filament\Resources\NotificationChannels\Pages\CreateNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\EditNotificationChannel;
 use App\Filament\Resources\NotificationChannels\Pages\ListNotificationChannels;
+use App\Filament\Support\ApiManagedUi;
 use App\Models\NotificationChannel;
+use App\Support\ApiManaged;
 use App\Support\NotificationChannelConfig;
 use App\Support\NotificationChannelField;
 use BackedEnum;
@@ -43,38 +45,49 @@ final class NotificationChannelResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Channel')
-                ->columns(2)
-                ->components([
-                    TextInput::make('name')
-                        ->required()
-                        ->maxLength(255),
-                    Select::make('type')
-                        ->options(NotificationChannelType::class)
-                        ->default(NotificationChannelType::Mail)
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                            $type = self::typeFrom($state);
+        return $schema
+            ->disabled(ApiManaged::enabled(...))
+            ->components([
+                Section::make('Channel')
+                    ->columns(2)
+                    ->components([
+                        TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        Select::make('type')
+                            ->options(NotificationChannelType::class)
+                            ->default(NotificationChannelType::Mail)
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                $type = self::typeFrom($state);
 
-                            if ($type === null) {
-                                return;
-                            }
+                                if ($type === null) {
+                                    return;
+                                }
 
-                            $set('config', NotificationChannelConfig::forForm($type, $get('config') ?? []));
-                        }),
-                ]),
-            Section::make('Setup')
-                ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
-                ->columns(2)
-                ->visible(fn (Get $get): bool => (self::type($get)?->fields() ?? []) !== [])
-                ->components(self::setupFields()),
-            Section::make('Setup')
-                ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
-                ->visible(fn (Get $get): bool => self::type($get) === NotificationChannelType::Browser)
-                ->components([]),
-        ]);
+                                $set('config', NotificationChannelConfig::forForm($type, $get('config') ?? []));
+                            }),
+                        TextInput::make('minimum_open_seconds')
+                            ->label('Minimum open time (seconds)')
+                            ->numeric()
+                            ->required()
+                            ->default(0)
+                            ->minValue(0)
+                            ->maxValue(86400)
+                            ->helperText('0 resolves as soon as the monitor recovers. 300 keeps an incident open for five minutes before resolve.')
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Setup')
+                    ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
+                    ->columns(2)
+                    ->visible(fn (Get $get): bool => (self::type($get)?->fields() ?? []) !== [])
+                    ->components(self::setupFields()),
+                Section::make('Setup')
+                    ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
+                    ->visible(fn (Get $get): bool => self::type($get) === NotificationChannelType::Browser)
+                    ->components([]),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -88,11 +101,11 @@ final class NotificationChannelResource extends Resource
             ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make(),
+                ApiManagedUi::lockWrite(DeleteAction::make()),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    ApiManagedUi::lockWrite(DeleteBulkAction::make()),
                 ]),
             ]);
     }
@@ -137,7 +150,11 @@ final class NotificationChannelResource extends Resource
         return match ($kind) {
             'email' => $input->email($needs),
             'url' => $input->url($needs)->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 2048),
-            'password' => $input->password($needs)->revealable($needs)->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 255),
+            'password' => $input
+                ->password($needs)
+                ->revealable($needs)
+                ->maxLength(fn (Get $get): int => self::field($get, $key)?->maxLength ?? 255)
+                ->regex(fn (Get $get): ?string => self::field($get, $key)?->regex),
             'integer' => $input->numeric()
                 ->minValue(fn (Get $get): ?int => self::field($get, $key)?->min)
                 ->maxValue(fn (Get $get): ?int => self::field($get, $key)?->max),

@@ -6,6 +6,7 @@ namespace App\Filament\Clusters\Settings\Pages;
 
 use App\Enums\InterfaceAuth;
 use App\Filament\Clusters\Settings\SettingsCluster;
+use App\Support\ApiManaged;
 use BackedEnum;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Pages\Page;
@@ -46,6 +47,10 @@ final class GeneralSettings extends Page
                         ->label('Anonymous operator email')
                         ->state(fn (): string => (string) config('nominal.anonymous_operator.email'))
                         ->visible($auth === InterfaceAuth::None),
+                    TextEntry::make('api_managed')
+                        ->label('API-managed resources')
+                        ->state(fn (): string => ApiManaged::enabled() ? 'On' : 'Off')
+                        ->helperText(ApiManaged::notice(...)),
                     TextEntry::make('probe_region')
                         ->label('Default probe region')
                         ->state(fn (): string => (string) config('nominal.probe_region')),

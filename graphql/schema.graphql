@@ -193,6 +193,7 @@ type NotificationChannel {
     id: ID!
     name: String!
     type: NotificationChannelType!
+    minimum_open_seconds: Int!
     mail: MailNotificationChannelConfig @method(name: "graphqlMail")
     slack: SlackNotificationChannelConfig @method(name: "graphqlSlack")
     microsoftTeams: MicrosoftTeamsNotificationChannelConfig @method(name: "graphqlMicrosoftTeams")
@@ -302,6 +303,7 @@ input UpdateMonitorInput {
 input CreateNotificationChannelInput {
     name: String!
     type: NotificationChannelType!
+    minimumOpenSeconds: Int = 0
     mail: MailNotificationChannelInput
     slack: SlackNotificationChannelInput
     microsoftTeams: MicrosoftTeamsNotificationChannelInput
@@ -313,6 +315,7 @@ input CreateNotificationChannelInput {
 input UpdateNotificationChannelInput {
     name: String
     type: NotificationChannelType
+    minimumOpenSeconds: Int
     mail: MailNotificationChannelInput
     slack: SlackNotificationChannelInput
     microsoftTeams: MicrosoftTeamsNotificationChannelInput
@@ -353,6 +356,70 @@ input UpdateMaintenanceWindowInput {
     monitorIds: [ID!]
 }
 
+enum ScheduledReportType {
+    Uptime
+}
+
+enum ScheduledReportCadence {
+    Daily
+    Weekly
+    Monthly
+}
+
+enum ScheduledReportScope {
+    All
+    Monitors
+    Tags
+}
+
+type ScheduledReport {
+    id: ID!
+    name: String!
+    enabled: Boolean!
+    type: ScheduledReportType!
+    cadence: ScheduledReportCadence!
+    send_time: String!
+    weekday: Int
+    day_of_month: Int
+    scope: ScheduledReportScope!
+    tags: [String!]! @method(name: "graphqlTags")
+    recipients: [String!]! @method(name: "graphqlRecipients")
+    next_run_at: DateTime
+    last_sent_at: DateTime
+    last_error: String
+    created_at: DateTime
+    updated_at: DateTime
+    monitors: [Monitor!]! @belongsToMany
+}
+
+input CreateScheduledReportInput {
+    name: String!
+    enabled: Boolean = true
+    type: ScheduledReportType = Uptime
+    cadence: ScheduledReportCadence = Weekly
+    sendTime: String
+    weekday: Int
+    dayOfMonth: Int
+    scope: ScheduledReportScope = All
+    tags: [String!]
+    recipients: [String!]!
+    monitorIds: [ID!]
+}
+
+input UpdateScheduledReportInput {
+    name: String
+    enabled: Boolean
+    type: ScheduledReportType
+    cadence: ScheduledReportCadence
+    sendTime: String
+    weekday: Int
+    dayOfMonth: Int
+    scope: ScheduledReportScope
+    tags: [String!]
+    recipients: [String!]
+    monitorIds: [ID!]
+}
+
 type Query @guard(with: ["sanctum"]) {
     monitor(id: ID! @eq): Monitor @find
     monitors(tag: String @whereJsonContains(key: "tags")): [Monitor!]! @all
@@ -361,6 +428,8 @@ type Query @guard(with: ["sanctum"]) {
     probes: [Probe!]! @all
     maintenanceWindow(id: ID! @eq): MaintenanceWindow @find
     maintenanceWindows: [MaintenanceWindow!]! @all
+    scheduledReport(id: ID! @eq): ScheduledReport @find
+    scheduledReports: [ScheduledReport!]! @all
     statusPage(id: ID! @eq): StatusPage @find
     statusPages: [StatusPage!]! @all
     incident(id: ID! @eq): Incident @find
@@ -531,6 +600,12 @@ type Mutation @guard(with: ["sanctum"]) {
     deleteMaintenanceWindow(id: ID!): Boolean!
     startMonitorMaintenance(monitorId: ID!, title: String, message: String, endsAt: DateTime): MaintenanceWindow!
     endMonitorMaintenance(monitorId: ID!): Monitor!
+    pauseMonitor(monitorId: ID!): Monitor!
+    resumeMonitor(monitorId: ID!): Monitor!
+    createScheduledReport(input: CreateScheduledReportInput!): ScheduledReport!
+    updateScheduledReport(id: ID!, input: UpdateScheduledReportInput!): ScheduledReport!
+    deleteScheduledReport(id: ID!): Boolean!
+    sendScheduledReport(id: ID!): ScheduledReport!
     createStatusPage(input: CreateStatusPageInput!): StatusPage!
     updateStatusPage(id: ID!, input: UpdateStatusPageInput!): StatusPage!
     deleteStatusPage(id: ID!): Boolean!

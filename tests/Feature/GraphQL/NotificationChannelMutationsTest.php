@@ -77,7 +77,7 @@ it('creates each channel type from its matching input', function (string $type, 
     ['MicrosoftTeams', ['microsoftTeams' => ['webhookUrl' => 'https://outlook.office.com/webhook/abc']], ['microsoftTeams' => ['webhookUrl' => 'https://outlook.office.com/webhook/abc']]],
     ['Discord', ['discord' => ['webhookUrl' => 'https://discord.com/api/webhooks/1/abc']], ['discord' => ['webhookUrl' => 'https://discord.com/api/webhooks/1/abc']]],
     ['Webhook', ['webhook' => ['url' => 'https://example.com/hooks/nominal']], ['webhook' => ['url' => 'https://example.com/hooks/nominal']]],
-    ['Pagerduty', ['pagerduty' => ['routingKey' => 'R0123456789ABCDEF']], ['pagerduty' => ['routingKey' => 'R0123456789ABCDEF']]],
+    ['Pagerduty', ['pagerduty' => ['routingKey' => '0123456789abcdef0123456789abcdef']], ['pagerduty' => ['routingKey' => '0123456789abcdef0123456789abcdef']]],
 ]);
 
 it('creates a browser channel without typed config and reports device count', function () {
@@ -250,6 +250,57 @@ it('keeps existing config when only the name is updated', function () {
     expect($updated['name'])->toBe('Renamed mail')
         ->and($updated['type'])->toBe('Mail')
         ->and($updated['mail'])->toBe(['to' => 'alerts@example.com']);
+});
+
+it('creates a channel with a minimum open time', function () {
+    $user = User::factory()->create();
+
+    $channel = graphql('
+        mutation ($input: CreateNotificationChannelInput!) {
+            createNotificationChannel(input: $input) {
+                id
+                minimum_open_seconds
+                pagerduty { routingKey }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'PagerDuty prod',
+            'type' => 'Pagerduty',
+            'minimumOpenSeconds' => 300,
+            'pagerduty' => [
+                'routingKey' => '0123456789abcdef0123456789abcdef',
+            ],
+        ],
+    ], $user)->assertSuccessful()
+        ->json('data.createNotificationChannel');
+
+    expect($channel['minimum_open_seconds'])->toBe(300)
+        ->and(NotificationChannel::query()->find($channel['id'])?->minimum_open_seconds)->toBe(300);
+});
+
+it('updates the minimum open time', function () {
+    $user = User::factory()->create();
+    $channel = NotificationChannel::factory()->mail('alerts@example.com')->create([
+        'minimum_open_seconds' => 0,
+    ]);
+
+    $updated = graphql('
+        mutation ($id: ID!, $input: UpdateNotificationChannelInput!) {
+            updateNotificationChannel(id: $id, input: $input) {
+                minimum_open_seconds
+            }
+        }
+    ', [
+        'id' => $channel->id,
+        'input' => [
+            'minimumOpenSeconds' => 600,
+        ],
+    ], $user)->assertSuccessful()
+        ->json('data.updateNotificationChannel');
+
+    expect($updated['minimum_open_seconds'])->toBe(600)
+        ->and($channel->fresh()?->minimum_open_seconds)->toBe(600);
 });
 
 it('updates a channel to a new type and drops the old typed field', function () {
