@@ -29,10 +29,10 @@ final readonly class EvaluateAlerting implements ActionsPatternInterface
         foreach ($monitor->notificationChannels as $channel) {
             /** @var MonitorNotificationChannel $pivot */
             $pivot = $channel->pivot;
-            $kind = $this->kind($monitor, $result, $pivot);
+            $kind = $this->kind($monitor, $result, $pivot, $channel);
 
             if ($kind === AlertKind::Recovered && ! $pivot->send_on_resolved) {
-                $this->mark($monitor, $channel, triggered: false, notified: false);
+                $this->mark($monitor, $channel, $pivot, triggered: false, notified: false);
 
                 continue;
             }
@@ -42,12 +42,16 @@ final readonly class EvaluateAlerting implements ActionsPatternInterface
             }
 
             $channel->notify(new MonitorAlert($monitor, $result, $kind));
-            $this->mark($monitor, $channel, triggered: $kind !== AlertKind::Recovered, notified: true);
+            $this->mark($monitor, $channel, $pivot, triggered: $kind !== AlertKind::Recovered, notified: true);
         }
     }
 
-    private function kind(Monitor $monitor, ProbeResult $result, MonitorNotificationChannel $pivot): ?AlertKind
-    {
+    private function kind(
+        Monitor $monitor,
+        ProbeResult $result,
+        MonitorNotificationChannel $pivot,
+        NotificationChannel $channel,
+    ): ?AlertKind {
         if (! $result->success) {
             if ($monitor->consecutive_failures < $pivot->failure_threshold) {
                 return null;
@@ -68,7 +72,27 @@ final readonly class EvaluateAlerting implements ActionsPatternInterface
             return null;
         }
 
+        if (! $this->openLongEnough($pivot, $channel)) {
+            return null;
+        }
+
         return AlertKind::Recovered;
+    }
+
+    private function openLongEnough(MonitorNotificationChannel $pivot, NotificationChannel $channel): bool
+    {
+        if ($channel->minimum_open_seconds < 1) {
+            return true;
+        }
+
+        if ($pivot->triggered_at === null) {
+            return true;
+        }
+
+        return $pivot->triggered_at
+            ->copy()
+            ->addSeconds($channel->minimum_open_seconds)
+            ->lte(Carbon::now());
     }
 
     private function reminderDue(MonitorNotificationChannel $pivot): bool
@@ -87,9 +111,22 @@ final readonly class EvaluateAlerting implements ActionsPatternInterface
             ->lte(Carbon::now());
     }
 
-    private function mark(Monitor $monitor, NotificationChannel $channel, bool $triggered, bool $notified): void
-    {
+    private function mark(
+        Monitor $monitor,
+        NotificationChannel $channel,
+        MonitorNotificationChannel $pivot,
+        bool $triggered,
+        bool $notified,
+    ): void {
         $attributes = ['triggered' => $triggered];
+
+        if ($triggered && ! $pivot->triggered) {
+            $attributes['triggered_at'] = now();
+        }
+
+        if (! $triggered) {
+            $attributes['triggered_at'] = null;
+        }
 
         if ($notified) {
             $attributes['last_notified_at'] = now();

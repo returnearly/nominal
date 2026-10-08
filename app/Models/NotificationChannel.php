@@ -24,7 +24,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'type', 'config'])]
+#[Fillable(['name', 'type', 'config', 'minimum_open_seconds'])]
 class NotificationChannel extends Model
 {
     /** @use HasFactory<NotificationChannelFactory> */
@@ -35,6 +35,7 @@ class NotificationChannel extends Model
         return [
             'type' => NotificationChannelType::class,
             'config' => AsEncryptedArrayObject::class,
+            'minimum_open_seconds' => 'integer',
         ];
     }
 
@@ -48,6 +49,7 @@ class NotificationChannel extends Model
                 'send_on_resolved',
                 'reminder_interval_seconds',
                 'triggered',
+                'triggered_at',
                 'last_notified_at',
             ]);
     }
