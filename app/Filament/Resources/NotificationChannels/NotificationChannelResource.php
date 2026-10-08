@@ -81,7 +81,12 @@ final class NotificationChannelResource extends Resource
                 Section::make('Setup')
                     ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
                     ->columns(2)
+                    ->visible(fn (Get $get): bool => (self::type($get)?->fields() ?? []) !== [])
                     ->components(self::setupFields()),
+                Section::make('Setup')
+                    ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())
+                    ->visible(fn (Get $get): bool => self::type($get) === NotificationChannelType::Browser)
+                    ->components([]),
             ]);
     }
 

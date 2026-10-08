@@ -61,6 +61,11 @@ it('accepts valid setup for each type', function (NotificationChannelType $type,
     [NotificationChannelType::Discord, ['webhook_url' => 'https://discord.com/api/webhooks/1/abc']],
     [NotificationChannelType::Webhook, ['url' => 'https://example.com/hooks/nominal']],
     [NotificationChannelType::Pagerduty, ['routing_key' => '0123456789abcdef0123456789abcdef']],
+    [NotificationChannelType::Browser, [
+        'vapid_public_key' => 'public',
+        'vapid_private_key' => 'private',
+        'vapid_subject' => 'mailto:noreply@example.com',
+    ]],
 ]);
 
 it('rejects a pagerduty integration key the events api will not accept', function (string $key) {

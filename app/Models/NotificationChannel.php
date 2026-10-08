@@ -11,6 +11,7 @@ use App\Notifications\Channels\MicrosoftTeamsChannel;
 use App\Notifications\Channels\PagerDutyChannel;
 use App\Notifications\Channels\SlackWebhookChannel;
 use App\Notifications\Channels\SmtpMailChannel;
+use App\Notifications\Channels\WebPushChannel;
 use App\Support\NotificationChannelConfig;
 use Database\Factories\NotificationChannelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -54,15 +56,28 @@ class NotificationChannel extends Model
             ]);
     }
 
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
     /**
      * @return Attribute<string|null, never>
      */
     protected function destination(): Attribute
     {
-        return Attribute::get(fn (): ?string => NotificationChannelConfig::destination(
-            $this->type,
-            $this->configArray(),
-        ));
+        return Attribute::get(function (): ?string {
+            if ($this->type === NotificationChannelType::Browser) {
+                $count = $this->pushSubscriptions()->count();
+
+                return $count === 0 ? 'No devices' : $count.' '.Str::plural('device', $count);
+            }
+
+            return NotificationChannelConfig::destination(
+                $this->type,
+                $this->configArray(),
+            );
+        });
     }
 
     /**
@@ -119,6 +134,20 @@ class NotificationChannel extends Model
     public function graphqlPagerduty(): ?array
     {
         return $this->graphqlTypedConfig(NotificationChannelType::Pagerduty);
+    }
+
+    /**
+     * @return array{deviceCount: int}|null
+     */
+    public function graphqlBrowser(): ?array
+    {
+        if ($this->type !== NotificationChannelType::Browser) {
+            return null;
+        }
+
+        return [
+            'deviceCount' => $this->pushSubscriptions()->count(),
+        ];
     }
 
     /**
@@ -193,6 +222,7 @@ class NotificationChannel extends Model
             NotificationChannelType::Discord => [DiscordWebhookChannel::class],
             NotificationChannelType::Webhook => [GenericWebhookChannel::class],
             NotificationChannelType::Pagerduty => [PagerDutyChannel::class],
+            NotificationChannelType::Browser => [WebPushChannel::class],
         };
     }
 

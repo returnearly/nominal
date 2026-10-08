@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\NotificationChannelType;
 use App\Models\NotificationChannel;
 use App\Models\User;
 
@@ -78,6 +79,33 @@ it('creates each channel type from its matching input', function (string $type, 
     ['Webhook', ['webhook' => ['url' => 'https://example.com/hooks/nominal']], ['webhook' => ['url' => 'https://example.com/hooks/nominal']]],
     ['Pagerduty', ['pagerduty' => ['routingKey' => '0123456789abcdef0123456789abcdef']], ['pagerduty' => ['routingKey' => '0123456789abcdef0123456789abcdef']]],
 ]);
+
+it('creates a browser channel without typed config and reports device count', function () {
+    $created = graphql('
+        mutation ($input: CreateNotificationChannelInput!) {
+            createNotificationChannel(input: $input) {
+                type
+                browser { deviceCount }
+                slack { webhookUrl }
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Ops browsers',
+            'type' => 'Browser',
+        ],
+    ])->assertSuccessful()
+        ->json('data.createNotificationChannel');
+
+    expect($created['type'])->toBe('Browser')
+        ->and($created['browser'])->toBe(['deviceCount' => 0])
+        ->and($created['slack'])->toBeNull();
+
+    $channel = NotificationChannel::query()->where('name', 'Ops browsers')->first();
+
+    expect($channel?->type)->toBe(NotificationChannelType::Browser)
+        ->and($channel?->configArray())->toHaveKeys(['vapid_public_key', 'vapid_private_key', 'vapid_subject']);
+});
 
 it('creates a mail channel with a mail server', function () {
     $created = graphql('
