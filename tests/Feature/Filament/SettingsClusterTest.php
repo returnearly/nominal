@@ -75,6 +75,8 @@ it('shows instance configuration on the general page', function () {
         ->assertSee('login')
         ->assertSee('local')
         ->assertSee('nominal_')
+        ->assertSee('API-managed')
+        ->assertSee('Off')
         ->assertSee('environment configuration')
         ->assertDontSee('operator@nominal.local');
 });

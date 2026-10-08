@@ -150,8 +150,13 @@ return [
          * - store: use an external shared cache through a Laravel cache store like Redis or Memcached
          * - opcache: store parsed queries in PHP files on the local filesystem to leverage OPcache
          * - hybrid: leverage OPcache, but use a shared cache store when local files are not found
+         *
+         * `store` serializes the parsed AST. This app refuses to unserialize cache objects
+         * (`cache.serializable_classes` is false), so another Octane worker receives
+         * `__PHP_Incomplete_Class` and the next request fails. `hybrid` shares the query as
+         * a PHP source string and compiles it from a local file.
          */
-        'mode' => env('LIGHTHOUSE_QUERY_CACHE_MODE', 'store'),
+        'mode' => env('LIGHTHOUSE_QUERY_CACHE_MODE', 'hybrid'),
 
         /*
          * Specifies the path where the PHP files are stored when using opcache or hybrid mode.

@@ -60,8 +60,20 @@ it('accepts valid setup for each type', function (NotificationChannelType $type,
     [NotificationChannelType::MicrosoftTeams, ['webhook_url' => 'https://outlook.office.com/webhook/abc']],
     [NotificationChannelType::Discord, ['webhook_url' => 'https://discord.com/api/webhooks/1/abc']],
     [NotificationChannelType::Webhook, ['url' => 'https://example.com/hooks/nominal']],
-    [NotificationChannelType::Pagerduty, ['routing_key' => 'R0123456789ABCDEF']],
+    [NotificationChannelType::Pagerduty, ['routing_key' => '0123456789abcdef0123456789abcdef']],
 ]);
+
+it('rejects a pagerduty integration key the events api will not accept', function (string $key) {
+    NotificationChannelConfig::assertValid(NotificationChannelType::Pagerduty, [
+        'routing_key' => $key,
+    ]);
+})->with([
+    'short',
+    'R0123456789ABCDEF',
+    'gggggggggggggggggggggggggggggggg',
+    '0123456789abcdef0123456789abcd-g',
+    '0123456789abcdef0123456789abcde',
+])->throws(ValidationException::class);
 
 it('summarizes destinations without leaking secrets', function () {
     expect(NotificationChannelConfig::destination(NotificationChannelType::Mail, [

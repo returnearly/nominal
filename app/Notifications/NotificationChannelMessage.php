@@ -17,4 +17,11 @@ interface NotificationChannelMessage
      * @return array<string, mixed>
      */
     public function toPagerDuty(): array;
+
+    /**
+     * Events API v2 bodies, in send order. A test sends a trigger and then a resolve.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function toPagerDutyEvents(): array;
 }
