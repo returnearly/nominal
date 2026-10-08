@@ -241,7 +241,7 @@ it('creates a channel with a minimum open time', function () {
             'type' => 'Pagerduty',
             'minimumOpenSeconds' => 300,
             'pagerduty' => [
-                'routingKey' => 'R0123456789ABCDEF',
+                'routingKey' => '0123456789abcdef0123456789abcdef',
             ],
         ],
     ], $user)->assertSuccessful()
