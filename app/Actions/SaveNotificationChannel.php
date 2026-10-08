@@ -29,15 +29,31 @@ final readonly class SaveNotificationChannel implements ActionsPatternInterface
         $config = NotificationChannelConfig::normalize($type, $config);
         NotificationChannelConfig::assertValid($type, $config);
 
-        $channel->fill([
+        $attributes = [
             'name' => $input['name'] ?? $channel->name,
             'type' => $type,
             'config' => $config,
-        ]);
+        ];
 
+        if (array_key_exists('minimum_open_seconds', $input) || array_key_exists('minimumOpenSeconds', $input)) {
+            $attributes['minimum_open_seconds'] = $this->minimumOpenSeconds(
+                $input['minimum_open_seconds'] ?? $input['minimumOpenSeconds'],
+            );
+        } elseif (! $channel->exists) {
+            $attributes['minimum_open_seconds'] = 0;
+        }
+
+        $channel->fill($attributes);
         $channel->save();
 
         return $channel->fresh() ?? $channel;
+    }
+
+    private function minimumOpenSeconds(mixed $value): int
+    {
+        $seconds = max(0, min(86400, (int) $value));
+
+        return $seconds;
     }
 
     /**

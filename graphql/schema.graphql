@@ -188,6 +188,7 @@ type NotificationChannel {
     id: ID!
     name: String!
     type: NotificationChannelType!
+    minimum_open_seconds: Int!
     mail: MailNotificationChannelConfig @method(name: "graphqlMail")
     slack: SlackNotificationChannelConfig @method(name: "graphqlSlack")
     microsoftTeams: MicrosoftTeamsNotificationChannelConfig @method(name: "graphqlMicrosoftTeams")
@@ -296,6 +297,7 @@ input UpdateMonitorInput {
 input CreateNotificationChannelInput {
     name: String!
     type: NotificationChannelType!
+    minimumOpenSeconds: Int = 0
     mail: MailNotificationChannelInput
     slack: SlackNotificationChannelInput
     microsoftTeams: MicrosoftTeamsNotificationChannelInput
@@ -307,6 +309,7 @@ input CreateNotificationChannelInput {
 input UpdateNotificationChannelInput {
     name: String
     type: NotificationChannelType
+    minimumOpenSeconds: Int
     mail: MailNotificationChannelInput
     slack: SlackNotificationChannelInput
     microsoftTeams: MicrosoftTeamsNotificationChannelInput

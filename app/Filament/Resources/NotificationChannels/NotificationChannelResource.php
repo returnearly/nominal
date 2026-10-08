@@ -68,6 +68,15 @@ final class NotificationChannelResource extends Resource
 
                                 $set('config', NotificationChannelConfig::forForm($type, $get('config') ?? []));
                             }),
+                        TextInput::make('minimum_open_seconds')
+                            ->label('Minimum open time (seconds)')
+                            ->numeric()
+                            ->required()
+                            ->default(0)
+                            ->minValue(0)
+                            ->maxValue(86400)
+                            ->helperText('0 resolves as soon as the monitor recovers. 300 keeps an incident open for five minutes before resolve.')
+                            ->columnSpanFull(),
                     ]),
                 Section::make('Setup')
                     ->description(fn (Get $get): ?string => self::type($get)?->setupDescription())

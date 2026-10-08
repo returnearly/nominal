@@ -138,3 +138,132 @@ it('includes the runbook and tags on down alerts', function () {
         return $alert->kind === AlertKind::Down;
     });
 });
+
+it('holds recovery until the minimum open time has elapsed', function () {
+    Notification::fake();
+    $this->freezeTime();
+
+    $monitor = Monitor::factory()->create([
+        'status' => MonitorStatus::Up,
+        'consecutive_successes' => 2,
+    ]);
+    $channel = NotificationChannel::factory()->create([
+        'minimum_open_seconds' => 300,
+    ]);
+    $monitor->notificationChannels()->attach($channel->id, [
+        'failure_threshold' => 3,
+        'success_threshold' => 2,
+        'send_on_resolved' => true,
+        'triggered' => true,
+        'triggered_at' => now(),
+    ]);
+
+    EvaluateAlerting::make()->handle($monitor->fresh(['notificationChannels']), passedResult());
+
+    Notification::assertNothingSent();
+    $pivot = $monitor->fresh()->notificationChannels->first()->pivot;
+    expect($pivot->triggered)->toBeTrue()
+        ->and($pivot->triggered_at)->not->toBeNull();
+});
+
+it('resolves after the minimum open time has elapsed', function () {
+    Notification::fake();
+    $this->freezeTime();
+
+    $monitor = Monitor::factory()->create([
+        'status' => MonitorStatus::Up,
+        'consecutive_successes' => 2,
+    ]);
+    $channel = NotificationChannel::factory()->create([
+        'minimum_open_seconds' => 300,
+    ]);
+    $monitor->notificationChannels()->attach($channel->id, [
+        'failure_threshold' => 3,
+        'success_threshold' => 2,
+        'send_on_resolved' => true,
+        'triggered' => true,
+        'triggered_at' => now()->subSeconds(300),
+    ]);
+
+    EvaluateAlerting::make()->handle($monitor->fresh(['notificationChannels']), passedResult());
+
+    Notification::assertSentTo($channel, MonitorAlert::class, fn (MonitorAlert $alert): bool => $alert->kind === AlertKind::Recovered);
+    $pivot = $monitor->fresh()->notificationChannels->first()->pivot;
+    expect($pivot->triggered)->toBeFalse()
+        ->and($pivot->triggered_at)->toBeNull();
+});
+
+it('does not reopen an alert that is still within the minimum open window', function () {
+    Notification::fake();
+    $this->freezeTime();
+
+    $openedAt = now()->subSeconds(60);
+    $monitor = Monitor::factory()->create([
+        'status' => MonitorStatus::Down,
+        'consecutive_failures' => 3,
+    ]);
+    $channel = NotificationChannel::factory()->create([
+        'minimum_open_seconds' => 300,
+    ]);
+    $monitor->notificationChannels()->attach($channel->id, [
+        'failure_threshold' => 3,
+        'success_threshold' => 2,
+        'send_on_resolved' => true,
+        'triggered' => true,
+        'triggered_at' => $openedAt,
+    ]);
+
+    EvaluateAlerting::make()->handle($monitor->fresh(['notificationChannels']), failedResult());
+
+    Notification::assertNothingSent();
+    $pivot = $monitor->fresh()->notificationChannels->first()->pivot;
+    expect($pivot->triggered)->toBeTrue()
+        ->and($pivot->triggered_at?->timestamp)->toBe($openedAt->timestamp);
+});
+
+it('resolves immediately when the minimum open time is zero', function () {
+    Notification::fake();
+
+    $monitor = Monitor::factory()->create([
+        'status' => MonitorStatus::Up,
+        'consecutive_successes' => 2,
+    ]);
+    $channel = NotificationChannel::factory()->create([
+        'minimum_open_seconds' => 0,
+    ]);
+    $monitor->notificationChannels()->attach($channel->id, [
+        'failure_threshold' => 3,
+        'success_threshold' => 2,
+        'send_on_resolved' => true,
+        'triggered' => true,
+        'triggered_at' => now(),
+    ]);
+
+    EvaluateAlerting::make()->handle($monitor->fresh(['notificationChannels']), passedResult());
+
+    Notification::assertSentTo($channel, MonitorAlert::class, fn (MonitorAlert $alert): bool => $alert->kind === AlertKind::Recovered);
+    expect($monitor->fresh()->notificationChannels->first()->pivot->triggered)->toBeFalse();
+});
+
+it('records triggered_at when an alert opens', function () {
+    Notification::fake();
+    $this->freezeTime();
+
+    $monitor = Monitor::factory()->create([
+        'status' => MonitorStatus::Down,
+        'consecutive_failures' => 3,
+    ]);
+    $channel = NotificationChannel::factory()->create();
+    $monitor->notificationChannels()->attach($channel->id, [
+        'failure_threshold' => 3,
+        'success_threshold' => 2,
+        'send_on_resolved' => true,
+        'triggered' => false,
+    ]);
+
+    EvaluateAlerting::make()->handle($monitor, failedResult());
+
+    $pivot = $monitor->fresh()->notificationChannels->first()->pivot;
+    expect($pivot->triggered)->toBeTrue()
+        ->and($pivot->triggered_at?->timestamp)->toBe(now()->timestamp);
+});
