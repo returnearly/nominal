@@ -7,7 +7,9 @@ namespace App\Filament\Resources\Monitors\Pages;
 use App\Actions\LoadRecentCheckResults;
 use App\Enums\MonitorStatus;
 use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
+use App\Filament\Concerns\ShowsApiManagedNotice;
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Filament\Support\ApiManagedUi;
 use App\Filament\Widgets\MonitorStatsWidget;
 use App\Models\MaintenanceWindow;
 use App\Models\Monitor;
@@ -25,6 +27,7 @@ final class ListMonitors extends ListRecords
 {
     use ExposesTableToWidgets;
     use RefreshesOnMonitorBroadcasts;
+    use ShowsApiManagedNotice;
 
     protected static string $resource = MonitorResource::class;
 
@@ -35,7 +38,7 @@ final class ListMonitors extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            ApiManagedUi::lock(CreateAction::make()),
         ];
     }
 

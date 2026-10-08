@@ -95,6 +95,18 @@ it('lazy-loads widgets and defers table records', function () {
     expect($table->isLoadingDeferred())->toBeTrue();
 });
 
+it('lazy-loads monitor charts from the visible placeholder', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create();
+
+    $html = Livewire::actingAs($user)
+        ->test(ViewMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->html();
+
+    expect($html)->toMatch('/<div\b(?=[^>]*\bclass="nm-detail")(?=[^>]*\bx-intersect="\$wire\.__lazyLoad)[^>]*>/')
+        ->and($html)->not->toMatch('/<style\b[^>]*\bx-intersect=/');
+});
+
 it('shows tags on monitor cards and filters by tag', function () {
     $user = User::factory()->create();
     $prod = Monitor::factory()->create([
@@ -441,8 +453,8 @@ it('shows heartbeat and latency on the monitor view', function () {
         ->assertDontSee('data-heatmap')
         ->html();
 
-    expect($html)
-        ->toContain('data-trend')
+    expect(ltrim($html))->toMatch('/^<div\b(?=[^>]*\bclass="[^"]*\bnm-detail\b)[^>]*>/')
+        ->and($html)->toContain('data-trend')
         ->toContain('nm-trend-hit')
         ->toContain('preserveAspectRatio="none"')
         ->toContain('TIMESTAMP')
@@ -887,6 +899,18 @@ it('shows a proxy url field for HTTP, GraphQL, TCP, TLS, WebSocket, and Redis mo
         ->assertFormFieldIsHidden('proxy_url')
         ->set('data.type', MonitorType::Ping->value)
         ->assertFormFieldIsHidden('proxy_url');
+});
+
+it('masks saved request header values until the field is focused', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->create([
+        'type' => MonitorType::Http,
+        'request_headers' => ['X-Token' => 'abc'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertSeeHtml('nm-secret-header-values');
 });
 
 it('duplicates a monitor from the view page into the create form', function () {

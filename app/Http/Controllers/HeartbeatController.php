@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\ReceiveHeartbeat;
 use App\Enums\HeartbeatSignal;
+use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
 use App\Models\Monitor;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,13 @@ final class HeartbeatController
             ->firstOrFail();
 
         abort_unless($monitor->enabled, 404);
+
+        if ($monitor->status === MonitorStatus::Paused) {
+            return response()->json([
+                'ok' => true,
+                'paused' => true,
+            ]);
+        }
 
         $latency = $request->integer('latency');
 

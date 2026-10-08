@@ -32,6 +32,24 @@ it('accepts POST heartbeats', function () {
         ->assertJson(['ok' => true]);
 });
 
+it('ignores heartbeats while the monitor is paused', function () {
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'status' => MonitorStatus::Paused,
+    ]);
+
+    $this->getJson('/api/heartbeat/'.$monitor->heartbeat_token)
+        ->assertOk()
+        ->assertJson(['ok' => true, 'paused' => true]);
+
+    $this->postJson('/api/heartbeat/'.$monitor->heartbeat_token.'/start')
+        ->assertOk()
+        ->assertJson(['ok' => true, 'paused' => true]);
+
+    expect($monitor->fresh()->status)->toBe(MonitorStatus::Paused)
+        ->and($monitor->fresh()->heartbeat_started_at)->toBeNull()
+        ->and($monitor->checkResults()->count())->toBe(0);
+});
+
 it('rejects unknown heartbeat tokens', function () {
     $this->getJson('/api/heartbeat/notarealtoken')->assertNotFound();
 });
