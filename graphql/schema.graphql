@@ -121,6 +121,7 @@ type MonitorUptime {
     twentyFourHours: Float
     sevenDays: Float
     thirtyDays: Float
+    ninetyDays: Float
 }
 
 type MailNotificationChannelConfig {

@@ -512,7 +512,8 @@ it('shows heartbeat and latency on the monitor view', function () {
         ->toContain('data-uptime-window="1h"')
         ->toContain('data-uptime-window="24h"')
         ->toContain('data-uptime-window="7d"')
-        ->toContain('data-uptime-window="30d"');
+        ->toContain('data-uptime-window="30d"')
+        ->toContain('data-uptime-window="90d"');
 
     expect(strpos($html, 'nm-section-title">Response time'))
         ->toBeLessThan(strpos($html, 'nm-section-title">Uptime'));

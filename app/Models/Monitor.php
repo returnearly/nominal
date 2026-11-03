@@ -448,7 +448,7 @@ class Monitor extends Model
     }
 
     /**
-     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float}
+     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float, ninetyDays: ?float}
      */
     public function graphqlUptime(): array
     {
