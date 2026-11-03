@@ -13,11 +13,12 @@ final readonly class MonitorUptime
         public ?float $twentyFourHours,
         public ?float $sevenDays,
         public ?float $thirtyDays,
+        public ?float $ninetyDays,
     ) {}
 
     public static function empty(): self
     {
-        return new self(null, null, null, null);
+        return new self(null, null, null, null, null);
     }
 
     public function percent(UptimeWindow $window): ?float
@@ -27,11 +28,12 @@ final readonly class MonitorUptime
             UptimeWindow::TwentyFourHours => $this->twentyFourHours,
             UptimeWindow::SevenDays => $this->sevenDays,
             UptimeWindow::ThirtyDays => $this->thirtyDays,
+            UptimeWindow::NinetyDays => $this->ninetyDays,
         };
     }
 
     /**
-     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float}
+     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float, ninetyDays: ?float}
      */
     public function toGraphQL(): array
     {
@@ -40,6 +42,7 @@ final readonly class MonitorUptime
             'twentyFourHours' => $this->twentyFourHours,
             'sevenDays' => $this->sevenDays,
             'thirtyDays' => $this->thirtyDays,
+            'ninetyDays' => $this->ninetyDays,
         ];
     }
 }
