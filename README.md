@@ -227,6 +227,22 @@ docker pull ghcr.io/returnearly/nominal:latest
 
 The package is public. If the first publish lands as private, set visibility to **Public** once under the repo's Packages settings.
 
+## Railway
+
+[`railway/template.json`](railway/template.json) is a Railway template for `ghcr.io/returnearly/nominal:latest`. It deploys:
+
+- **web** — Octane on port 8080, with a public domain and `/up` health check
+- **worker** — `queue:work` on `checks.$PROBE_REGION` and `default`
+- **scheduler** — `schedule:work`
+- **migrate** — migrations, then `php artisan nominal:provision`, then exit
+- **Postgres** — private Railway Postgres
+
+Deploying the template generates `APP_KEY` and `NOMINAL_ADMIN_PASSWORD` once on **web**. Worker, scheduler, and migrate reference those values. Postgres generates `POSTGRES_PASSWORD`.
+
+Admin: `https://<web-domain>/admin`. The email defaults to `admin@nominal.test`. The password is `NOMINAL_ADMIN_PASSWORD` on **web**.
+
+`PROBE_REGION` defaults to `local`, which is the default probe queue `checks.local`. Redeploy **migrate** when a new image includes migrations. Details are in [`railway/README.md`](railway/README.md).
+
 ## License
 
 Copyright © 2026 Return Early.

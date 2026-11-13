@@ -22,6 +22,16 @@ return [
     */
     'interface_auth' => env('INTERFACE_AUTH', InterfaceAuth::Login->value),
 
+    /*
+    | First admin created by `php artisan nominal:provision`.
+    | An existing user with this email keeps their current password.
+    */
+    'admin' => [
+        'email' => env('NOMINAL_ADMIN_EMAIL'),
+        'name' => env('NOMINAL_ADMIN_NAME', 'Nominal Admin'),
+        'password' => env('NOMINAL_ADMIN_PASSWORD'),
+    ],
+
     'anonymous_operator' => [
         'email' => env('INTERFACE_OPERATOR_EMAIL', 'operator@nominal.local'),
         'name' => env('INTERFACE_OPERATOR_NAME', 'Operator'),
