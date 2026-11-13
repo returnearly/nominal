@@ -225,7 +225,7 @@ it('weights uptime across monitors and counts down transitions', function () {
         ->and($summary->downtimeLabel())->toBe('21h 36m')
         ->and($summary->outages)->toBe(2)
         ->and($summary->rows[0]->name)->toBe('Flaky')
-        ->and($summary->rows[0]->uptimeLabel())->toBe('0.00%')
+        ->and($summary->rows[0]->uptimeLabel())->toBe('0.000%')
         ->and($summary->rows[0]->downtimeLabel())->toBe('24h')
         ->and($summary->rows[0]->outages)->toBe(2)
         ->and($summary->rows[1]->name)->toBe('Healthy')
