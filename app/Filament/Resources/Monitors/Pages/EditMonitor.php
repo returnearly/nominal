@@ -7,7 +7,9 @@ namespace App\Filament\Resources\Monitors\Pages;
 use App\Actions\DispatchMonitorCheck;
 use App\Enums\IpFamily;
 use App\Enums\MonitorType;
+use App\Filament\Concerns\AbortsApiManagedSave;
 use App\Filament\Resources\Monitors\MonitorResource;
+use App\Filament\Support\ApiManagedUi;
 use App\Models\Monitor;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
@@ -15,6 +17,8 @@ use Filament\Resources\Pages\EditRecord;
 
 final class EditMonitor extends EditRecord
 {
+    use AbortsApiManagedSave;
+
     protected static string $resource = MonitorResource::class;
 
     protected function getHeaderActions(): array
@@ -22,7 +26,7 @@ final class EditMonitor extends EditRecord
         return [
             ViewAction::make(),
             MonitorResource::duplicateAction(),
-            DeleteAction::make(),
+            ApiManagedUi::lockWrite(DeleteAction::make()),
         ];
     }
 

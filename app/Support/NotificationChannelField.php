@@ -26,6 +26,7 @@ final readonly class NotificationChannelField
         public array $options = [],
         public ?int $min = null,
         public ?int $max = null,
+        public ?string $regex = null,
     ) {}
 
     /**
@@ -47,6 +48,10 @@ final readonly class NotificationChannelField
             'select' => ['string', Rule::in(array_keys($this->options))],
             default => ['string', 'max:'.$this->maxLength],
         };
+
+        if ($this->regex !== null) {
+            $specific[] = 'regex:'.$this->regex;
+        }
 
         return [...$presence, ...$specific];
     }

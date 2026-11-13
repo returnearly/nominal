@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Enums\MonitorStatus;
 use App\Enums\MonitorType;
 use App\Jobs\RunCheckJob;
 use App\Models\Monitor;
@@ -17,6 +18,10 @@ final readonly class DispatchMonitorCheck implements ActionsPatternInterface
 
     public function handle(Monitor $monitor, bool $saved = false): int
     {
+        if ($monitor->status === MonitorStatus::Paused) {
+            return 0;
+        }
+
         if ($saved && (! $monitor->enabled || ! $monitor->type->usesOutboundProbe())) {
             return 0;
         }

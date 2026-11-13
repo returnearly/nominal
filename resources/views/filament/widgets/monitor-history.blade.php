@@ -7,9 +7,9 @@
         : '—';
 @endphp
 
-<x-monitor.history-styles />
-
 <div class="nm-detail">
+    <x-monitor.history-styles />
+
     <div class="nm-stat-cards">
         <div class="nm-panel nm-stat-card">
             <span class="nm-metrics-label">Current status</span>

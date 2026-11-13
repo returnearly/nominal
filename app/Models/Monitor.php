@@ -154,6 +154,7 @@ class Monitor extends Model
                 'send_on_resolved',
                 'reminder_interval_seconds',
                 'triggered',
+                'triggered_at',
                 'last_notified_at',
             ]);
     }
@@ -447,7 +448,7 @@ class Monitor extends Model
     }
 
     /**
-     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float}
+     * @return array{oneHour: ?float, twentyFourHours: ?float, sevenDays: ?float, thirtyDays: ?float, ninetyDays: ?float}
      */
     public function graphqlUptime(): array
     {

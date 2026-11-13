@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\DispatchMonitorCheck;
+use App\Enums\MonitorStatus;
 use App\Jobs\RunCheckJob;
 use App\Models\Monitor;
 use App\Models\Probe;
@@ -61,6 +62,19 @@ it('queues a check after saving an enabled outbound monitor', function () {
     Queue::assertPushedOn('checks.local', function (RunCheckJob $job) use ($monitor, $probe): bool {
         return $job->monitorId === $monitor->id && $job->probeId === $probe->id;
     });
+});
+
+it('does not queue a check for a paused monitor', function () {
+    Queue::fake();
+
+    $monitor = Monitor::factory()->create(['status' => MonitorStatus::Paused]);
+    $probe = Probe::factory()->create(['queue' => 'checks.local']);
+    $monitor->probes()->attach($probe);
+
+    expect(DispatchMonitorCheck::make()->handle($monitor))->toBe(0)
+        ->and(DispatchMonitorCheck::make()->handle($monitor, saved: true))->toBe(0);
+
+    Queue::assertNothingPushed();
 });
 
 it('does not queue a check after saving a heartbeat or disabled monitor', function () {

@@ -31,6 +31,11 @@ final class NotificationChannelConfig
     public static function normalize(NotificationChannelType $type, mixed $config): array
     {
         $config = self::from($config);
+
+        if ($type === NotificationChannelType::Browser) {
+            return self::normalizeBrowser($config);
+        }
+
         $normalized = [];
 
         foreach ($type->fields() as $field) {
@@ -90,6 +95,20 @@ final class NotificationChannelConfig
      */
     public static function assertValid(NotificationChannelType $type, array $config): void
     {
+        if ($type === NotificationChannelType::Browser) {
+            Validator::make(['config' => $config], [
+                'config.vapid_public_key' => ['required', 'string'],
+                'config.vapid_private_key' => ['required', 'string'],
+                'config.vapid_subject' => ['required', 'string'],
+            ], [], [
+                'config.vapid_public_key' => 'vapid public key',
+                'config.vapid_private_key' => 'vapid private key',
+                'config.vapid_subject' => 'vapid subject',
+            ])->validate();
+
+            return;
+        }
+
         $rules = [];
         $attributes = [];
 
@@ -109,6 +128,7 @@ final class NotificationChannelConfig
         return match ($type) {
             NotificationChannelType::Mail => self::mailDestination($config),
             NotificationChannelType::Pagerduty => isset($config['routing_key']) ? 'Routing key configured' : null,
+            NotificationChannelType::Browser => isset($config['vapid_public_key']) ? 'Browser push' : null,
             default => self::host($config['webhook_url'] ?? $config['url'] ?? null),
         };
     }
@@ -129,6 +149,25 @@ final class NotificationChannelConfig
         }
 
         return $keys;
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, string>
+     */
+    private static function normalizeBrowser(array $config): array
+    {
+        $normalized = [];
+
+        foreach (['vapid_public_key', 'vapid_private_key', 'vapid_subject'] as $key) {
+            $value = self::string($config[$key] ?? null);
+
+            if ($value !== null) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
     }
 
     /**

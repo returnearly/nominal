@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Checking\ProbeResult;
 use App\Enums\HeartbeatSignal;
+use App\Enums\MonitorStatus;
 use App\Models\CheckResult;
 use App\Models\Monitor;
 use ReturnEarly\ActionsPattern\Interfaces\ActionsPatternInterface;
@@ -21,6 +22,10 @@ final readonly class ReceiveHeartbeat implements ActionsPatternInterface
 
     public function handle(Monitor $monitor, HeartbeatSignal $signal = HeartbeatSignal::Finish, ?int $latencyMs = null): ?CheckResult
     {
+        if ($monitor->status === MonitorStatus::Paused) {
+            return null;
+        }
+
         if ($signal === HeartbeatSignal::Start) {
             $monitor->heartbeat_started_at = now();
             $monitor->scheduleNextCheck();

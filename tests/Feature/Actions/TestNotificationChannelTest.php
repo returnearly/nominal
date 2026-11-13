@@ -101,22 +101,35 @@ it('posts a generic webhook test with an event of test', function () {
     });
 });
 
-it('opens a pagerduty test incident', function () {
-    Http::fake();
+it('opens a pagerduty test incident and then resolves it', function () {
+    Http::fake([
+        'https://events.pagerduty.com/v2/enqueue' => Http::response([
+            'status' => 'success',
+            'message' => 'Event processed',
+        ], 202),
+    ]);
 
     $channel = NotificationChannel::factory()->create([
         'name' => 'PagerDuty',
         'type' => NotificationChannelType::Pagerduty,
-        'config' => ['routing_key' => 'R0123456789ABCDEF'],
+        'config' => ['routing_key' => '0123456789abcdef0123456789abcdef'],
     ]);
 
     TestNotificationChannel::make()->handle($channel);
 
-    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://events.pagerduty.com/v2/enqueue'
-        && $request['routing_key'] === 'R0123456789ABCDEF'
-        && $request['event_action'] === 'trigger'
-        && $request['dedup_key'] === 'nominal-test-'.$channel->id
-        && $request['payload']['severity'] === 'info');
+    Http::assertSentCount(2);
+
+    $events = Http::recorded();
+
+    expect($events[0][0]['routing_key'])->toBe('0123456789abcdef0123456789abcdef')
+        ->and($events[0][0]['event_action'])->toBe('trigger')
+        ->and($events[0][0]['dedup_key'])->toBe('nominal-test-'.$channel->id)
+        ->and($events[0][0]['payload']['severity'])->toBe('info')
+        ->and($events[0][0]['payload']['summary'])->not->toBe('')
+        ->and($events[0][0]['payload']['source'])->not->toBe('')
+        ->and($events[1][0]['event_action'])->toBe('resolve')
+        ->and($events[1][0]['dedup_key'])->toBe($events[0][0]['dedup_key'])
+        ->and($events[1][0]['routing_key'])->toBe('0123456789abcdef0123456789abcdef');
 });
 
 it('sends using form values without persisting them', function () {

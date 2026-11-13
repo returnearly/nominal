@@ -118,3 +118,42 @@ it('rejects a typed input that does not match the type', function () {
         ],
     ]);
 })->throws(ValidationException::class);
+
+it('stores the minimum open time on create', function () {
+    $channel = SaveNotificationChannel::make()->handle([
+        'name' => 'Ops Slack',
+        'type' => NotificationChannelType::Slack,
+        'minimum_open_seconds' => 300,
+        'config' => [
+            'webhook_url' => 'https://hooks.slack.com/services/T/B/xxx',
+        ],
+    ]);
+
+    expect($channel->minimum_open_seconds)->toBe(300);
+});
+
+it('defaults the minimum open time to zero when omitted', function () {
+    $channel = SaveNotificationChannel::make()->handle([
+        'name' => 'Ops Slack',
+        'type' => NotificationChannelType::Slack,
+        'config' => [
+            'webhook_url' => 'https://hooks.slack.com/services/T/B/xxx',
+        ],
+    ]);
+
+    expect($channel->minimum_open_seconds)->toBe(0);
+});
+
+it('updates the minimum open time from camelCase input', function () {
+    $channel = NotificationChannel::factory()->mail()->create([
+        'minimum_open_seconds' => 0,
+    ]);
+
+    $updated = SaveNotificationChannel::make()->handle([
+        'minimumOpenSeconds' => 600,
+    ], $channel);
+
+    expect($updated->minimum_open_seconds)->toBe(600)
+        ->and($updated->configArray())->toBe(['to' => 'ops@example.com']);
+});
+

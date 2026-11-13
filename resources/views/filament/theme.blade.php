@@ -129,5 +129,9 @@
         html.nm-monitors-down .nm-logo-bg {
             fill: var(--nm-down);
         }
+
+        .nm-secret-header-values input[aria-label="Value"]:not(:focus) {
+            -webkit-text-security: disc;
+        }
     </style>
 @endonce

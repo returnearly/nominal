@@ -21,6 +21,7 @@ class MonitorNotificationChannel extends Pivot
             'send_on_resolved' => 'boolean',
             'reminder_interval_seconds' => 'integer',
             'triggered' => 'boolean',
+            'triggered_at' => 'datetime',
             'last_notified_at' => 'datetime',
         ];
     }
