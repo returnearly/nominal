@@ -26,6 +26,7 @@ use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager
 use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
 use App\Models\Probe;
+use App\Support\FuzzySearch;
 use App\Support\MonitorTags;
 use App\Support\ProxyUrl;
 use BackedEnum;
@@ -414,6 +415,11 @@ final class MonitorResource extends Resource
             ->selectable(false)
             ->paginated([50, 100, 250])
             ->defaultPaginationPageOption(50)
+            ->searchable()
+            ->searchPlaceholder('Search all monitors')
+            ->searchUsing(function (Builder $query, string $search): void {
+                FuzzySearch::apply($query, $search, ['name', 'target', 'description', 'tags']);
+            })
             ->filters([
                 SelectFilter::make('status')
                     ->options(MonitorStatus::class)
@@ -433,6 +439,7 @@ final class MonitorResource extends Resource
                 SelectFilter::make('type')->options(MonitorType::class),
                 SelectFilter::make('tag')
                     ->label('Tag')
+                    ->searchable()
                     ->options(self::tagOptions(...))
                     ->query(function (Builder $query, array $data): Builder {
                         $tag = $data['value'] ?? null;

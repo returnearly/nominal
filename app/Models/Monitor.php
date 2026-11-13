@@ -121,7 +121,31 @@ class Monitor extends Model
      */
     public function scopeTagged(Builder $query, string $tag): Builder
     {
-        return $query->whereJsonContains('tags', $tag);
+        $tag = trim($tag);
+
+        if ($tag === '') {
+            return $query->whereRaw('0 = 1');
+        }
+
+        $driver = $query->getConnection()->getDriverName();
+        $needle = mb_strtolower($tag);
+        $like = '%"'.str_replace(
+            ['\\', '%', '_'],
+            ['\\\\', '\\%', '\\_'],
+            $needle,
+        ).'"%';
+
+        return $query->where(function (Builder $query) use ($tag, $like, $driver): void {
+            $query->whereJsonContains('tags', $tag);
+
+            $sql = match ($driver) {
+                'pgsql' => 'LOWER(tags::text) LIKE ? ESCAPE \'\\\'',
+                'mysql', 'mariadb' => 'LOWER(CAST(tags AS CHAR)) LIKE ? ESCAPE \'\\\'',
+                default => 'LOWER(tags) LIKE ? ESCAPE \'\\\'',
+            };
+
+            $query->orWhereRaw($sql, [$like]);
+        });
     }
 
     public function probes(): BelongsToMany

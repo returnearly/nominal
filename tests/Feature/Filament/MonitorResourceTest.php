@@ -81,6 +81,92 @@ it('paginates monitors at 50, 100, or 250 rows', function () {
         ->and($table->getDefaultGroup())->toBeNull();
 });
 
+it('searches monitors across all pages by name, target, description, and tags', function () {
+    $user = User::factory()->create();
+
+    Monitor::factory()->count(50)->sequence(fn ($sequence) => [
+        'name' => sprintf('AAA Page One %03d', $sequence->index),
+    ])->create();
+
+    $hidden = Monitor::factory()->create([
+        'name' => 'ZZZ Cross Page Monitor',
+        'target' => 'https://unique-cross-page.example/health',
+        'description' => 'findme-by-description-across-pages',
+        'tags' => ['cross-page-search'],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->assertCanNotSeeTableRecords([$hidden])
+        ->searchTable('ZZZ Cross Page Monitor')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('unique-cross-page')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('findme-by-description-across-pages')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('cross-page-search')
+        ->assertCanSeeTableRecords([$hidden]);
+
+    $firstPageMonitor = Monitor::query()->orderBy('name')->first();
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->call('gotoPage', 2)
+        ->assertCanNotSeeTableRecords([$firstPageMonitor])
+        ->searchTable($firstPageMonitor->name)
+        ->assertCanSeeTableRecords([$firstPageMonitor]);
+});
+
+it('searches monitors case-insensitively and with light typos', function () {
+    $user = User::factory()->create();
+    $hit = Monitor::factory()->create([
+        'name' => 'Checkout Gateway',
+        'target' => 'https://checkout.example/health',
+        'description' => 'Owned by Payments',
+        'tags' => ['Prod'],
+    ]);
+    $miss = Monitor::factory()->create([
+        'name' => 'DNS probe',
+        'target' => 'https://dns.example',
+        'description' => null,
+        'tags' => [],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('checkout gateway')
+        ->assertCanSeeTableRecords([$hit])
+        ->assertCanNotSeeTableRecords([$miss]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('PAYMENTS')
+        ->assertCanSeeTableRecords([$hit])
+        ->assertCanNotSeeTableRecords([$miss]);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->searchTable('gatewax')
+        ->assertCanSeeTableRecords([$hit]);
+});
+
 it('lazy-loads widgets and defers table records', function () {
     $user = User::factory()->create();
 
@@ -115,6 +201,29 @@ it('shows tags on monitor cards and filters by tag', function () {
         ->assertSee('critical')
         ->assertSee('staging')
         ->filterTable('tag', 'critical')
+        ->assertCanSeeTableRecords([$prod])
+        ->assertCanNotSeeTableRecords([$staging]);
+});
+
+it('filters monitors by tag case-insensitively', function () {
+    $user = User::factory()->create();
+    $prod = Monitor::factory()->create([
+        'name' => 'Checkout API',
+        'tags' => ['Prod'],
+    ]);
+    $staging = Monitor::factory()->create([
+        'name' => 'Checkout staging',
+        'tags' => ['Staging'],
+    ]);
+
+    expect(Monitor::query()->tagged('prod')->pluck('id')->all())->toContain($prod->id)
+        ->and(Monitor::query()->tagged('PROD')->pluck('id')->all())->toContain($prod->id)
+        ->and(Monitor::query()->tagged('prod')->pluck('id')->all())->not->toContain($staging->id);
+
+    Livewire::actingAs($user)
+        ->test(ListMonitors::class)
+        ->loadTable()
+        ->filterTable('tag', 'Prod')
         ->assertCanSeeTableRecords([$prod])
         ->assertCanNotSeeTableRecords([$staging]);
 });
