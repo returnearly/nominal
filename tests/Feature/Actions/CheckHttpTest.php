@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\CheckHttp;
 use App\Checking\DomainExpirationReader;
 use App\Checking\TlsCertificateReader;
+use App\Enums\IpFamily;
 use App\Models\Monitor;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
@@ -192,6 +193,41 @@ it('sends HTTP checks through the monitor proxy', function () {
     expect($container)->toHaveCount(1)
         ->and($container[0]['options'][RequestOptions::PROXY])->toBe('socks5h://127.0.0.1:1080');
 });
+
+it('forces IP resolution through Guzzle', function (IpFamily $family, ?string $expected) {
+    $container = [];
+    $history = Middleware::history($container);
+    $stack = HandlerStack::create(new MockHandler([
+        new Response(200, [], '{"ok":true}'),
+    ]));
+    $stack->push($history);
+
+    app()->instance(TlsCertificateReader::class, fakeCertificates());
+    app()->instance(Client::class, new Client(['handler' => $stack]));
+
+    $monitor = Monitor::factory()->withDefaultConditions()->create([
+        'ip_family' => $family,
+    ]);
+    $monitor->load('conditions');
+
+    CheckHttp::make()->handle($monitor);
+
+    $options = $container[0]['options'];
+
+    expect($options)->not->toHaveKey(RequestOptions::CURL);
+
+    if ($expected === null) {
+        expect($options)->not->toHaveKey(RequestOptions::FORCE_IP_RESOLVE);
+
+        return;
+    }
+
+    expect($options[RequestOptions::FORCE_IP_RESOLVE])->toBe($expected);
+})->with([
+    'ipv4' => [IpFamily::Ipv4, 'v4'],
+    'ipv6' => [IpFamily::Ipv6, 'v6'],
+    'any' => [IpFamily::Any, null],
+]);
 
 it('falls back to HTTP_PROXY when the monitor has no proxy', function () {
     config()->set('nominal.proxy.http', 'http://env-proxy:8080');
