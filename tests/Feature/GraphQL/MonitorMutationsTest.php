@@ -322,6 +322,23 @@ it('creates a heartbeat monitor without probes, IP family, or conditions', funct
         ->and($created['probes'])->toBe([]);
 });
 
+it('treats a null heartbeat slug flag as disabled', function () {
+    $monitor = Monitor::factory()->create();
+    $monitor->setRawAttributes([
+        ...$monitor->getAttributes(),
+        'heartbeat_slug_enabled' => null,
+    ]);
+
+    expect($monitor->heartbeat_slug_enabled)->toBeFalse();
+
+    $listed = graphql('{ monitors { id heartbeat_slug_enabled } }')
+        ->assertSuccessful()
+        ->assertJsonMissingPath('errors')
+        ->json('data.monitors');
+
+    expect(collect($listed)->firstWhere('id', $monitor->id)['heartbeat_slug_enabled'])->toBeFalse();
+});
+
 it('creates a heartbeat slug url when slug urls are enabled', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 
