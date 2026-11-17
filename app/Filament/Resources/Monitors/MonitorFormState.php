@@ -38,6 +38,8 @@ final class MonitorFormState
             'request_body' => $monitor->request_body,
             'dns_query_name' => $monitor->dns_query_name,
             'dns_query_type' => $monitor->dns_query_type,
+            'heartbeat_slug' => null,
+            'heartbeat_slug_enabled' => false,
             'conditions' => self::conditions($monitor),
             'probes' => self::probes($monitor),
             'notificationChannels' => $monitor->notificationChannels->modelKeys(),

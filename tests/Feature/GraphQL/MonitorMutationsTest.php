@@ -322,6 +322,113 @@ it('creates a heartbeat monitor without probes, IP family, or conditions', funct
         ->and($created['probes'])->toBe([]);
 });
 
+it('creates a heartbeat slug url when slug urls are enabled', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+
+    $created = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) {
+                heartbeat_slug
+                heartbeat_slug_enabled
+                heartbeat_token
+                heartbeatUrl
+                heartbeatStartUrl
+                heartbeatFinishUrl
+                heartbeatErrorUrl
+            }
+        }
+    ', [
+        'input' => [
+            'name' => 'Nightly backup',
+            'type' => 'Heartbeat',
+            'target' => 'backup-job',
+            'heartbeatSlug' => 'Nightly-Backup',
+            'heartbeatSlugEnabled' => true,
+        ],
+    ])->assertSuccessful()
+        ->json('data.createMonitor');
+
+    expect($created['heartbeat_slug'])->toBe('nightly-backup')
+        ->and($created['heartbeat_slug_enabled'])->toBeTrue()
+        ->and($created['heartbeatUrl'])->toEndWith('/api/heartbeat/nightly-backup')
+        ->and($created['heartbeatStartUrl'])->toEndWith('/api/heartbeat/nightly-backup/start')
+        ->and($created['heartbeatFinishUrl'])->toEndWith('/api/heartbeat/nightly-backup/finish')
+        ->and($created['heartbeatErrorUrl'])->toEndWith('/api/heartbeat/nightly-backup/error')
+        ->and($created['heartbeat_token'])->toHaveLength(48);
+});
+
+it('rejects an enabled heartbeat slug that is missing, invalid, or taken', function (array $input, string $message) {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
+    ]);
+
+    $response = graphql('
+        mutation ($input: CreateMonitorInput!) {
+            createMonitor(input: $input) { id }
+        }
+    ', [
+        'input' => [
+            'name' => 'Other backup',
+            'type' => 'Heartbeat',
+            'target' => 'other-job',
+            ...$input,
+        ],
+    ]);
+
+    expect($response->json('errors.0.message'))->toContain($message)
+        ->and($response->json('data.createMonitor'))->toBeNull();
+})->with([
+    'missing' => [['heartbeatSlugEnabled' => true], 'slug is required'],
+    'invalid' => [['heartbeatSlugEnabled' => true, 'heartbeatSlug' => 'not a slug'], 'letters, numbers, and hyphens'],
+    'taken' => [['heartbeatSlugEnabled' => true, 'heartbeatSlug' => 'nightly-backup'], 'already in use'],
+]);
+
+it('keeps a heartbeat slug when an update omits it and can turn it off', function () {
+    Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
+    ]);
+
+    $renamed = graphql('
+        mutation ($id: ID!, $input: UpdateMonitorInput!) {
+            updateMonitor(id: $id, input: $input) {
+                name
+                heartbeat_slug
+                heartbeat_slug_enabled
+            }
+        }
+    ', [
+        'id' => $monitor->id,
+        'input' => ['name' => 'Renamed backup'],
+    ])->assertSuccessful()
+        ->json('data.updateMonitor');
+
+    expect($renamed['name'])->toBe('Renamed backup')
+        ->and($renamed['heartbeat_slug'])->toBe('nightly-backup')
+        ->and($renamed['heartbeat_slug_enabled'])->toBeTrue();
+
+    $disabled = graphql('
+        mutation ($id: ID!, $input: UpdateMonitorInput!) {
+            updateMonitor(id: $id, input: $input) {
+                heartbeat_slug
+                heartbeat_slug_enabled
+                heartbeatUrl
+            }
+        }
+    ', [
+        'id' => $monitor->id,
+        'input' => ['heartbeatSlugEnabled' => false],
+    ])->assertSuccessful()
+        ->json('data.updateMonitor');
+
+    expect($disabled['heartbeat_slug'])->toBe('nightly-backup')
+        ->and($disabled['heartbeat_slug_enabled'])->toBeFalse()
+        ->and($disabled['heartbeatUrl'])->toEndWith('/api/heartbeat/'.$monitor->heartbeat_token);
+});
+
 it('creates a UDP monitor', function () {
     Probe::factory()->create(['slug' => 'local', 'queue' => 'checks.local']);
 

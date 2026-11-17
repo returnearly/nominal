@@ -6,7 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Actions\ReceiveHeartbeat;
 use App\Enums\HeartbeatSignal;
-use App\Enums\MonitorType;
 use App\Models\Monitor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,10 +14,9 @@ final class HeartbeatController
 {
     public function __invoke(Request $request, ReceiveHeartbeat $receive, string $token, ?string $signal = null): JsonResponse
     {
-        $monitor = Monitor::query()
-            ->where('type', MonitorType::Heartbeat)
-            ->where('heartbeat_token', $token)
-            ->firstOrFail();
+        $monitor = Monitor::findHeartbeat($token);
+
+        abort_if($monitor === null, 404);
 
         abort_unless($monitor->enabled, 404);
 

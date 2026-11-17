@@ -143,3 +143,63 @@ it('still accepts a heartbeat when broadcasting to reverb fails', function () {
     expect($monitor->fresh()->status)->toBe(MonitorStatus::Up)
         ->and($monitor->checkResults()->count())->toBe(1);
 });
+
+it('rejects a slug url until slug urls are enabled', function () {
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => false,
+    ]);
+
+    $this->getJson('/api/heartbeat/nightly-backup')->assertNotFound();
+
+    $this->getJson('/api/heartbeat/'.$monitor->heartbeat_token)
+        ->assertOk()
+        ->assertJson(['ok' => true, 'success' => true]);
+});
+
+it('accepts a slug url when slug urls are enabled', function () {
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
+    ]);
+
+    $this->postJson('/api/heartbeat/Nightly-Backup', ['ping' => 9])
+        ->assertOk()
+        ->assertJson(['ok' => true, 'success' => true]);
+
+    $this->getJson('/api/heartbeat/nightly-backup/start')->assertOk()->assertJson(['started' => true]);
+    $this->postJson('/api/heartbeat/nightly-backup/finish', ['latency' => 15])
+        ->assertOk()
+        ->assertJson(['ok' => true, 'success' => true]);
+    $this->postJson('/api/heartbeat/nightly-backup/error')->assertOk();
+
+    $monitor->refresh();
+
+    expect($monitor->status)->toBe(MonitorStatus::Down)
+        ->and($monitor->heartbeatUrl())->toEndWith('/api/heartbeat/nightly-backup')
+        ->and($monitor->heartbeatStartUrl())->toEndWith('/api/heartbeat/nightly-backup/start')
+        ->and($monitor->heartbeatTokenUrl())->toEndWith('/api/heartbeat/'.$monitor->heartbeat_token);
+});
+
+it('keeps the token url working when a slug url is enabled', function () {
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
+    ]);
+
+    $this->getJson('/api/heartbeat/'.$monitor->heartbeat_token.'?latency=4')
+        ->assertOk()
+        ->assertJson(['ok' => true, 'success' => true]);
+});
+
+it('rejects an unknown or disabled slug url', function () {
+    $monitor = Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
+        'enabled' => false,
+    ]);
+
+    $this->getJson('/api/heartbeat/nightly-backup')->assertNotFound();
+    $this->getJson('/api/heartbeat/missing-job')->assertNotFound();
+    $this->getJson('/api/heartbeat/'.$monitor->heartbeat_token)->assertNotFound();
+});
