@@ -104,21 +104,12 @@ final readonly class CheckHttp implements ActionsPatternInterface
      */
     private function options(Monitor $monitor, ?string &$ip, ?string &$effectiveUri): array
     {
-        $curlResolve = match ($monitor->ip_family) {
-            IpFamily::Ipv4 => CURL_IPRESOLVE_V4,
-            IpFamily::Ipv6 => CURL_IPRESOLVE_V6,
-            IpFamily::Any => CURL_IPRESOLVE_WHATEVER,
-        };
-
         $options = [
             RequestOptions::TIMEOUT => $monitor->timeout_seconds,
             RequestOptions::CONNECT_TIMEOUT => $monitor->timeout_seconds,
             RequestOptions::ALLOW_REDIRECTS => $monitor->follow_redirects,
             RequestOptions::HTTP_ERRORS => false,
             RequestOptions::VERIFY => $monitor->verify_tls,
-            RequestOptions::CURL => [
-                CURLOPT_IPRESOLVE => $curlResolve,
-            ],
             RequestOptions::ON_STATS => function (TransferStats $stats) use (&$ip, &$effectiveUri): void {
                 $primaryIp = $stats->getHandlerStat('primary_ip');
                 if (is_string($primaryIp) && $primaryIp !== '') {
@@ -128,6 +119,16 @@ final readonly class CheckHttp implements ActionsPatternInterface
                 $effectiveUri = (string) $stats->getEffectiveUri();
             },
         ];
+
+        $forceIpResolve = match ($monitor->ip_family) {
+            IpFamily::Ipv4 => 'v4',
+            IpFamily::Ipv6 => 'v6',
+            IpFamily::Any => null,
+        };
+
+        if ($forceIpResolve !== null) {
+            $options[RequestOptions::FORCE_IP_RESOLVE] = $forceIpResolve;
+        }
 
         $headers = $this->requestHeaders($monitor);
         $body = $this->requestBody($monitor);
