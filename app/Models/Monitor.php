@@ -76,7 +76,6 @@ class Monitor extends Model
             'dns_query_type' => DnsQueryType::class,
             'status' => MonitorStatus::class,
             'enabled' => 'boolean',
-            'heartbeat_slug_enabled' => 'boolean',
             'follow_redirects' => 'boolean',
             'verify_tls' => 'boolean',
             'proxy_url' => 'encrypted',
@@ -92,6 +91,17 @@ class Monitor extends Model
             'consecutive_failures' => 'integer',
             'retention_days' => 'integer',
         ];
+    }
+
+    /**
+     * @return Attribute<bool, bool>
+     */
+    protected function heartbeatSlugEnabled(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value): bool => (bool) $value,
+            set: fn (mixed $value): bool => (bool) $value,
+        );
     }
 
     /**

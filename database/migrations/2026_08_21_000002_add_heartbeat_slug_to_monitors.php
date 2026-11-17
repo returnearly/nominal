@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::table('monitors', function (Blueprint $table) {
             $table->string('heartbeat_slug', 64)->nullable()->unique()->after('heartbeat_token');
-            $table->boolean('heartbeat_slug_enabled')->default(false)->after('heartbeat_slug');
+            $table->boolean('heartbeat_slug_enabled')->default(false)->nullable(false)->after('heartbeat_slug');
         });
     }
 
