@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\NotificationChannelType;
 use App\Models\NotificationChannel;
+use App\Support\WebPushVapid;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -37,6 +38,14 @@ class NotificationChannelFactory extends Factory
         return $this->state([
             'type' => NotificationChannelType::Slack,
             'config' => ['webhook_url' => $url],
+        ]);
+    }
+
+    public function browser(): static
+    {
+        return $this->state(fn (): array => [
+            'type' => NotificationChannelType::Browser,
+            'config' => WebPushVapid::generate(),
         ]);
     }
 }

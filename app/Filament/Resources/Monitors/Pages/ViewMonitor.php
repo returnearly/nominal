@@ -6,7 +6,10 @@ namespace App\Filament\Resources\Monitors\Pages;
 
 use App\Actions\DispatchMonitorCheck;
 use App\Actions\EndMonitorMaintenance;
+use App\Actions\PauseMonitor;
+use App\Actions\ResumeMonitor;
 use App\Actions\StartMonitorMaintenance;
+use App\Enums\MonitorStatus;
 use App\Filament\Concerns\RefreshesOnMonitorBroadcasts;
 use App\Filament\Resources\Monitors\MonitorResource;
 use App\Filament\Widgets\MonitorHistoryWidget;
@@ -34,12 +37,39 @@ final class ViewMonitor extends ViewRecord
                 ->label('Check now')
                 ->icon(Heroicon::OutlinedPlay)
                 ->visible(function (): bool {
-                    /** @var Monitor $record */
-                    $record = $this->getRecord();
+                    $record = $this->monitor();
 
-                    return $record->type->usesOutboundProbe();
+                    return $record->type->usesOutboundProbe()
+                        && $record->status !== MonitorStatus::Paused;
                 })
                 ->action($this->queueCheck(...)),
+            Action::make('pause')
+                ->label('Pause')
+                ->icon(Heroicon::OutlinedPause)
+                ->visible(fn (): bool => $this->monitor()->status !== MonitorStatus::Paused)
+                ->requiresConfirmation()
+                ->action(function (): void {
+                    PauseMonitor::make()->handle($this->monitor());
+                    $this->refreshRecord();
+
+                    Notification::make()
+                        ->success()
+                        ->title('Monitor paused')
+                        ->send();
+                }),
+            Action::make('resume')
+                ->label('Resume')
+                ->icon(Heroicon::OutlinedPlay)
+                ->visible(fn (): bool => $this->monitor()->status === MonitorStatus::Paused)
+                ->action(function (): void {
+                    ResumeMonitor::make()->handle($this->monitor());
+                    $this->refreshRecord();
+
+                    Notification::make()
+                        ->success()
+                        ->title('Monitor resumed')
+                        ->send();
+                }),
             Action::make('startMaintenance')
                 ->label('Start maintenance')
                 ->icon(Heroicon::OutlinedWrenchScrewdriver)

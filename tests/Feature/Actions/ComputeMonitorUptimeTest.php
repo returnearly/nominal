@@ -49,10 +49,11 @@ it('computes 1h and 24h uptime from check results', function () {
     expect($uptime->oneHour)->toBe(75.0)
         ->and($uptime->twentyFourHours)->toBe(60.0)
         ->and($uptime->sevenDays)->toBe(60.0)
-        ->and($uptime->thirtyDays)->toBe(60.0);
+        ->and($uptime->thirtyDays)->toBe(60.0)
+        ->and($uptime->ninetyDays)->toBe(60.0);
 });
 
-it('uses hourly monitor rollups for 7d and 30d uptime', function () {
+it('uses hourly monitor rollups for 7d, 30d, and 90d uptime', function () {
     $this->travelTo(Carbon::parse('2026-08-20 15:30:00'));
 
     $monitor = Monitor::factory()->create();
@@ -85,6 +86,15 @@ it('uses hourly monitor rollups for 7d and 30d uptime', function () {
     ]);
     CheckAggregate::query()->create([
         'monitor_id' => $monitor->id,
+        'probe_id' => null,
+        'period_start' => now()->subDays(60)->startOfHour(),
+        'granularity' => AggregateGranularity::Hour,
+        'up_count' => 0,
+        'down_count' => 100,
+        'avg_latency_ms' => 200,
+    ]);
+    CheckAggregate::query()->create([
+        'monitor_id' => $monitor->id,
         'probe_id' => $probe->id,
         'period_start' => now()->subHours(3)->startOfHour(),
         'granularity' => AggregateGranularity::Hour,
@@ -98,5 +108,6 @@ it('uses hourly monitor rollups for 7d and 30d uptime', function () {
     expect($uptime->oneHour)->toBe(100.0)
         ->and($uptime->twentyFourHours)->toBe(100.0)
         ->and($uptime->sevenDays)->toBe(90.9091)
-        ->and($uptime->thirtyDays)->toBe(54.0541);
+        ->and($uptime->thirtyDays)->toBe(54.0541)
+        ->and($uptime->ninetyDays)->toBe(28.436);
 });

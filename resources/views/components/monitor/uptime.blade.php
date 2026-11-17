@@ -18,7 +18,7 @@
         @endphp
         <div class="nm-uptime-item" data-uptime-window="{{ $window->value }}">
             <span class="nm-metrics-label">{{ $window->label() }}</span>
-            <span class="nm-uptime-value" data-uptime="{{ $tone }}">{{ $format->handle($percent) ?? '—' }}</span>
+            <span class="nm-uptime-value" data-uptime="{{ $tone }}">{{ $format->handle($percent, $window) ?? '—' }}</span>
         </div>
     @endforeach
 </div>

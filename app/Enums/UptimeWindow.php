@@ -10,6 +10,7 @@ enum UptimeWindow: string
     case TwentyFourHours = '24h';
     case SevenDays = '7d';
     case ThirtyDays = '30d';
+    case NinetyDays = '90d';
 
     public function label(): string
     {
@@ -23,6 +24,7 @@ enum UptimeWindow: string
             self::TwentyFourHours => 24,
             self::SevenDays => 24 * 7,
             self::ThirtyDays => 24 * 30,
+            self::NinetyDays => 24 * 90,
         };
     }
 }

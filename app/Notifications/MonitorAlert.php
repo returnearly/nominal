@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Checking\ProbeResult;
 use App\Enums\AlertKind;
+use App\Filament\Resources\Monitors\MonitorResource;
 use App\Models\Monitor;
 use App\Models\NotificationChannel;
 use Illuminate\Bus\Queueable;
@@ -81,17 +82,60 @@ final class MonitorAlert extends Notification implements NotificationChannelMess
      */
     public function toPagerDuty(): array
     {
-        return [
-            'event_action' => $this->kind === AlertKind::Recovered ? 'resolve' : 'trigger',
-            'dedup_key' => $this->monitor->id,
-            'payload' => [
-                'summary' => $this->headline().': '.$this->monitor->name,
-                'source' => 'nominal',
-                'severity' => $this->kind === AlertKind::Recovered ? 'info' : 'error',
-                'component' => $this->monitor->target,
-                'class' => $this->monitor->type->value,
-            ],
-        ];
+        $summary = $this->headline().': '.$this->monitor->name;
+
+        if (is_string($this->result->message) && $this->result->message !== '') {
+            $summary .= ' — '.$this->result->message;
+        }
+
+        $details = [];
+
+        if (is_string($this->result->message) && $this->result->message !== '') {
+            $details['message'] = $this->result->message;
+        }
+
+        if ($this->result->httpStatus !== null) {
+            $details['http_status'] = $this->result->httpStatus;
+        }
+
+        if ($this->result->latencyMs !== null) {
+            $details['latency_ms'] = $this->result->latencyMs;
+        }
+
+        if (is_string($this->result->resolvedIp) && $this->result->resolvedIp !== '') {
+            $details['ip'] = $this->result->resolvedIp;
+        }
+
+        if ($this->monitor->tags !== []) {
+            $details['tags'] = implode(', ', $this->monitor->tags);
+        }
+
+        if (is_string($this->monitor->description) && $this->monitor->description !== '') {
+            $details['description'] = $this->monitor->description;
+        }
+
+        $url = MonitorResource::getUrl('view', ['record' => $this->monitor]);
+
+        return PagerDutyEvent::make(
+            action: $this->kind === AlertKind::Recovered ? 'resolve' : 'trigger',
+            dedupKey: (string) $this->monitor->id,
+            summary: $summary,
+            source: PagerDutyEvent::affectedSystem($this->monitor->displayTarget()),
+            severity: $this->kind === AlertKind::Recovered ? 'info' : 'error',
+            component: $this->monitor->name,
+            group: $this->monitor->tags === [] ? null : implode(', ', $this->monitor->tags),
+            class: $this->monitor->type->value,
+            details: $details,
+            clientUrl: filter_var($url, FILTER_VALIDATE_URL) ? $url : null,
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function toPagerDutyEvents(): array
+    {
+        return [$this->toPagerDuty()];
     }
 
     public function text(): string

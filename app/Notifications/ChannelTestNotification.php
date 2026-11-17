@@ -59,16 +59,39 @@ final class ChannelTestNotification extends Notification implements Notification
      */
     public function toPagerDuty(): array
     {
+        return $this->toPagerDutyEvents()[0];
+    }
+
+    /**
+     * Trigger, then resolve, so a channel test proves both Events API actions
+     * and does not leave an incident open.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function toPagerDutyEvents(): array
+    {
+        $dedupKey = 'nominal-test-'.$this->channel->id;
+        $summary = $this->headline().': '.$this->channel->name;
+
         return [
-            'event_action' => 'trigger',
-            'dedup_key' => 'nominal-test-'.$this->channel->id,
-            'payload' => [
-                'summary' => $this->headline().': '.$this->channel->name,
-                'source' => 'nominal',
-                'severity' => 'info',
-                'component' => 'notification-channel-test',
-                'class' => $this->channel->type->value,
-            ],
+            PagerDutyEvent::make(
+                action: 'trigger',
+                dedupKey: $dedupKey,
+                summary: $summary,
+                source: 'nominal',
+                severity: 'info',
+                component: 'notification-channel-test',
+                class: $this->channel->type->value,
+            ),
+            PagerDutyEvent::make(
+                action: 'resolve',
+                dedupKey: $dedupKey,
+                summary: $summary,
+                source: 'nominal',
+                severity: 'info',
+                component: 'notification-channel-test',
+                class: $this->channel->type->value,
+            ),
         ];
     }
 

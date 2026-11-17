@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Filament\Tables\Columns;
 
 use Filament\Tables\Columns\Column;
-use Illuminate\Database\Eloquent\Builder;
 
 final class MonitorCardColumn extends Column
 {
@@ -15,17 +14,6 @@ final class MonitorCardColumn extends Column
     {
         parent::setUp();
 
-        $this->label('Monitor')
-            ->searchable(query: function (Builder $query, string $search): Builder {
-                $like = '%'.$search.'%';
-
-                return $query->where(function (Builder $query) use ($like): void {
-                    $query->where('name', 'like', $like)
-                        ->orWhere('target', 'like', $like)
-                        ->orWhere('description', 'like', $like)
-                        ->orWhere('tags', 'like', $like);
-                });
-            })
-            ->sortable();
+        $this->label('Monitor')->sortable();
     }
 }

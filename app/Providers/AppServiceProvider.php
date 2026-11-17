@@ -31,7 +31,9 @@ use App\Checking\UdpTransport;
 use App\Checking\WebSocketTransport;
 use App\Checking\WhoisClient;
 use App\Checking\WhoisTransport;
+use App\Contracts\SendsWebPush;
 use App\Support\ReverbBrowser;
+use App\Support\WebPushSender;
 use Filament\Tables\Table;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RedisTransport::class, RedisRespTransport::class);
         $this->app->bind(PostgresTransport::class, PdoPostgresTransport::class);
         $this->app->bind(WhoisTransport::class, PhpWhoisTransport::class);
+        $this->app->bind(SendsWebPush::class, WebPushSender::class);
         $this->app->bind(DomainExpirationReader::class, function ($app): RdapThenWhoisDomainExpirationReader {
             return new RdapThenWhoisDomainExpirationReader(
                 $app->make(WhoisClient::class),

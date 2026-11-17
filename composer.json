@@ -13,6 +13,7 @@
         "laravel/reverb": "^1.11",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
+        "minishlink/web-push": "^11.0",
         "nuwave/lighthouse": "^6.69",
         "returnearly/actions-pattern": "^2.0",
         "returnearly/laravel-cloudflare-zero-trust": "^1.1"

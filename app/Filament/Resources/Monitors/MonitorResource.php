@@ -23,9 +23,11 @@ use App\Filament\Resources\Monitors\Pages\EditMonitor;
 use App\Filament\Resources\Monitors\Pages\ListMonitors;
 use App\Filament\Resources\Monitors\Pages\ViewMonitor;
 use App\Filament\Resources\Monitors\RelationManagers\CheckResultsRelationManager;
+use App\Filament\Support\ApiManagedUi;
 use App\Filament\Tables\Columns\MonitorCardColumn;
 use App\Models\Monitor;
 use App\Models\Probe;
+use App\Support\ApiManaged;
 use App\Support\MonitorTags;
 use App\Support\ProxyUrl;
 use BackedEnum;
@@ -70,384 +72,387 @@ final class MonitorResource extends Resource
         $usesVerifyTls = self::usesVerifyTls(...);
         $usesProxy = self::usesProxy(...);
 
-        return $schema->components([
-            Section::make('Monitor')
-                ->columns(2)
-                ->components([
-                    TextInput::make('name')->required()->maxLength(255)->columnSpanFull(),
-                    TagsInput::make('tags')
-                        ->suggestions(self::tagSuggestions(...))
-                        ->nestedRecursiveRules(['max:'.MonitorTags::MaxLength])
-                        ->columnSpanFull()
-                        ->helperText('Filter labels. A monitor can have several.'),
-                    Textarea::make('description')
-                        ->rows(3)
-                        ->columnSpanFull()
-                        ->maxLength(4000)
-                        ->helperText('What this is, who owns it, and what to do when it fails.'),
-                    Select::make('type')
-                        ->options(MonitorType::class)
-                        ->default(MonitorType::Http)
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function (Set $set, mixed $state): void {
-                            $set('conditions', DefaultConditionFormState::make()->handle($state));
+        return $schema
+            ->disabled(ApiManaged::enabled(...))
+            ->components([
+                Section::make('Monitor')
+                    ->columns(2)
+                    ->components([
+                        TextInput::make('name')->required()->maxLength(255)->columnSpanFull(),
+                        TagsInput::make('tags')
+                            ->suggestions(self::tagSuggestions(...))
+                            ->nestedRecursiveRules(['max:'.MonitorTags::MaxLength])
+                            ->columnSpanFull()
+                            ->helperText('Filter labels. A monitor can have several.'),
+                        Textarea::make('description')
+                            ->rows(3)
+                            ->columnSpanFull()
+                            ->maxLength(4000)
+                            ->helperText('What this is, who owns it, and what to do when it fails.'),
+                        Select::make('type')
+                            ->options(MonitorType::class)
+                            ->default(MonitorType::Http)
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                $set('conditions', DefaultConditionFormState::make()->handle($state));
 
-                            $type = $state instanceof MonitorType
-                                ? $state
-                                : MonitorType::tryFrom((string) $state);
+                                $type = $state instanceof MonitorType
+                                    ? $state
+                                    : MonitorType::tryFrom((string) $state);
 
-                            if ($type === null) {
-                                return;
-                            }
-
-                            if (! $type->usesOutboundProbe()) {
-                                $set('probes', []);
-                                $set('ip_family', IpFamily::Any);
-                            }
-
-                            if ($type->wrapsGraphQLBody()) {
-                                $set('method', HttpMethod::Post);
-                            } elseif (! $type->usesHttpRequest()) {
-                                $set('method', null);
-                                $set('follow_redirects', true);
-                            }
-
-                            if (! $type->usesRequestHeaders()) {
-                                $set('request_headers', []);
-                            }
-
-                            if (! $type->usesRequestBody()) {
-                                $set('request_body', null);
-                            }
-
-                            if (! $type->usesVerifyTls()) {
-                                $set('verify_tls', true);
-                            }
-
-                            if (! $type->usesProxy()) {
-                                $set('proxy_url', null);
-                            }
-
-                            if (! $type->usesDnsQuery()) {
-                                $set('dns_query_name', null);
-                                $set('dns_query_type', null);
-                            }
-                        }),
-                    TextInput::make('target')
-                        ->required(fn (Get $get): bool => self::type($get)?->isHeartbeat() !== true)
-                        ->maxLength(2048)
-                        ->placeholder(fn (Get $get): string => match (self::type($get)) {
-                            MonitorType::Tcp => 'tcp://db.example.com:5432',
-                            MonitorType::Udp => 'udp://dns.example.com:53',
-                            MonitorType::Tls => 'tls://db.example.com:5432',
-                            MonitorType::Dns => '1.1.1.1',
-                            MonitorType::Ping => 'example.com',
-                            MonitorType::Heartbeat => 'backup-job',
-                            MonitorType::WebSocket => 'wss://example.com/socket',
-                            MonitorType::GraphQL => 'https://countries.trevorblades.com/',
-                            MonitorType::Mysql => 'mysql://user:pass@db.example.com:3306/app',
-                            MonitorType::Redis => 'redis://:pass@cache.example.com:6379/0',
-                            MonitorType::Postgres => 'postgres://user:pass@db.example.com:5432/app',
-                            default => 'https://example.com/health',
-                        })
-                        ->helperText(fn (Get $get): ?string => self::type($get)?->usesDatabaseUrl() === true
-                            ? 'Connection URL. The probe logs in and runs a version/status query, or your optional command.'
-                            : null),
-                    Toggle::make('heartbeat_slug_enabled')
-                        ->label('Accept slug URL')
-                        ->default(false)
-                        ->live()
-                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
-                        ->afterStateUpdated(function (Set $set, Get $get, mixed $record): void {
-                            self::syncHeartbeatUrls($set, $get, $record);
-                        })
-                        ->helperText('Off by default. When on, /api/heartbeat/{slug} also accepts pings. Anyone who can guess the slug can signal this monitor. The secret token URL keeps working.'),
-                    TextInput::make('heartbeat_slug')
-                        ->label('Slug')
-                        ->maxLength(64)
-                        ->live(onBlur: true)
-                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true && (bool) $get('heartbeat_slug_enabled'))
-                        ->required(fn (Get $get): bool => (bool) $get('heartbeat_slug_enabled'))
-                        ->dehydrateStateUsing(fn (mixed $state): ?string => Monitor::normalizeHeartbeatSlug($state))
-                        ->afterStateUpdated(function (Set $set, Get $get, mixed $record): void {
-                            self::syncHeartbeatUrls($set, $get, $record);
-                        })
-                        ->rule(function (Get $get, mixed $record): \Closure {
-                            return function (string $attribute, mixed $value, \Closure $fail) use ($get, $record): void {
-                                if (! $get('heartbeat_slug_enabled')) {
+                                if ($type === null) {
                                     return;
                                 }
 
-                                $message = Monitor::heartbeatSlugValidationMessage(
-                                    Monitor::normalizeHeartbeatSlug($value),
-                                    $record instanceof Monitor ? (string) $record->getKey() : null,
-                                );
-
-                                if ($message !== null) {
-                                    $fail($message);
-                                }
-                            };
-                        })
-                        ->helperText('Letters, numbers, and hyphens. Example: nightly-backup.'),
-                    TextInput::make('heartbeat_url')
-                        ->label('Heartbeat URL')
-                        ->disabled()
-                        ->copyable()
-                        ->dehydrated(false)
-                        ->columnSpanFull()
-                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
-                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
-                            if ($record instanceof Monitor) {
-                                $component->state($record->heartbeatUrl());
-                            }
-                        })
-                        ->helperText(fn (Get $get): string => (bool) $get('heartbeat_slug_enabled')
-                            ? 'GET or POST this slug URL to signal success. The secret token URL below still works. Append /start, /finish, or /error to measure how long a job runs.'
-                            : 'GET or POST this URL to signal success. Append /start, /finish, or /error to measure how long a job runs.'),
-                    TextInput::make('heartbeat_start_url')
-                        ->label('Start URL')
-                        ->disabled()
-                        ->copyable()
-                        ->dehydrated(false)
-                        ->columnSpanFull()
-                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
-                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
-                            if ($record instanceof Monitor) {
-                                $component->state($record->heartbeatStartUrl());
-                            }
-                        }),
-                    TextInput::make('heartbeat_finish_url')
-                        ->label('Finish URL')
-                        ->disabled()
-                        ->copyable()
-                        ->dehydrated(false)
-                        ->columnSpanFull()
-                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
-                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
-                            if ($record instanceof Monitor) {
-                                $component->state($record->heartbeatFinishUrl());
-                            }
-                        }),
-                    TextInput::make('heartbeat_error_url')
-                        ->label('Error URL')
-                        ->disabled()
-                        ->copyable()
-                        ->dehydrated(false)
-                        ->columnSpanFull()
-                        ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
-                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
-                            if ($record instanceof Monitor) {
-                                $component->state($record->heartbeatErrorUrl());
-                            }
-                        }),
-                    TextInput::make('heartbeat_secret_url')
-                        ->label('Secret URL')
-                        ->disabled()
-                        ->copyable()
-                        ->dehydrated(false)
-                        ->columnSpanFull()
-                        ->visible(fn (Get $get, mixed $record): bool => self::type($get)?->isHeartbeat() === true
-                            && (bool) $get('heartbeat_slug_enabled')
-                            && $record instanceof Monitor
-                            && filled($record->heartbeat_token))
-                        ->afterStateHydrated(function (TextInput $component, mixed $record): void {
-                            if ($record instanceof Monitor) {
-                                $component->state($record->heartbeatTokenUrl());
-                            }
-                        })
-                        ->helperText('This token URL keeps accepting pings when the slug URL is on.'),
-                    TextInput::make('dns_query_name')
-                        ->label('Query name')
-                        ->maxLength(255)
-                        ->placeholder('example.com')
-                        ->required(fn (Get $get): bool => self::type($get) === MonitorType::Dns)
-                        ->visible(self::usesDnsQuery(...)),
-                    Select::make('dns_query_type')
-                        ->label('Query type')
-                        ->options(DnsQueryType::class)
-                        ->default(DnsQueryType::A)
-                        ->required(fn (Get $get): bool => self::type($get) === MonitorType::Dns)
-                        ->visible(self::usesDnsQuery(...)),
-                    Select::make('method')
-                        ->options(HttpMethod::class)
-                        ->default(fn (Get $get): HttpMethod => self::type($get)?->wrapsGraphQLBody() === true
-                            ? HttpMethod::Post
-                            : HttpMethod::Get)
-                        ->visible($usesHttp),
-                    Select::make('ip_family')
-                        ->options(IpFamily::class)
-                        ->default(IpFamily::Any)
-                        ->required(self::usesOutboundProbe(...))
-                        ->visible(self::usesOutboundProbe(...))
-                        ->dehydrated(self::usesOutboundProbe(...)),
-                    TextInput::make('interval_seconds')
-                        ->numeric()
-                        ->required()
-                        ->default(60)
-                        ->live()
-                        ->minValue(fn (Get $get): int => self::formUsesDomainExpiration($get)
-                            ? LookupDomainExpiration::MinimumIntervalSeconds
-                            : 10)
-                        ->rule(function (Get $get): \Closure {
-                            return function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
-                                if (! self::formUsesDomainExpiration($get)) {
-                                    return;
+                                if (! $type->usesOutboundProbe()) {
+                                    $set('probes', []);
+                                    $set('ip_family', IpFamily::Any);
                                 }
 
-                                if ((int) $value < LookupDomainExpiration::MinimumIntervalSeconds) {
-                                    $fail('The minimum interval for a monitor with a [DOMAIN_EXPIRATION] condition is 300s (5m).');
-                                }
-                            };
-                        })
-                        ->helperText(function (Get $get): ?string {
-                            if (self::type($get)?->isHeartbeat() === true) {
-                                return 'How often a heartbeat is expected. After /start, the job must finish within this interval.';
-                            }
-
-                            if (self::formUsesDomainExpiration($get)) {
-                                return 'Checks using [DOMAIN_EXPIRATION] must run at least every 5 minutes (300s).';
-                            }
-
-                            return null;
-                        }),
-                    TextInput::make('timeout_seconds')
-                        ->numeric()
-                        ->default(10)
-                        ->minValue(1)
-                        ->required(self::usesOutboundProbe(...))
-                        ->visible(self::usesOutboundProbe(...))
-                        ->dehydrated(self::usesOutboundProbe(...)),
-                    TextInput::make('retention_days')->numeric()->required()->default(30)->minValue(1),
-                    Toggle::make('enabled')->default(true),
-                    Toggle::make('follow_redirects')
-                        ->default(true)
-                        ->helperText('When off, [REDIRECT] is the Location header. When on, it is the final URL.')
-                        ->visible($usesHttp),
-                    Toggle::make('verify_tls')
-                        ->default(true)
-                        ->visible($usesVerifyTls),
-                    TextInput::make('proxy_url')
-                        ->label('Proxy URL')
-                        ->maxLength(2048)
-                        ->placeholder('socks5h://127.0.0.1:1080')
-                        ->helperText('HTTP (`http://proxy:8080`) or SOCKS (`socks5://`, `socks5h://`). Leave blank to use the environment variables for HTTP checks.')
-                        ->dehydrateStateUsing(fn (mixed $state): ?string => filled($state) ? (string) $state : null)
-                        ->rule(function (): \Closure {
-                            return function (string $attribute, mixed $value, \Closure $fail): void {
-                                if (! filled($value)) {
-                                    return;
+                                if ($type->wrapsGraphQLBody()) {
+                                    $set('method', HttpMethod::Post);
+                                } elseif (! $type->usesHttpRequest()) {
+                                    $set('method', null);
+                                    $set('follow_redirects', true);
                                 }
 
-                                try {
-                                    ProxyUrl::parse((string) $value);
-                                } catch (InvalidArgumentException $exception) {
-                                    $fail($exception->getMessage());
+                                if (! $type->usesRequestHeaders()) {
+                                    $set('request_headers', []);
                                 }
-                            };
-                        })
-                        ->visible($usesProxy)
-                        ->columnSpanFull(),
-                ]),
-            Section::make('Request')
-                ->visible(fn (Get $get): bool => $usesRequestBody($get) || $usesRequestHeaders($get))
-                ->components([
-                    KeyValue::make('request_headers')
-                        ->keyLabel('Header')
-                        ->valueLabel('Value')
-                        ->visible($usesRequestHeaders),
-                    Textarea::make('request_body')
-                        ->rows(6)
-                        ->columnSpanFull()
-                        ->helperText(fn (Get $get): ?string => match (self::type($get)) {
-                            MonitorType::GraphQL => 'Sent as {"query": "..."} with Content-Type application/json.',
-                            MonitorType::Http => null,
-                            MonitorType::Mysql, MonitorType::Postgres => 'Optional SQL. Defaults to version, plus a table list when a database is set.',
-                            MonitorType::Redis => 'Optional Redis command (PING, INFO, DBSIZE). Defaults to PING, INFO server, and DBSIZE.',
-                            default => 'Optional payload written after the connection is established.',
-                        }),
-                ]),
-            Section::make('Conditions')
-                ->description('These are what determine whether an endpoint is healthy or not. Use pat(*text*) to match a substring in [BODY], or pat(https://example.com/*) to assert a [REDIRECT] prefix.')
-                ->visible(self::usesOutboundProbe(...))
-                ->dehydrated(self::usesOutboundProbe(...))
-                ->components([
-                    Repeater::make('conditions')
-                        ->relationship()
-                        ->hiddenLabel()
-                        ->table([
-                            TableColumn::make('Placeholder')->markAsRequired(),
-                            TableColumn::make('Comparator')->markAsRequired()->width('8rem'),
-                            TableColumn::make('Value')->markAsRequired(),
-                        ])
-                        ->schema([
-                            Group::make([
-                                Select::make('placeholder')
+
+                                if (! $type->usesRequestBody()) {
+                                    $set('request_body', null);
+                                }
+
+                                if (! $type->usesVerifyTls()) {
+                                    $set('verify_tls', true);
+                                }
+
+                                if (! $type->usesProxy()) {
+                                    $set('proxy_url', null);
+                                }
+
+                                if (! $type->usesDnsQuery()) {
+                                    $set('dns_query_name', null);
+                                    $set('dns_query_type', null);
+                                }
+                            }),
+                        TextInput::make('target')
+                            ->required(fn (Get $get): bool => self::type($get)?->isHeartbeat() !== true)
+                            ->maxLength(2048)
+                            ->placeholder(fn (Get $get): string => match (self::type($get)) {
+                                MonitorType::Tcp => 'tcp://db.example.com:5432',
+                                MonitorType::Udp => 'udp://dns.example.com:53',
+                                MonitorType::Tls => 'tls://db.example.com:5432',
+                                MonitorType::Dns => '1.1.1.1',
+                                MonitorType::Ping => 'example.com',
+                                MonitorType::Heartbeat => 'backup-job',
+                                MonitorType::WebSocket => 'wss://example.com/socket',
+                                MonitorType::GraphQL => 'https://countries.trevorblades.com/',
+                                MonitorType::Mysql => 'mysql://user:pass@db.example.com:3306/app',
+                                MonitorType::Redis => 'redis://:pass@cache.example.com:6379/0',
+                                MonitorType::Postgres => 'postgres://user:pass@db.example.com:5432/app',
+                                default => 'https://example.com/health',
+                            })
+                            ->helperText(fn (Get $get): ?string => self::type($get)?->usesDatabaseUrl() === true
+                                ? 'Connection URL. The probe logs in and runs a version/status query, or your optional command.'
+                                : null),
+                        Toggle::make('heartbeat_slug_enabled')
+                            ->label('Accept slug URL')
+                            ->default(false)
+                            ->live()
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $record): void {
+                                self::syncHeartbeatUrls($set, $get, $record);
+                            })
+                            ->helperText('Off by default. When on, /api/heartbeat/{slug} also accepts pings. Anyone who can guess the slug can signal this monitor. The secret token URL keeps working.'),
+                        TextInput::make('heartbeat_slug')
+                            ->label('Slug')
+                            ->maxLength(64)
+                            ->live(onBlur: true)
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true && (bool) $get('heartbeat_slug_enabled'))
+                            ->required(fn (Get $get): bool => (bool) $get('heartbeat_slug_enabled'))
+                            ->dehydrateStateUsing(fn (mixed $state): ?string => Monitor::normalizeHeartbeatSlug($state))
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $record): void {
+                                self::syncHeartbeatUrls($set, $get, $record);
+                            })
+                            ->rule(function (Get $get, mixed $record): \Closure {
+                                return function (string $attribute, mixed $value, \Closure $fail) use ($get, $record): void {
+                                    if (! $get('heartbeat_slug_enabled')) {
+                                        return;
+                                    }
+
+                                    $message = Monitor::heartbeatSlugValidationMessage(
+                                        Monitor::normalizeHeartbeatSlug($value),
+                                        $record instanceof Monitor ? (string) $record->getKey() : null,
+                                    );
+
+                                    if ($message !== null) {
+                                        $fail($message);
+                                    }
+                                };
+                            })
+                            ->helperText('Letters, numbers, and hyphens. Example: nightly-backup.'),
+                        TextInput::make('heartbeat_url')
+                            ->label('Heartbeat URL')
+                            ->disabled()
+                            ->copyable()
+                            ->dehydrated(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                            ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                                if ($record instanceof Monitor) {
+                                    $component->state($record->heartbeatUrl());
+                                }
+                            })
+                            ->helperText(fn (Get $get): string => (bool) $get('heartbeat_slug_enabled')
+                                ? 'GET or POST this slug URL to signal success. The secret token URL below still works. Append /start, /finish, or /error to measure how long a job runs.'
+                                : 'GET or POST this URL to signal success. Append /start, /finish, or /error to measure how long a job runs.'),
+                        TextInput::make('heartbeat_start_url')
+                            ->label('Start URL')
+                            ->disabled()
+                            ->copyable()
+                            ->dehydrated(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                            ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                                if ($record instanceof Monitor) {
+                                    $component->state($record->heartbeatStartUrl());
+                                }
+                            }),
+                        TextInput::make('heartbeat_finish_url')
+                            ->label('Finish URL')
+                            ->disabled()
+                            ->copyable()
+                            ->dehydrated(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                            ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                                if ($record instanceof Monitor) {
+                                    $component->state($record->heartbeatFinishUrl());
+                                }
+                            }),
+                        TextInput::make('heartbeat_error_url')
+                            ->label('Error URL')
+                            ->disabled()
+                            ->copyable()
+                            ->dehydrated(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                            ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                                if ($record instanceof Monitor) {
+                                    $component->state($record->heartbeatErrorUrl());
+                                }
+                            }),
+                        TextInput::make('heartbeat_secret_url')
+                            ->label('Secret URL')
+                            ->disabled()
+                            ->copyable()
+                            ->dehydrated(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, mixed $record): bool => self::type($get)?->isHeartbeat() === true
+                                && (bool) $get('heartbeat_slug_enabled')
+                                && $record instanceof Monitor
+                                && filled($record->heartbeat_token))
+                            ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                                if ($record instanceof Monitor) {
+                                    $component->state($record->heartbeatTokenUrl());
+                                }
+                            })
+                            ->helperText('This token URL keeps accepting pings when the slug URL is on.'),
+                        TextInput::make('dns_query_name')
+                            ->label('Query name')
+                            ->maxLength(255)
+                            ->placeholder('example.com')
+                            ->required(fn (Get $get): bool => self::type($get) === MonitorType::Dns)
+                            ->visible(self::usesDnsQuery(...)),
+                        Select::make('dns_query_type')
+                            ->label('Query type')
+                            ->options(DnsQueryType::class)
+                            ->default(DnsQueryType::A)
+                            ->required(fn (Get $get): bool => self::type($get) === MonitorType::Dns)
+                            ->visible(self::usesDnsQuery(...)),
+                        Select::make('method')
+                            ->options(HttpMethod::class)
+                            ->default(fn (Get $get): HttpMethod => self::type($get)?->wrapsGraphQLBody() === true
+                                ? HttpMethod::Post
+                                : HttpMethod::Get)
+                            ->visible($usesHttp),
+                        Select::make('ip_family')
+                            ->options(IpFamily::class)
+                            ->default(IpFamily::Any)
+                            ->required(self::usesOutboundProbe(...))
+                            ->visible(self::usesOutboundProbe(...))
+                            ->dehydrated(self::usesOutboundProbe(...)),
+                        TextInput::make('interval_seconds')
+                            ->numeric()
+                            ->required()
+                            ->default(60)
+                            ->live()
+                            ->minValue(fn (Get $get): int => self::formUsesDomainExpiration($get)
+                                ? LookupDomainExpiration::MinimumIntervalSeconds
+                                : 10)
+                            ->rule(function (Get $get): \Closure {
+                                return function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
+                                    if (! self::formUsesDomainExpiration($get)) {
+                                        return;
+                                    }
+
+                                    if ((int) $value < LookupDomainExpiration::MinimumIntervalSeconds) {
+                                        $fail('The minimum interval for a monitor with a [DOMAIN_EXPIRATION] condition is 300s (5m).');
+                                    }
+                                };
+                            })
+                            ->helperText(function (Get $get): ?string {
+                                if (self::type($get)?->isHeartbeat() === true) {
+                                    return 'How often a heartbeat is expected. After /start, the job must finish within this interval.';
+                                }
+
+                                if (self::formUsesDomainExpiration($get)) {
+                                    return 'Checks using [DOMAIN_EXPIRATION] must run at least every 5 minutes (300s).';
+                                }
+
+                                return null;
+                            }),
+                        TextInput::make('timeout_seconds')
+                            ->numeric()
+                            ->default(10)
+                            ->minValue(1)
+                            ->required(self::usesOutboundProbe(...))
+                            ->visible(self::usesOutboundProbe(...))
+                            ->dehydrated(self::usesOutboundProbe(...)),
+                        TextInput::make('retention_days')->numeric()->required()->default(30)->minValue(1),
+                        Toggle::make('enabled')->default(true),
+                        Toggle::make('follow_redirects')
+                            ->default(true)
+                            ->helperText('When off, [REDIRECT] is the Location header. When on, it is the final URL.')
+                            ->visible($usesHttp),
+                        Toggle::make('verify_tls')
+                            ->default(true)
+                            ->visible($usesVerifyTls),
+                        TextInput::make('proxy_url')
+                            ->label('Proxy URL')
+                            ->maxLength(2048)
+                            ->placeholder('socks5h://127.0.0.1:1080')
+                            ->helperText('HTTP (`http://proxy:8080`) or SOCKS (`socks5://`, `socks5h://`). Leave blank to use the environment variables for HTTP checks.')
+                            ->dehydrateStateUsing(fn (mixed $state): ?string => filled($state) ? (string) $state : null)
+                            ->rule(function (): \Closure {
+                                return function (string $attribute, mixed $value, \Closure $fail): void {
+                                    if (! filled($value)) {
+                                        return;
+                                    }
+
+                                    try {
+                                        ProxyUrl::parse((string) $value);
+                                    } catch (InvalidArgumentException $exception) {
+                                        $fail($exception->getMessage());
+                                    }
+                                };
+                            })
+                            ->visible($usesProxy)
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Request')
+                    ->visible(fn (Get $get): bool => $usesRequestBody($get) || $usesRequestHeaders($get))
+                    ->components([
+                        KeyValue::make('request_headers')
+                            ->keyLabel('Header')
+                            ->valueLabel('Value')
+                            ->extraAttributes(['class' => 'nm-secret-header-values'])
+                            ->visible($usesRequestHeaders),
+                        Textarea::make('request_body')
+                            ->rows(6)
+                            ->columnSpanFull()
+                            ->helperText(fn (Get $get): ?string => match (self::type($get)) {
+                                MonitorType::GraphQL => 'Sent as {"query": "..."} with Content-Type application/json.',
+                                MonitorType::Http => null,
+                                MonitorType::Mysql, MonitorType::Postgres => 'Optional SQL. Defaults to version, plus a table list when a database is set.',
+                                MonitorType::Redis => 'Optional Redis command (PING, INFO, DBSIZE). Defaults to PING, INFO server, and DBSIZE.',
+                                default => 'Optional payload written after the connection is established.',
+                            }),
+                    ]),
+                Section::make('Conditions')
+                    ->description('These are what determine whether an endpoint is healthy or not. Use pat(*text*) to match a substring in [BODY], or pat(https://example.com/*) to assert a [REDIRECT] prefix.')
+                    ->visible(self::usesOutboundProbe(...))
+                    ->dehydrated(self::usesOutboundProbe(...))
+                    ->components([
+                        Repeater::make('conditions')
+                            ->relationship()
+                            ->hiddenLabel()
+                            ->table([
+                                TableColumn::make('Placeholder')->markAsRequired(),
+                                TableColumn::make('Comparator')->markAsRequired()->width('8rem'),
+                                TableColumn::make('Value')->markAsRequired(),
+                            ])
+                            ->schema([
+                                Group::make([
+                                    Select::make('placeholder')
+                                        ->hiddenLabel()
+                                        ->options(fn (Get $get): array => ConditionPlaceholder::options(
+                                            $get('placeholder'),
+                                            self::monitorType($get),
+                                        ))
+                                        ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['placeholder'])
+                                        ->required()
+                                        ->native(false)
+                                        ->selectablePlaceholder(false)
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                            self::syncComparator($set, $get, $state);
+                                            self::ensureDomainExpirationInterval($set, $get, $state);
+                                        }),
+                                    TextInput::make('path')
+                                        ->hiddenLabel()
+                                        ->placeholder('.status')
+                                        ->visible(self::isBody(...)),
+                                ]),
+                                Select::make('comparator')
                                     ->hiddenLabel()
-                                    ->options(fn (Get $get): array => ConditionPlaceholder::options(
+                                    ->options(fn (Get $get): array => ConditionPlaceholder::comparatorOptions(
                                         $get('placeholder'),
-                                        self::monitorType($get),
+                                        $get('comparator'),
                                     ))
-                                    ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['placeholder'])
+                                    ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['comparator'])
                                     ->required()
                                     ->native(false)
-                                    ->selectablePlaceholder(false)
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                        self::syncComparator($set, $get, $state);
-                                        self::ensureDomainExpirationInterval($set, $get, $state);
-                                    }),
-                                TextInput::make('path')
+                                    ->selectablePlaceholder(false),
+                                TextInput::make('value')
                                     ->hiddenLabel()
-                                    ->placeholder('.status')
-                                    ->visible(self::isBody(...)),
-                            ]),
-                            Select::make('comparator')
-                                ->hiddenLabel()
-                                ->options(fn (Get $get): array => ConditionPlaceholder::comparatorOptions(
-                                    $get('placeholder'),
-                                    $get('comparator'),
-                                ))
-                                ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['comparator'])
-                                ->required()
-                                ->native(false)
-                                ->selectablePlaceholder(false),
-                            TextInput::make('value')
-                                ->hiddenLabel()
-                                ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['value'])
-                                ->required(),
-                        ])
-                        ->mutateRelationshipDataBeforeFillUsing(fn (array $data): array => FillConditionForm::make()->handle($data))
-                        ->mutateRelationshipDataBeforeCreateUsing(fn (array $data): array => RecordConditionExpression::make()->handle($data))
-                        ->mutateRelationshipDataBeforeSaveUsing(fn (array $data): array => RecordConditionExpression::make()->handle($data))
-                        ->orderColumn('sort')
-                        ->default(fn (Get $get): array => array_map(
-                            ParseConditionExpression::make()->handle(...),
-                            DefaultConditionExpressions::make()->handle($get('type')),
-                        ))
-                        ->minItems(fn (Get $get): int => self::usesOutboundProbe($get) ? 1 : 0)
-                        ->dehydrated(self::usesOutboundProbe(...))
-                        ->addActionLabel('Add condition')
-                        ->live()
-                        ->columnSpanFull(),
-                ]),
-            Section::make('Routing')
-                ->columns(2)
-                ->components([
-                    Select::make('probes')
-                        ->relationship('probes', 'name')
-                        ->multiple()
-                        ->preload()
-                        ->default(fn (): array => Probe::defaultIds())
-                        ->required(self::usesOutboundProbe(...))
-                        ->visible(self::usesOutboundProbe(...))
-                        ->dehydrated(self::usesOutboundProbe(...)),
-                    Select::make('notificationChannels')
-                        ->relationship('notificationChannels', 'name')
-                        ->multiple()
-                        ->preload(),
-                ]),
-        ]);
+                                    ->default(fn (Get $get): string => NewConditionExpression::make()->handle(self::monitorType($get))['value'])
+                                    ->required(),
+                            ])
+                            ->mutateRelationshipDataBeforeFillUsing(fn (array $data): array => FillConditionForm::make()->handle($data))
+                            ->mutateRelationshipDataBeforeCreateUsing(fn (array $data): array => RecordConditionExpression::make()->handle($data))
+                            ->mutateRelationshipDataBeforeSaveUsing(fn (array $data): array => RecordConditionExpression::make()->handle($data))
+                            ->orderColumn('sort')
+                            ->default(fn (Get $get): array => array_map(
+                                ParseConditionExpression::make()->handle(...),
+                                DefaultConditionExpressions::make()->handle($get('type')),
+                            ))
+                            ->minItems(fn (Get $get): int => self::usesOutboundProbe($get) ? 1 : 0)
+                            ->dehydrated(self::usesOutboundProbe(...))
+                            ->addActionLabel('Add condition')
+                            ->live()
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Routing')
+                    ->columns(2)
+                    ->components([
+                        Select::make('probes')
+                            ->relationship('probes', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->default(fn (): array => Probe::defaultIds())
+                            ->required(self::usesOutboundProbe(...))
+                            ->visible(self::usesOutboundProbe(...))
+                            ->dehydrated(self::usesOutboundProbe(...)),
+                        Select::make('notificationChannels')
+                            ->relationship('notificationChannels', 'name')
+                            ->multiple()
+                            ->preload(),
+                    ]),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -468,6 +473,18 @@ final class MonitorResource extends Resource
             ->selectable(false)
             ->paginated([50, 100, 250])
             ->defaultPaginationPageOption(50)
+            ->searchable()
+            ->searchPlaceholder('Search all monitors')
+            ->searchUsing(function (Builder $query, string $search): void {
+                $like = '%'.$search.'%';
+
+                $query->where(function (Builder $query) use ($like): void {
+                    $query->where('name', 'like', $like)
+                        ->orWhere('target', 'like', $like)
+                        ->orWhere('description', 'like', $like)
+                        ->orWhere('tags', 'like', $like);
+                });
+            })
             ->filters([
                 SelectFilter::make('status')
                     ->options(MonitorStatus::class)
@@ -521,12 +538,14 @@ final class MonitorResource extends Resource
 
     public static function duplicateAction(): Action
     {
-        return Action::make('duplicate')
-            ->label('Duplicate')
-            ->icon(Heroicon::OutlinedSquare2Stack)
-            ->url(fn (Monitor $record): string => self::getUrl('create', [
-                'replicate' => $record->getRouteKey(),
-            ]));
+        return ApiManagedUi::lock(
+            Action::make('duplicate')
+                ->label('Duplicate')
+                ->icon(Heroicon::OutlinedSquare2Stack)
+                ->url(fn (Monitor $record): string => self::getUrl('create', [
+                    'replicate' => $record->getRouteKey(),
+                ])),
+        );
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

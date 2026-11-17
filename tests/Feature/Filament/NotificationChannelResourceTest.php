@@ -71,6 +71,7 @@ it('creates an email channel from the type-specific fields', function () {
         ->fillForm([
             'name' => 'Ops email',
             'type' => NotificationChannelType::Mail,
+            'minimum_open_seconds' => 300,
             'config' => [
                 'to' => 'ops@example.com',
             ],
@@ -82,6 +83,7 @@ it('creates an email channel from the type-specific fields', function () {
 
     expect($channel)->not->toBeNull()
         ->and($channel?->type)->toBe(NotificationChannelType::Mail)
+        ->and($channel?->minimum_open_seconds)->toBe(300)
         ->and($channel?->configArray())->toBe(['to' => 'ops@example.com']);
 });
 

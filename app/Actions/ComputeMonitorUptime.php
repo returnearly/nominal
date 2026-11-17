@@ -35,15 +35,16 @@ final readonly class ComputeMonitorUptime implements ActionsPatternInterface
         $dayAgo = $now->copy()->subDay();
         $weekAgo = $now->copy()->subDays(7);
         $monthAgo = $now->copy()->subDays(30);
+        $ninetyDaysAgo = $now->copy()->subDays(90);
 
         $raw = $this->recentCounts($ids, $oneHourAgo, $dayAgo, $currentHour);
-        $hourly = $this->hourlyCounts($ids, $monthAgo->copy()->startOfHour(), $currentHour);
+        $hourly = $this->hourlyCounts($ids, $ninetyDaysAgo->copy()->startOfHour(), $currentHour);
         $fallbackIds = $ids->reject(fn (string $id): bool => $hourly->has($id))->values();
         $fallback = $fallbackIds->isEmpty()
             ? collect()
-            : $this->rawWindowCounts($fallbackIds, $weekAgo, $monthAgo);
+            : $this->rawWindowCounts($fallbackIds, $weekAgo, $monthAgo, $ninetyDaysAgo);
 
-        return $ids->mapWithKeys(function (string $id) use ($raw, $hourly, $fallback, $weekAgo, $monthAgo): array {
+        return $ids->mapWithKeys(function (string $id) use ($raw, $hourly, $fallback, $weekAgo, $monthAgo, $ninetyDaysAgo): array {
             $row = $raw->get($id);
             $hours = $hourly->get($id, collect());
             $currentUp = (int) ($row?->up_current_hour ?? 0);
@@ -52,10 +53,12 @@ final readonly class ComputeMonitorUptime implements ActionsPatternInterface
             if ($hourly->has($id)) {
                 $sevenDays = $this->percentFromHours($hours, $weekAgo->copy()->startOfHour(), $currentUp, $currentDown);
                 $thirtyDays = $this->percentFromHours($hours, $monthAgo->copy()->startOfHour(), $currentUp, $currentDown);
+                $ninetyDays = $this->percentFromHours($hours, $ninetyDaysAgo->copy()->startOfHour(), $currentUp, $currentDown);
             } else {
                 $window = $fallback->get($id);
                 $sevenDays = $this->percent((int) ($window?->up_7d ?? 0), (int) ($window?->down_7d ?? 0));
                 $thirtyDays = $this->percent((int) ($window?->up_30d ?? 0), (int) ($window?->down_30d ?? 0));
+                $ninetyDays = $this->percent((int) ($window?->up_90d ?? 0), (int) ($window?->down_90d ?? 0));
             }
 
             return [$id => new MonitorUptime(
@@ -63,6 +66,7 @@ final readonly class ComputeMonitorUptime implements ActionsPatternInterface
                 twentyFourHours: $this->percent((int) ($row?->up_24h ?? 0), (int) ($row?->down_24h ?? 0)),
                 sevenDays: $sevenDays,
                 thirtyDays: $thirtyDays,
+                ninetyDays: $ninetyDays,
             )];
         });
     }
@@ -108,16 +112,18 @@ final readonly class ComputeMonitorUptime implements ActionsPatternInterface
      * @param  Collection<int, string>  $ids
      * @return Collection<string, object>
      */
-    private function rawWindowCounts(Collection $ids, Carbon $weekAgo, Carbon $monthAgo): Collection
+    private function rawWindowCounts(Collection $ids, Carbon $weekAgo, Carbon $monthAgo, Carbon $ninetyDaysAgo): Collection
     {
         return CheckResult::query()
             ->select('monitor_id')
             ->selectRaw('sum(case when checked_at >= ? and success then 1 else 0 end) as up_7d', [$weekAgo])
             ->selectRaw('sum(case when checked_at >= ? and not success then 1 else 0 end) as down_7d', [$weekAgo])
-            ->selectRaw('sum(case when success then 1 else 0 end) as up_30d')
-            ->selectRaw('sum(case when not success then 1 else 0 end) as down_30d')
+            ->selectRaw('sum(case when checked_at >= ? and success then 1 else 0 end) as up_30d', [$monthAgo])
+            ->selectRaw('sum(case when checked_at >= ? and not success then 1 else 0 end) as down_30d', [$monthAgo])
+            ->selectRaw('sum(case when success then 1 else 0 end) as up_90d')
+            ->selectRaw('sum(case when not success then 1 else 0 end) as down_90d')
             ->whereIn('monitor_id', $ids)
-            ->where('checked_at', '>=', $monthAgo)
+            ->where('checked_at', '>=', $ninetyDaysAgo)
             ->groupBy('monitor_id')
             ->get()
             ->keyBy('monitor_id');

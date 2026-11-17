@@ -29,6 +29,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API-managed resources
+    |--------------------------------------------------------------------------
+    |
+    | When true, the Filament admin cannot create, edit, or delete monitors
+    | or notification channels. GraphQL stays available for Terraform.
+    | Pause, resume, and maintenance stay available in the admin.
+    |
+    */
+    'api_managed' => (bool) env('NOMINAL_API_MANAGED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Outbound proxy
     |--------------------------------------------------------------------------
     |

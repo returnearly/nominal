@@ -16,6 +16,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
     case Discord = 'discord';
     case Webhook = 'webhook';
     case Pagerduty = 'pagerduty';
+    case Browser = 'web_push';
 
     public function getLabel(): string
     {
@@ -26,6 +27,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::Discord => 'Discord',
             self::Webhook => 'Webhook',
             self::Pagerduty => 'PagerDuty',
+            self::Browser => 'Browser',
         };
     }
 
@@ -37,6 +39,7 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::MicrosoftTeams => 'info',
             self::Webhook => 'gray',
             self::Pagerduty => 'warning',
+            self::Browser => 'success',
         };
     }
 
@@ -48,7 +51,8 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::MicrosoftTeams => 'Post alerts to a Teams channel with an incoming webhook.',
             self::Discord => 'Post alerts to a Discord channel with a webhook.',
             self::Webhook => 'POST JSON to your own endpoint when a monitor changes state.',
-            self::Pagerduty => 'Open and resolve incidents with the PagerDuty Events API.',
+            self::Pagerduty => 'Open and resolve incidents with the PagerDuty Events API v2.',
+            self::Browser => 'Push OS notifications to browsers that enable this channel. Save, then enable a device on the edit page.',
         };
     }
 
@@ -180,12 +184,16 @@ enum NotificationChannelType: string implements HasColor, HasLabel
             self::Pagerduty => [
                 new NotificationChannelField(
                     key: 'routing_key',
-                    label: 'Routing key',
+                    label: 'Integration key',
                     kind: 'password',
-                    helperText: 'Events API v2 integration key. Recoveries send a resolve for the monitor.',
+                    placeholder: 'e93facc04764012d7bfb002500d5d1a6',
+                    helperText: 'Events API v2 integration key from the service. 32 hexadecimal characters. A down alert opens an incident; a recovery resolves that same incident.',
                     aliases: ['integration_key'],
+                    maxLength: 32,
+                    regex: '/\A[A-Fa-f0-9]{32}\z/',
                 ),
             ],
+            self::Browser => [],
         };
     }
 

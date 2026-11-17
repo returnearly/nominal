@@ -7,7 +7,7 @@ use App\Models\Monitor;
 use App\Models\Probe;
 use App\Models\User;
 
-it('exposes 1h, 24h, 7d, and 30d uptime on a monitor', function () {
+it('exposes 1h, 24h, 7d, 30d, and 90d uptime on a monitor', function () {
     $this->freezeTime();
 
     $user = User::factory()->create();
@@ -35,6 +35,7 @@ it('exposes 1h, 24h, 7d, and 30d uptime on a monitor', function () {
                     twentyFourHours
                     sevenDays
                     thirtyDays
+                    ninetyDays
                 }
             }
         }
@@ -44,5 +45,6 @@ it('exposes 1h, 24h, 7d, and 30d uptime on a monitor', function () {
     expect($uptime['oneHour'])->toEqual(90.0)
         ->and($uptime['twentyFourHours'])->toEqual(90.0)
         ->and($uptime['sevenDays'])->toEqual(90.0)
-        ->and($uptime['thirtyDays'])->toEqual(90.0);
+        ->and($uptime['thirtyDays'])->toEqual(90.0)
+        ->and($uptime['ninetyDays'])->toEqual(90.0);
 });
