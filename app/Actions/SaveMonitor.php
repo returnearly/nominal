@@ -73,6 +73,11 @@ final readonly class SaveMonitor implements ActionsPatternInterface
             'heartbeat_token' => $type === MonitorType::Heartbeat
                 ? ($monitor->heartbeat_token ?: Str::random(48))
                 : $monitor->heartbeat_token,
+            'heartbeat_slug' => $type === MonitorType::Heartbeat
+                ? $this->heartbeatSlug($input, $monitor)
+                : null,
+            'heartbeat_slug_enabled' => $type === MonitorType::Heartbeat
+                && (bool) ($input['heartbeatSlugEnabled'] ?? $input['heartbeat_slug_enabled'] ?? $monitor->heartbeat_slug_enabled ?? false),
             'follow_redirects' => $type->usesHttpRequest()
                 ? ($input['followRedirects'] ?? $input['follow_redirects'] ?? $monitor->follow_redirects ?? true)
                 : true,
@@ -188,6 +193,22 @@ final readonly class SaveMonitor implements ActionsPatternInterface
     private function description(mixed $description): ?string
     {
         return $this->nullableString($description);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function heartbeatSlug(array $input, Monitor $monitor): ?string
+    {
+        if (array_key_exists('heartbeatSlug', $input)) {
+            return Monitor::normalizeHeartbeatSlug($input['heartbeatSlug']);
+        }
+
+        if (array_key_exists('heartbeat_slug', $input)) {
+            return Monitor::normalizeHeartbeatSlug($input['heartbeat_slug']);
+        }
+
+        return $monitor->heartbeat_slug;
     }
 
     private function nullableString(mixed $value): ?string

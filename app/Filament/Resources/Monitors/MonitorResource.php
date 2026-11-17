@@ -158,6 +158,42 @@ final class MonitorResource extends Resource
                             ->helperText(fn (Get $get): ?string => self::type($get)?->usesDatabaseUrl() === true
                                 ? 'Connection URL. The probe logs in and runs a version/status query, or your optional command.'
                                 : null),
+                        Toggle::make('heartbeat_slug_enabled')
+                            ->label('Accept slug URL')
+                            ->default(false)
+                            ->live()
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true)
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $record): void {
+                                self::syncHeartbeatUrls($set, $get, $record);
+                            })
+                            ->helperText('Off by default. When on, /api/heartbeat/{slug} also accepts pings. Anyone who can guess the slug can signal this monitor. The secret token URL keeps working.'),
+                        TextInput::make('heartbeat_slug')
+                            ->label('Slug')
+                            ->maxLength(64)
+                            ->live(onBlur: true)
+                            ->visible(fn (Get $get): bool => self::type($get)?->isHeartbeat() === true && (bool) $get('heartbeat_slug_enabled'))
+                            ->required(fn (Get $get): bool => (bool) $get('heartbeat_slug_enabled'))
+                            ->dehydrateStateUsing(fn (mixed $state): ?string => Monitor::normalizeHeartbeatSlug($state))
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $record): void {
+                                self::syncHeartbeatUrls($set, $get, $record);
+                            })
+                            ->rule(function (Get $get, mixed $record): \Closure {
+                                return function (string $attribute, mixed $value, \Closure $fail) use ($get, $record): void {
+                                    if (! $get('heartbeat_slug_enabled')) {
+                                        return;
+                                    }
+
+                                    $message = Monitor::heartbeatSlugValidationMessage(
+                                        Monitor::normalizeHeartbeatSlug($value),
+                                        $record instanceof Monitor ? (string) $record->getKey() : null,
+                                    );
+
+                                    if ($message !== null) {
+                                        $fail($message);
+                                    }
+                                };
+                            })
+                            ->helperText('Letters, numbers, and hyphens. Example: nightly-backup.'),
                         TextInput::make('heartbeat_url')
                             ->label('Heartbeat URL')
                             ->disabled()
@@ -170,7 +206,9 @@ final class MonitorResource extends Resource
                                     $component->state($record->heartbeatUrl());
                                 }
                             })
-                            ->helperText('GET or POST this URL to signal success. Append /start, /finish, or /error to measure how long a job runs.'),
+                            ->helperText(fn (Get $get): string => (bool) $get('heartbeat_slug_enabled')
+                                ? 'GET or POST this slug URL to signal success. The secret token URL below still works. Append /start, /finish, or /error to measure how long a job runs.'
+                                : 'GET or POST this URL to signal success. Append /start, /finish, or /error to measure how long a job runs.'),
                         TextInput::make('heartbeat_start_url')
                             ->label('Start URL')
                             ->disabled()
@@ -207,6 +245,22 @@ final class MonitorResource extends Resource
                                     $component->state($record->heartbeatErrorUrl());
                                 }
                             }),
+                        TextInput::make('heartbeat_secret_url')
+                            ->label('Secret URL')
+                            ->disabled()
+                            ->copyable()
+                            ->dehydrated(false)
+                            ->columnSpanFull()
+                            ->visible(fn (Get $get, mixed $record): bool => self::type($get)?->isHeartbeat() === true
+                                && (bool) $get('heartbeat_slug_enabled')
+                                && $record instanceof Monitor
+                                && filled($record->heartbeat_token))
+                            ->afterStateHydrated(function (TextInput $component, mixed $record): void {
+                                if ($record instanceof Monitor) {
+                                    $component->state($record->heartbeatTokenUrl());
+                                }
+                            })
+                            ->helperText('This token URL keeps accepting pings when the slug URL is on.'),
                         TextInput::make('dns_query_name')
                             ->label('Query name')
                             ->maxLength(255)
@@ -621,6 +675,26 @@ final class MonitorResource extends Resource
     private static function monitorType(Get $get): mixed
     {
         return $get('type') ?? $get('../../type') ?? $get('../../../type');
+    }
+
+    private static function syncHeartbeatUrls(Set $set, Get $get, mixed $record): void
+    {
+        if (! $record instanceof Monitor || blank($record->heartbeat_token)) {
+            return;
+        }
+
+        $slug = Monitor::normalizeHeartbeatSlug($get('heartbeat_slug'));
+        $enabled = (bool) $get('heartbeat_slug_enabled');
+        $useSlug = $enabled
+            && $slug !== null
+            && Monitor::heartbeatSlugValidationMessage($slug, (string) $record->getKey()) === null;
+        $base = url('/api/heartbeat/'.($useSlug ? $slug : $record->heartbeat_token));
+
+        $set('heartbeat_url', $base);
+        $set('heartbeat_start_url', $base.'/start');
+        $set('heartbeat_finish_url', $base.'/finish');
+        $set('heartbeat_error_url', $base.'/error');
+        $set('heartbeat_secret_url', $record->heartbeatTokenUrl());
     }
 
     /**

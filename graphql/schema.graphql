@@ -223,6 +223,8 @@ type Monitor {
     dns_query_name: String
     dns_query_type: DnsQueryType
     heartbeat_token: String
+    heartbeat_slug: String
+    heartbeat_slug_enabled: Boolean!
     heartbeatUrl: String @method(name: "heartbeatUrl")
     heartbeatStartUrl: String @method(name: "heartbeatStartUrl")
     heartbeatFinishUrl: String @method(name: "heartbeatFinishUrl")
@@ -270,6 +272,8 @@ input CreateMonitorInput {
     requestBody: String
     dnsQueryName: String
     dnsQueryType: DnsQueryType
+    heartbeatSlug: String
+    heartbeatSlugEnabled: Boolean
     followRedirects: Boolean
     verifyTls: Boolean
     proxyUrl: String
@@ -293,6 +297,8 @@ input UpdateMonitorInput {
     requestBody: String
     dnsQueryName: String
     dnsQueryType: DnsQueryType
+    heartbeatSlug: String
+    heartbeatSlugEnabled: Boolean
     followRedirects: Boolean
     verifyTls: Boolean
     proxyUrl: String

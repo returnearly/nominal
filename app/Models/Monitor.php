@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 #[Fillable([
@@ -46,6 +47,8 @@ use InvalidArgumentException;
     'dns_query_name',
     'dns_query_type',
     'heartbeat_token',
+    'heartbeat_slug',
+    'heartbeat_slug_enabled',
     'follow_redirects',
     'verify_tls',
     'proxy_url',
@@ -73,6 +76,7 @@ class Monitor extends Model
             'dns_query_type' => DnsQueryType::class,
             'status' => MonitorStatus::class,
             'enabled' => 'boolean',
+            'heartbeat_slug_enabled' => 'boolean',
             'follow_redirects' => 'boolean',
             'verify_tls' => 'boolean',
             'proxy_url' => 'encrypted',
@@ -336,11 +340,85 @@ class Monitor extends Model
 
     public function heartbeatUrl(HeartbeatSignal|string|null $signal = null): ?string
     {
-        if ($this->type !== MonitorType::Heartbeat || blank($this->heartbeat_token)) {
+        $key = $this->heartbeat_slug_enabled && filled($this->heartbeat_slug)
+            ? $this->heartbeat_slug
+            : $this->heartbeat_token;
+
+        return $this->heartbeatPath($key, $signal);
+    }
+
+    public function heartbeatTokenUrl(HeartbeatSignal|string|null $signal = null): ?string
+    {
+        return $this->heartbeatPath($this->heartbeat_token, $signal);
+    }
+
+    public static function normalizeHeartbeatSlug(mixed $value): ?string
+    {
+        if (! is_string($value)) {
             return null;
         }
 
-        $url = url('/api/heartbeat/'.$this->heartbeat_token);
+        $value = strtolower(trim($value));
+
+        return $value === '' ? null : $value;
+    }
+
+    public static function heartbeatSlugValidationMessage(?string $slug, ?string $ignoreId = null): ?string
+    {
+        if ($slug === null) {
+            return 'A slug is required when slug URLs are enabled.';
+        }
+
+        if (strlen($slug) > 64 || preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug) !== 1) {
+            return 'Use letters, numbers, and hyphens only.';
+        }
+
+        $taken = static::withTrashed()
+            ->where('heartbeat_slug', $slug)
+            ->when(
+                $ignoreId !== null && $ignoreId !== '',
+                fn (Builder $query): Builder => $query->whereKeyNot($ignoreId),
+            )
+            ->exists();
+
+        if ($taken || static::withTrashed()->where('heartbeat_token', $slug)->exists()) {
+            return 'That heartbeat slug is already in use.';
+        }
+
+        return null;
+    }
+
+    public static function findHeartbeat(string $key): ?self
+    {
+        $monitor = static::query()
+            ->where('type', MonitorType::Heartbeat)
+            ->where('heartbeat_token', $key)
+            ->first();
+
+        if ($monitor instanceof self) {
+            return $monitor;
+        }
+
+        $slug = self::normalizeHeartbeatSlug($key);
+
+        if ($slug === null) {
+            return null;
+        }
+
+        return static::query()
+            ->where('type', MonitorType::Heartbeat)
+            ->where('heartbeat_slug_enabled', true)
+            ->where('heartbeat_slug', $slug)
+            ->first();
+    }
+
+    private function heartbeatPath(mixed $key, HeartbeatSignal|string|null $signal = null): ?string
+    {
+        if ($this->type !== MonitorType::Heartbeat || ! is_string($key) || $key === '') {
+            return null;
+        }
+
+        $url = url('/api/heartbeat/'.$key);
         $suffix = $signal instanceof HeartbeatSignal ? $signal->value : trim((string) $signal);
 
         return $suffix === '' ? $url : $url.'/'.$suffix;
@@ -462,6 +540,31 @@ class Monitor extends Model
             $monitor->description = is_string($description) && trim($description) !== ''
                 ? trim($description)
                 : null;
+
+            if ($monitor->type !== MonitorType::Heartbeat) {
+                $monitor->heartbeat_slug = null;
+                $monitor->heartbeat_slug_enabled = false;
+
+                return;
+            }
+
+            $monitor->heartbeat_slug_enabled = (bool) $monitor->heartbeat_slug_enabled;
+            $monitor->heartbeat_slug = self::normalizeHeartbeatSlug($monitor->heartbeat_slug);
+
+            if (! $monitor->heartbeat_slug_enabled) {
+                return;
+            }
+
+            $message = self::heartbeatSlugValidationMessage(
+                $monitor->heartbeat_slug,
+                $monitor->exists ? (string) $monitor->getKey() : null,
+            );
+
+            if ($message !== null) {
+                throw ValidationException::withMessages([
+                    'heartbeat_slug' => $message,
+                ]);
+            }
         });
 
         static::creating(function (Monitor $monitor): void {

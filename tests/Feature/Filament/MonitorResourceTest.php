@@ -1064,6 +1064,8 @@ it('issues a new heartbeat token when duplicating a heartbeat monitor', function
     $monitor = Monitor::factory()->heartbeat()->create([
         'name' => 'Nightly backup',
         'target' => 'backup-job',
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
     ]);
     $originalToken = $monitor->heartbeat_token;
 
@@ -1073,6 +1075,8 @@ it('issues a new heartbeat token when duplicating a heartbeat monitor', function
             'name' => 'Nightly backup (copy)',
             'type' => MonitorType::Heartbeat,
             'target' => 'backup-job',
+            'heartbeat_slug' => null,
+            'heartbeat_slug_enabled' => false,
             'conditions' => [],
             'probes' => [],
         ])
@@ -1084,7 +1088,54 @@ it('issues a new heartbeat token when duplicating a heartbeat monitor', function
     expect($copy)->not->toBeNull()
         ->and($copy->heartbeat_token)->not->toBe($originalToken)
         ->and($copy->heartbeat_token)->toHaveLength(48)
-        ->and($monitor->fresh()->heartbeat_token)->toBe($originalToken);
+        ->and($copy->heartbeat_slug)->toBeNull()
+        ->and($copy->heartbeat_slug_enabled)->toBeFalse()
+        ->and($monitor->fresh()->heartbeat_token)->toBe($originalToken)
+        ->and($monitor->fresh()->heartbeat_slug)->toBe('nightly-backup');
+});
+
+it('enables a heartbeat slug url from the monitor form', function () {
+    $user = User::factory()->create();
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertFormFieldIsVisible('heartbeat_slug_enabled')
+        ->assertFormFieldIsHidden('heartbeat_slug')
+        ->set('data.heartbeat_slug_enabled', true)
+        ->assertFormFieldIsVisible('heartbeat_slug')
+        ->set('data.heartbeat_slug', 'Nightly-Backup')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $monitor->refresh();
+
+    expect($monitor->heartbeat_slug_enabled)->toBeTrue()
+        ->and($monitor->heartbeat_slug)->toBe('nightly-backup')
+        ->and($monitor->heartbeatUrl())->toEndWith('/api/heartbeat/nightly-backup');
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->assertFormSet([
+            'heartbeat_url' => $monitor->heartbeatUrl(),
+            'heartbeat_secret_url' => $monitor->heartbeatTokenUrl(),
+        ]);
+});
+
+it('rejects a duplicate heartbeat slug', function () {
+    $user = User::factory()->create();
+    Monitor::factory()->heartbeat()->create([
+        'heartbeat_slug' => 'nightly-backup',
+        'heartbeat_slug_enabled' => true,
+    ]);
+    $monitor = Monitor::factory()->heartbeat()->create();
+
+    Livewire::actingAs($user)
+        ->test(EditMonitor::class, ['record' => $monitor->getRouteKey()])
+        ->set('data.heartbeat_slug_enabled', true)
+        ->set('data.heartbeat_slug', 'nightly-backup')
+        ->call('save')
+        ->assertHasFormErrors(['heartbeat_slug']);
 });
 
 it('truncates a long name when labelling a duplicate', function () {
