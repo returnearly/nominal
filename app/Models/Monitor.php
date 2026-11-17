@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -387,7 +388,11 @@ class Monitor extends Model
             ->where('heartbeat_slug', $slug)
             ->when(
                 $ignoreId !== null && $ignoreId !== '',
-                fn (Builder $query): Builder => $query->whereKeyNot($ignoreId),
+                fn (Builder $query): Builder => $query->where(
+                    DB::raw('cast('.$query->getModel()->getQualifiedKeyName().' as text)'),
+                    '!=',
+                    $ignoreId,
+                ),
             )
             ->exists();
 
