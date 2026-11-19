@@ -18,6 +18,7 @@ Database-backed endpoint monitoring. Gatus-shaped conditions, Filament admin, Gr
 - Notifications: mail, Slack, Teams, Discord webhook, generic webhook, PagerDuty, browser (Web Push)
 - Public status pages: multiple branded pages, custom domains, incidents, optional password
 - Terraform provider: [`returnearly/terraform-provider-nominal`](https://github.com/returnearly/terraform-provider-nominal)
+- Laravel client: [`returnearly/laravel-nominal`](https://github.com/returnearly/laravel-nominal) (queue heartbeats + `Schedule::monitorWithNominal()`)
 
 ## Quick start
 
