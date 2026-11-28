@@ -12,6 +12,14 @@ it('exposes a health endpoint', function () {
     $this->get('/up')->assertOk();
 });
 
+it('trusts the proxy forwarded protocol', function () {
+    $this->withHeader('X-Forwarded-Proto', 'https')
+        ->get('/up')
+        ->assertOk();
+
+    expect(request()->isSecure())->toBeTrue();
+});
+
 it('requires authentication for the admin panel', function () {
     $this->get('/admin')->assertRedirect();
 
