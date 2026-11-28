@@ -240,7 +240,7 @@ railway config plan
 railway config apply
 ```
 
-Railway clones this repo at `master` and builds `docker/Dockerfile` for each app service. The web service migrates and ensures the default `checks.local` probe before it serves traffic. The admin is open on first boot (`INTERFACE_AUTH=none`); create a user under Settings, then set `INTERFACE_AUTH=login`.
+Railway clones this repo at `master` and builds `docker/Dockerfile` for each app service. The web service migrates and ensures the default `checks.local` probe before it serves traffic. The first time it boots, it creates `admin@nominal.local` and prints the password in the web service logs. Later boots leave that login alone.
 
 Ping checks fall back to TCP. Railway containers have no raw ICMP socket.
 

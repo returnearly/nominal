@@ -52,7 +52,7 @@ export default defineRailway(() => {
         OCTANE_SERVER: "frankenphp",
         AUTORUN_ENABLED: "false",
         SSL_MODE: "off",
-        INTERFACE_AUTH: "none",
+        INTERFACE_AUTH: "login",
         MAIL_MAILER: "log",
         MAIL_FROM_ADDRESS: "alerts@nominal.local",
         REVERB_APP_ID: "nominal",
@@ -66,7 +66,7 @@ export default defineRailway(() => {
     const web = service("web", {
         source,
         build: imageBuild,
-        start: "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8080 --admin-port=2019",
+        start: "sh /var/www/html/deploy/railway/web.sh",
         preDeploy: "sh /var/www/html/deploy/railway/migrate.sh",
         healthcheck: "/up",
         healthcheckTimeout: 300,

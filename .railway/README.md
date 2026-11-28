@@ -21,4 +21,4 @@ railway config apply
 
 `railway config plan` only reads the linked project. Apply when the plan matches the stack you want. Railway clones `returnearly/nominal` at `master` for the image build.
 
-The admin is open until `INTERFACE_AUTH` is `login`. Create a user in Settings first. The worker listens to `checks.${PROBE_REGION}`; the seeded probe uses `checks.local`.
+The web service creates `admin@nominal.local` the first time it boots and prints the password in its logs. Later boots leave that login alone. The worker listens to `checks.${PROBE_REGION}`; the seeded probe uses `checks.local`.
