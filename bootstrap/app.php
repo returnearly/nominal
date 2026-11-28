@@ -29,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ['middleware' => ['web', AuthenticateBroadcastSubscriber::class, 'auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         $middleware->redirectGuestsTo(function (Request $request): ?string {
             $login = Filament::getLoginUrl();
 

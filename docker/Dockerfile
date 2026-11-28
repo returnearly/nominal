@@ -15,7 +15,7 @@ RUN mkdir -p public && npm run build
 FROM serversideup/php:8.5-frankenphp AS php-base
 
 USER root
-RUN install-php-extensions intl \
+RUN install-php-extensions intl pdo_mysql pdo_pgsql redis \
     && apt-get update \
     && apt-get install -y --no-install-recommends iputils-ping \
     && apt-get clean \
@@ -66,3 +66,7 @@ COPY --from=assets --chown=www-data:www-data /app/public/build /var/www/html/pub
 ENV PHP_OPCACHE_VALIDATE_TIMESTAMPS=0 \
     PHP_OPCACHE_REVALIDATE_FREQ=0 \
     LOG_CHANNEL=stderr
+
+# One image runs the web, worker, scheduler, and Reverb processes.
+# NOMINAL_PROCESS selects which serversideup healthcheck to run.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=180s --retries=3 CMD ["sh", "/var/www/html/deploy/railway/healthcheck.sh"]

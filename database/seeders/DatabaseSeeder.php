@@ -7,7 +7,6 @@ namespace Database\Seeders;
 use App\Enums\NotificationChannelType;
 use App\Models\Monitor;
 use App\Models\NotificationChannel;
-use App\Models\Probe;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -24,15 +23,7 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        Probe::query()->firstOrCreate(
-            ['slug' => 'local'],
-            [
-                'name' => 'Local',
-                'queue' => 'checks.local',
-                'enabled' => true,
-                'is_default' => true,
-            ],
-        );
+        $this->call(DefaultProbeSeeder::class);
 
         $channel = NotificationChannel::query()->firstOrCreate(
             ['name' => 'Local mail'],

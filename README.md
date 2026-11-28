@@ -228,6 +228,22 @@ docker pull ghcr.io/returnearly/nominal:latest
 
 The package is public. If the first publish lands as private, set visibility to **Public** once under the repo's Packages settings.
 
+## Railway
+
+`.railway/railway.ts` is the project template: web, check worker, scheduler, Reverb, Postgres, and Redis. Apply it from a checkout of this repo:
+
+```bash
+npm install
+railway login
+railway init --name nominal
+railway config plan
+railway config apply
+```
+
+Railway clones this repo at `master` and builds `docker/Dockerfile` for each app service. The web service migrates and ensures the default `checks.local` probe before it serves traffic. The first time it boots, it creates `admin@nominal.local` and prints the password in the web service logs. Later boots leave that login alone.
+
+Ping checks fall back to TCP. Railway containers have no raw ICMP socket.
+
 ## License
 
 Copyright © 2026 Return Early.
